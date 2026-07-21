@@ -458,11 +458,12 @@ func (s *Server) handleGalleryEXIF(w http.ResponseWriter, r *http.Request) {
 }
 
 type settingsData struct {
-	Title      string
-	BaseURL    string
-	Webserver  string
-	ServerRoot string
-	Facets     []model.FacetConfig
+	Title       string
+	BaseURL     string
+	FeedEnabled bool
+	Webserver   string
+	ServerRoot  string
+	Facets      []model.FacetConfig
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -478,11 +479,12 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
-		Title:      settings["site.title"],
-		BaseURL:    settings["site.base_url"],
-		Webserver:  settings["site.webserver"],
-		ServerRoot: settings["site.server_root"],
-		Facets:     facets,
+		Title:       settings["site.title"],
+		BaseURL:     settings["site.base_url"],
+		FeedEnabled: settings["site.feed_enabled"] == "true",
+		Webserver:   settings["site.webserver"],
+		ServerRoot:  settings["site.server_root"],
+		Facets:      facets,
 	})
 }
 
@@ -497,6 +499,14 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.SetSetting(ctx, "site.base_url", strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	feedEnabled := "false"
+	if r.FormValue("feed_enabled") == "on" {
+		feedEnabled = "true"
+	}
+	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedEnabled); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}

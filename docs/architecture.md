@@ -272,7 +272,6 @@ themes/<name>/
 │   ├── gallery-list.html    # sub-gallery listing (folder thumbnails)
 │   ├── facet-index.html
 │   ├── facet-value.html
-│   ├── photo.html
 │   └── partials/            # nav, breadcrumbs, figure, lightbox
 ├── assets/                  # theme.css, optional theme.js (self-hosted)
 └── static/                  # favicon, self-hosted fonts, etc.

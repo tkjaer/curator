@@ -115,6 +115,7 @@ type FacetLink struct {
 type SiteView struct {
 	Title   string
 	BaseURL string
+	FeedURL string
 	Nav     []NavNode
 	Facets  []FacetLink
 }
@@ -132,15 +133,6 @@ type GalleryView struct {
 	Blocks      []BlockView
 	Options     map[string]any
 	Site        SiteView
-}
-
-// PhotoPageView is the model for a standalone photo page.
-type PhotoPageView struct {
-	Title      string
-	Breadcrumb []Crumb
-	Photo      PhotoView
-	Options    map[string]any
-	Site       SiteView
 }
 
 // FacetItem is one value within a facet, e.g. a single camera model. Its fields

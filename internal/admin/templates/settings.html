@@ -6,6 +6,9 @@
   <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
   <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input name="base_url" value="{{.BaseURL}}"></label>
 
+  <h2>Syndication</h2>
+  <label class="field"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}> Publish an Atom feed of published galleries at /feed.xml</label>
+
   <h2>Protected galleries</h2>
   <label class="field"><span>Web server (for emitted auth files)</span>
     <select name="webserver">

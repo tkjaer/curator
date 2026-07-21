@@ -30,10 +30,19 @@ func (s *Store) Gallery(ctx context.Context, id int64) (model.Gallery, error) {
 	return g, nil
 }
 
-// UpdateGalleryStatus sets a gallery's publication status.
+// UpdateGalleryStatus sets a gallery's publication status. The first time a
+// gallery becomes published it stamps published_at, preserving that date on
+// later status changes.
 func (s *Store) UpdateGalleryStatus(ctx context.Context, id int64, status model.GalleryStatus) error {
 	_, err := s.DB.ExecContext(ctx,
-		`UPDATE galleries SET status = ?, updated_at = datetime('now') WHERE id = ?`, status, id)
+		`UPDATE galleries
+		    SET status = ?,
+		        published_at = CASE
+		            WHEN ? = 'published' AND published_at IS NULL THEN datetime('now')
+		            ELSE published_at
+		        END,
+		        updated_at = datetime('now')
+		  WHERE id = ?`, status, status, id)
 	return err
 }
 

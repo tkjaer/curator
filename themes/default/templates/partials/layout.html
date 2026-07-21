@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.Title}} &middot; {{.Site.Title}}</title>
 <link rel="stylesheet" href="{{.Site.BaseURL}}/assets/theme.css">
-<style>:root{
+{{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
+{{end}}<style>:root{
 {{if .Options.accent}}  --accent: {{.Options.accent}};
 {{end}}  --gap: {{if .Options.gridGap}}{{.Options.gridGap}}{{else}}8{{end}}px;
 }</style>

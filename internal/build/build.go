@@ -119,6 +119,9 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		Title:   settings["site.title"],
 		BaseURL: strings.TrimRight(settings["site.base_url"], "/"),
 	}
+	if settings["site.feed_enabled"] == "true" {
+		b.site.FeedURL = b.site.BaseURL + "/feed.xml"
+	}
 	for _, g := range roots {
 		b.site.Nav = append(b.site.Nav, render.NavNode{Title: g.Title, Href: b.urlPath(g.ID)})
 	}
@@ -175,6 +178,9 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		return Report{}, err
 	}
 	if err := b.emitAuth(ctx, protected); err != nil {
+		return Report{}, err
+	}
+	if err := b.emitFeed(visible); err != nil {
 		return Report{}, err
 	}
 	if err := b.fillDirectoryIndexes(); err != nil {
