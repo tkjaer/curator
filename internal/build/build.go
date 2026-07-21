@@ -117,7 +117,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 
 	b.site = render.SiteView{
 		Title:   settings["site.title"],
-		BaseURL: settings["site.base_url"],
+		BaseURL: strings.TrimRight(settings["site.base_url"], "/"),
 	}
 	for _, g := range roots {
 		b.site.Nav = append(b.site.Nav, render.NavNode{Title: g.Title, Href: b.urlPath(g.ID)})

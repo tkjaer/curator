@@ -107,6 +107,7 @@ func (s *Server) orderRows(galleries []model.Gallery) []galleryRow {
 
 // galleryPublicURL builds a gallery's public site URL from its ancestor slugs.
 func galleryPublicURL(all []model.Gallery, g model.Gallery, baseURL string) string {
+	baseURL = strings.TrimRight(baseURL, "/")
 	byID := make(map[int64]model.Gallery, len(all))
 	for _, x := range all {
 		byID[x.ID] = x
@@ -495,7 +496,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	if err := s.store.SetSetting(ctx, "site.base_url", r.FormValue("base_url")); err != nil {
+	if err := s.store.SetSetting(ctx, "site.base_url", strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
