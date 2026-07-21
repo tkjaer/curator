@@ -498,12 +498,15 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	if err := s.store.SetSetting(ctx, "site.base_url", strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")); err != nil {
+	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
+	if err := s.store.SetSetting(ctx, "site.base_url", baseURL); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
+	// The Atom feed needs absolute URLs, so it can only be enabled once a base
+	// URL is set.
 	feedEnabled := "false"
-	if r.FormValue("feed_enabled") == "on" {
+	if baseURL != "" && r.FormValue("feed_enabled") == "on" {
 		feedEnabled = "true"
 	}
 	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedEnabled); err != nil {

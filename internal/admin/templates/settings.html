@@ -4,10 +4,25 @@
 <form class="card" method="post" action="{{$.BasePath}}/settings">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
-  <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input name="base_url" value="{{.BaseURL}}"></label>
+  <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input id="base_url" name="base_url" value="{{.BaseURL}}"></label>
 
   <h2>Syndication</h2>
-  <label class="field"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}> Publish an Atom feed of published galleries at /feed.xml</label>
+  <label class="field"><input type="checkbox" id="feed_enabled" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Publish an Atom feed of published galleries at /feed.xml</label>
+  <p id="feed_hint"{{if .BaseURL}} hidden{{end}}><small>Set a Base URL above to enable the feed.</small></p>
+  <script>
+  (function () {
+    var u = document.getElementById("base_url"),
+        c = document.getElementById("feed_enabled"),
+        h = document.getElementById("feed_hint");
+    if (!u || !c) return;
+    u.addEventListener("input", function () {
+      var on = u.value.trim() !== "";
+      c.disabled = !on;
+      if (!on) c.checked = false;
+      if (h) h.hidden = on;
+    });
+  })();
+  </script>
 
   <h2>Protected galleries</h2>
   <label class="field"><span>Web server (for emitted auth files)</span>

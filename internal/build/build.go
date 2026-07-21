@@ -119,7 +119,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		Title:   settings["site.title"],
 		BaseURL: strings.TrimRight(settings["site.base_url"], "/"),
 	}
-	if settings["site.feed_enabled"] == "true" {
+	if settings["site.feed_enabled"] == "true" && b.site.BaseURL != "" {
 		b.site.FeedURL = b.site.BaseURL + "/feed.xml"
 	}
 	for _, g := range roots {
