@@ -1,0 +1,11 @@
+{{define "photo"}}{{template "site-head" .}}
+{{template "breadcrumbs" .Breadcrumb}}
+<article class="photo-page">
+  <img src="{{.Photo.Display.URL}}"
+       srcset="{{range $i, $s := .Photo.Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
+       sizes="100vw"
+       width="{{.Photo.Width}}" height="{{.Photo.Height}}" alt="{{.Photo.Alt}}">
+  {{if .Photo.Caption}}<div class="prose caption">{{.Photo.Caption}}</div>{{end}}
+  {{if .Photo.Exif}}{{template "exif" .Photo.Exif}}{{end}}
+</article>
+{{template "site-foot" .}}{{end}}

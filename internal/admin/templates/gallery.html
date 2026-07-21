@@ -1,0 +1,157 @@
+{{define "gallery"}}{{template "head" .}}
+{{with .Data}}
+<p><a href="{{$.BasePath}}/">&larr; Galleries</a></p>
+<h1>{{.Gallery.Title}}</h1>
+<p>Slug: <code>{{.Gallery.Slug}}</code> &middot; Type: {{.Gallery.Type}} &middot; Status: <span class="badge">{{.Gallery.Status}}</span></p>
+<p>Public URL: <a href="{{.PublicURL}}">{{.PublicURL}}</a>{{if eq (printf "%s" .Gallery.Status) "unlisted"}} <span class="badge">unlisted: reachable by this link, not shown in navigation</span>{{end}}</p>
+
+<div class="card">
+  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label>Status
+      <select name="status">
+        {{range .Statuses}}<option value="{{.}}"{{if eq . (printf "%s" $.Data.Gallery.Status)}} selected{{end}}>{{.}}</option>{{end}}
+      </select>
+    </label>
+    <button>Update</button>
+  </form>
+  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif" style="margin-left:1rem">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF</label>
+    <button>Save</button>
+  </form>
+  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" style="margin-left:1rem" onsubmit="return confirm('Delete this gallery and everything inside it?')">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button class="danger">Delete gallery</button>
+  </form>
+</div>
+
+<h2>Move</h2>
+<form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label class="field"><span>Move under</span>
+    <select name="parent">
+      <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
+      {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <button>Move</button>
+</form>
+
+<h2>Sub-galleries</h2>
+{{if .Children}}
+<ul class="subgalleries">
+  {{range .Children}}<li><a href="{{.URL}}">{{.Title}}</a> <span class="badge">{{.Status}}</span> &middot; {{.Count}} photos</li>{{end}}
+</ul>
+{{else}}
+<p><span>None yet.</span></p>
+{{end}}
+<form class="card" method="post" action="{{$.BasePath}}/galleries">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <input type="hidden" name="parent" value="{{.Gallery.ID}}">
+  <label class="field"><span>New sub-gallery title</span><input name="title" required></label>
+  <label class="field"><span>Type</span>
+    <select name="type"><option value="grid">Grid</option><option value="story">Story</option></select>
+  </label>
+  <button>Add sub-gallery</button>
+</form>
+
+{{if .Protected}}
+<h2>Access</h2>
+<form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/access">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  {{if .AccessUsers}}
+  <p><span>Choose who can view this protected gallery.</span></p>
+  {{range .AccessUsers}}
+  <label class="field"><input type="checkbox" name="user_{{.ID}}"{{if .Granted}} checked{{end}}> {{.Username}}</label>
+  {{end}}
+  <button>Save access</button>
+  {{else}}
+  <p><span>No access users defined yet. Add them on the <a href="{{$.BasePath}}/access">Access</a> page.</span></p>
+  {{end}}
+</form>
+{{end}}
+
+<h2>Upload photos</h2>
+<form class="card" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <input type="file" name="images" multiple accept="image/jpeg,image/png">
+  <button>Upload</button>
+</form>
+
+<h2>Photos ({{len .Items}})</h2>
+{{if .Items}}
+<div class="thumbs">
+  {{range .Items}}
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}">
+    <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" loading="lazy">
+    <figcaption>
+      <span class="fn">{{.Filename}}{{if eq .ID $.Data.CoverID}} &middot; cover{{end}}</span>
+      <form method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="text" name="caption" value="{{.Caption}}" placeholder="caption">
+        <select name="status">
+          {{$cur := printf "%s" .Status}}
+          {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+        <label><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> highlight</label>
+        <button>Save</button>
+      </form>
+      <div class="item-actions">
+        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button title="Move up">&uarr;</button></form>
+        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button title="Move down">&darr;</button></form>
+        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button>Cover</button></form>
+        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+      </div>
+    </figcaption>
+  </figure>
+  {{end}}
+</div>
+{{else}}
+<p>No photos yet.</p>
+{{end}}
+
+{{if .IsStory}}
+<h2>Content blocks</h2>
+{{range $block := .Blocks}}
+<div class="card">
+  <div class="item-actions">
+    <strong>{{$block.Type}}</strong>
+    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button title="Move up">&uarr;</button></form>
+    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button title="Move down">&darr;</button></form>
+    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/delete" onsubmit="return confirm('Delete this block?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+  </div>
+  <form method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/update">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    {{if or (eq $block.Type "heading") (eq $block.Type "text") (eq $block.Type "quote")}}
+    <label class="field"><span>Text (Markdown)</span><textarea name="content" rows="4">{{$block.Content}}</textarea></label>
+    {{else if eq $block.Type "image"}}
+    <label class="field"><span>Photo</span>
+      <select name="item">
+        <option value="">(choose photo)</option>
+        {{range $.Data.ItemChoices}}<option value="{{.ID}}"{{if eq .ID $block.ItemID}} selected{{end}}>{{.Filename}}</option>{{end}}
+      </select>
+    </label>
+    {{else if eq $block.Type "grid"}}
+    <span>Photos in this grid</span>
+    <div class="grid-choices">
+      {{range $.Data.ItemChoices}}<label><input type="checkbox" name="item_{{.ID}}"{{if index $block.GridItems .ID}} checked{{end}}> {{.Filename}}</label>{{end}}
+    </div>
+    {{end}}
+    <button>Save</button>
+  </form>
+</div>
+{{end}}
+
+<h3>Add block</h3>
+<form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/blocks">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label class="field"><span>Type</span>
+    <select name="type">{{range .BlockTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+  </label>
+  <label class="field"><span>Text (for heading/text/quote; leave blank for image/grid)</span><textarea name="content" rows="3"></textarea></label>
+  <button>Add block</button>
+</form>
+{{end}}
+{{end}}
+{{template "foot" .}}{{end}}

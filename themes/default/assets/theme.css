@@ -1,0 +1,150 @@
+:root {
+  color-scheme: light dark;
+  --accent: #1a1a1a;
+  --bg: #ffffff;
+  --gap: 8px;
+  --fg: #1a1a1a;
+  --muted: #6a6a6a;
+  --maxw: 1200px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --fg: #eee;
+    --muted: #999;
+    --accent: #ddd;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+main { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gap); }
+
+a { color: inherit; }
+
+.site-header {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 1.5rem var(--gap);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.site-title { font-weight: 600; font-size: 1.25rem; text-decoration: none; }
+.site-nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+.site-nav a { color: var(--muted); text-decoration: none; }
+.site-nav a:hover { color: var(--fg); }
+
+.breadcrumbs { color: var(--muted); font-size: .9rem; margin: .5rem 0 1rem; }
+.breadcrumbs a { text-decoration: none; }
+.breadcrumbs .sep { margin: 0 .4rem; }
+.breadcrumbs a:last-of-type + .sep { display: none; }
+
+h1 { font-weight: 600; letter-spacing: -.01em; }
+
+.prose { max-width: 44rem; color: var(--fg); }
+.prose.description { color: var(--muted); }
+
+/* Justified grid */
+.grid { margin: 1rem 0; }
+.row { display: flex; gap: var(--gap); margin-bottom: var(--gap); }
+.row-center { justify-content: center; }
+.photo {
+  position: relative;
+  margin: 0;
+  flex-grow: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #0001;
+}
+.photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo.highlighted { outline: 2px solid var(--accent); outline-offset: -2px; }
+.photo figcaption {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: .4rem .6rem;
+  font-size: .8rem;
+  color: #fff;
+  background: linear-gradient(transparent, #0009);
+  opacity: 0;
+  transition: opacity .15s;
+}
+.photo:hover figcaption { opacity: 1; }
+.fig-caption { display: block; }
+.fig-exif { display: block; font-size: .72rem; opacity: .85; margin-top: .1rem; }
+
+/* Folder / facet cards */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--gap);
+  margin: 1rem 0;
+}
+.card { text-decoration: none; display: block; }
+.card-cover {
+  display: block;
+  aspect-ratio: 3 / 2;
+  background: #0001 center/cover no-repeat;
+  border-radius: 4px;
+}
+.card-cover .lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 2rem;
+  opacity: .5;
+}
+.card-title { display: block; margin-top: .4rem; font-size: .95rem; }
+.card-title em { color: var(--muted); font-style: normal; }
+
+/* Story */
+.story { max-width: 900px; margin: 0 auto; }
+.story-image { margin: 1.5rem 0; }
+.story-image img { width: 100%; height: auto; display: block; }
+.story-image figcaption { color: var(--muted); font-size: .85rem; margin-top: .4rem; }
+
+/* Standalone photo page */
+.photo-page img { width: 100%; height: auto; display: block; }
+.exif {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: .5rem 1rem;
+  color: var(--muted);
+  font-size: .85rem;
+  margin: 1rem 0 3rem;
+}
+.exif dt { font-weight: 600; color: var(--fg); }
+.exif dd { margin: 0; }
+
+/* Lightbox */
+.lightbox { border: 0; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; }
+.lightbox::backdrop { background: #000d; }
+.lightbox .lb-img { max-width: 96vw; max-height: 90vh; display: block; margin: auto; }
+.lb-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0006;
+  color: #fff;
+  border: 0;
+  font-size: 2rem;
+  line-height: 1;
+  padding: .5rem .8rem;
+  cursor: pointer;
+}
+.lb-prev { left: 1rem; }
+.lb-next { right: 1rem; }
+.lb-close { top: 1rem; right: 1rem; transform: none; font-size: 1.5rem; }
+.lb-caption { position: fixed; bottom: 2.2rem; left: 0; right: 0; text-align: center; color: #fff; margin: 0; text-shadow: 0 1px 3px #000; }
+.lb-exif { position: fixed; bottom: 1rem; left: 0; right: 0; text-align: center; color: #ccc; font-size: .8rem; margin: 0; text-shadow: 0 1px 3px #000; }

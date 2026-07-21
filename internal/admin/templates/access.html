@@ -1,0 +1,32 @@
+{{define "access"}}{{template "head" .}}
+{{with .Data}}
+<h1>Access users</h1>
+<p><span>Basic-auth credentials for protected galleries. Grant users per gallery on its page.</span></p>
+{{if .Users}}
+<table>
+  <tr><th>Username</th><th></th></tr>
+  {{range .Users}}
+  <tr>
+    <td>{{.Username}}</td>
+    <td>
+      <form class="inline" method="post" action="{{$.BasePath}}/access/{{.ID}}/delete" onsubmit="return confirm('Delete this user?')">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <button class="danger">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+</table>
+{{else}}
+<p>No access users yet.</p>
+{{end}}
+
+<h2>New user</h2>
+<form class="card" method="post" action="{{$.BasePath}}/access">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label class="field"><span>Username</span><input name="username" required></label>
+  <label class="field"><span>Password</span><input type="password" name="password" required></label>
+  <button>Create user</button>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}

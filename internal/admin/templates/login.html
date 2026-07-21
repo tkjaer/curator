@@ -1,0 +1,8 @@
+{{define "login"}}{{template "head" .}}
+<h1>Sign in</h1>
+<form class="card" method="post" action="{{.BasePath}}/login">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}">
+  <label class="field"><span>Password</span><input type="password" name="password" autofocus required></label>
+  <button>Sign in</button>
+</form>
+{{template "foot" .}}{{end}}

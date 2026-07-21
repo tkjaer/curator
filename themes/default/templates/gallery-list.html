@@ -1,0 +1,8 @@
+{{define "gallery-list"}}{{template "site-head" .}}
+{{template "breadcrumbs" .Breadcrumb}}
+<article class="gallery">
+  <h1>{{.Title}}</h1>
+  {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  {{template "cards" .Children}}
+</article>
+{{template "site-foot" .}}{{end}}

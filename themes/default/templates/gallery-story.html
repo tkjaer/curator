@@ -1,0 +1,20 @@
+{{define "gallery-story"}}{{template "site-head" .}}
+{{template "breadcrumbs" .Breadcrumb}}
+<article class="story">
+  <h1>{{.Title}}</h1>
+  {{range .Blocks}}
+  {{if eq .Type "grid"}}{{template "grid" .Rows}}
+  {{else if eq .Type "image"}}<figure class="story-image">
+    <a href="{{.Photo.Display.URL}}" data-lightbox data-id="{{.Photo.Slug}}" data-caption="{{.Photo.Caption}}"{{with .Photo.Exif}} data-exif="{{.Line}}"{{end}}>
+      <img src="{{.Photo.Display.URL}}"
+           srcset="{{range $i, $s := .Photo.Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
+           sizes="(max-width: 900px) 100vw, 900px"
+           width="{{.Photo.Width}}" height="{{.Photo.Height}}" alt="{{.Photo.Alt}}" loading="lazy">
+    </a>
+    {{if .Photo.Caption}}<figcaption>{{.Photo.Caption}}</figcaption>{{end}}
+  </figure>
+  {{else}}<div class="prose">{{.HTML}}</div>
+  {{end}}
+  {{end}}
+</article>
+{{template "site-foot" .}}{{end}}

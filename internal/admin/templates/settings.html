@@ -1,0 +1,27 @@
+{{define "settings"}}{{template "head" .}}
+{{with .Data}}
+<h1>Settings</h1>
+<form class="card" method="post" action="{{$.BasePath}}/settings">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
+  <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input name="base_url" value="{{.BaseURL}}"></label>
+
+  <h2>Protected galleries</h2>
+  <label class="field"><span>Web server (for emitted auth files)</span>
+    <select name="webserver">
+      <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
+      <option value="apache"{{if eq .Webserver "apache"}} selected{{end}}>Apache</option>
+    </select>
+  </label>
+  <label class="field"><span>Server root (absolute path where output is deployed, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
+
+  <h2>Browse facets</h2>
+  <p><span>Enable browsing photos by camera or lens (built from EXIF).</span></p>
+  {{range .Facets}}
+  <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> {{.Label}}</label>
+  {{end}}
+
+  <button>Save settings</button>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}

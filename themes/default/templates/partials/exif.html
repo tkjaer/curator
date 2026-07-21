@@ -1,0 +1,9 @@
+{{define "exif"}}<dl class="exif">
+  {{if .Camera}}<div><dt>Camera</dt><dd>{{.Camera}}</dd></div>{{end}}
+  {{if .Lens}}<div><dt>Lens</dt><dd>{{.Lens}}</dd></div>{{end}}
+  {{if .Aperture}}<div><dt>Aperture</dt><dd>{{.Aperture}}</dd></div>{{end}}
+  {{if .Shutter}}<div><dt>Shutter</dt><dd>{{.Shutter}}</dd></div>{{end}}
+  {{if .ISO}}<div><dt>ISO</dt><dd>{{.ISO}}</dd></div>{{end}}
+  {{if .Focal}}<div><dt>Focal</dt><dd>{{.Focal}}</dd></div>{{end}}
+  {{if .TakenAt}}<div><dt>Taken</dt><dd>{{.TakenAt}}</dd></div>{{end}}
+</dl>{{end}}

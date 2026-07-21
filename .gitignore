@@ -1,0 +1,16 @@
+# Build output (regenerable)
+/output/
+
+# Content root artifacts when developing in-tree
+*.db
+*.db-wal
+*.db-shm
+/originals/
+
+# Go
+/curator
+*.test
+*.out
+
+# OS / editor noise
+.DS_Store

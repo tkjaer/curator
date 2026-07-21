@@ -1,0 +1,76 @@
+{{define "dashboard"}}{{template "head" .}}
+{{with .Data}}
+<div id="build-status" class="card" hidden>
+  <strong>Build</strong> <span id="build-stage"></span>
+  <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
+  <p id="build-summary"></p>
+</div>
+<h1>Galleries</h1>
+{{if .Galleries}}
+<table>
+  <tr><th>Title</th><th>Slug</th><th>Status</th><th>Photos</th></tr>
+  {{range .Galleries}}
+  <tr>
+    <td>{{.Indent}}<a href="{{.URL}}">{{.Title}}</a></td>
+    <td>{{.Slug}}</td>
+    <td><span class="badge">{{.Status}}</span></td>
+    <td>{{.Count}}</td>
+  </tr>
+  {{end}}
+</table>
+{{else}}
+<p>No galleries yet. Create one below.</p>
+{{end}}
+
+<h2>New gallery</h2>
+<form class="card" method="post" action="{{$.BasePath}}/galleries">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <label class="field"><span>Title</span><input name="title" required></label>
+  <label class="field"><span>Slug (optional)</span><input name="slug" placeholder="auto from title"></label>
+  <label class="field"><span>Parent gallery</span>
+    <select name="parent">
+      <option value="">(top level)</option>
+      {{range .Parents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+    </select>
+  </label>
+  <label class="field"><span>Type</span>
+    <select name="type">
+      <option value="grid">Grid</option>
+      <option value="story">Story</option>
+    </select>
+  </label>
+  <button>Create gallery</button>
+</form>
+{{end}}
+<script>
+(function () {
+  var base = "{{.BasePath}}";
+  var box = document.getElementById("build-status");
+  var bar = document.getElementById("build-bar");
+  var stage = document.getElementById("build-stage");
+  var summary = document.getElementById("build-summary");
+  var timer = null;
+  function poll() {
+    fetch(base + "/build/status").then(function (r) { return r.json(); }).then(function (s) {
+      if (!s.everRun) { box.hidden = true; return; }
+      box.hidden = false;
+      if (s.running) {
+        stage.textContent = s.stage + (s.total ? " " + s.done + "/" + s.total : "");
+        bar.style.width = (s.total ? Math.round(s.done / s.total * 100) : 0) + "%";
+        summary.textContent = "Building…";
+        if (!timer) timer = setInterval(poll, 700);
+      } else {
+        bar.style.width = "100%";
+        stage.textContent = "";
+        if (s.error) summary.textContent = "Build failed: " + s.error;
+        else summary.textContent = "Built " + s.galleries + " galleries, " + s.photos +
+          " photos (" + s.generated + " generated, " + s.reused + " reused) in " +
+          (s.durationMs / 1000).toFixed(1) + "s";
+        if (timer) { clearInterval(timer); timer = null; }
+      }
+    }).catch(function () {});
+  }
+  poll();
+})();
+</script>
+{{template "foot" .}}{{end}}

@@ -1,0 +1,6 @@
+{{define "cards"}}<div class="cards">
+{{range .}}<a class="card{{if .Locked}} locked{{end}}" href="{{.Href}}">
+  <span class="card-cover"{{if .Cover.URL}} style="background-image:url('{{.Cover.URL}}')"{{end}}>{{if .Locked}}<span class="lock" aria-label="Password protected">&#128274;</span>{{end}}</span>
+  <span class="card-title">{{.Title}}{{if .Count}} <em>{{.Count}}</em>{{end}}</span>
+</a>
+{{end}}</div>{{end}}
