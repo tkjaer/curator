@@ -102,6 +102,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/access/{id}/delete"), s.handleDeleteAccessUser)
 	mux.HandleFunc("GET "+s.path("/settings"), s.handleSettings)
 	mux.HandleFunc("POST "+s.path("/settings"), s.handleSaveSettings)
+	mux.HandleFunc("POST "+s.path("/settings/password"), s.handlePassword)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)
 	mux.HandleFunc("GET "+s.path("/build/status"), s.handleBuildStatus)
 	mux.HandleFunc("POST "+s.path("/rescan"), s.handleRescan)

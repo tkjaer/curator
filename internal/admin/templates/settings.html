@@ -41,5 +41,14 @@
 
   <button>Save settings</button>
 </form>
+
+<h2>Admin password</h2>
+<form class="card" method="post" action="{{$.BasePath}}/settings/password">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  {{if $.AuthEnabled}}<label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"></label>{{else}}<p><span>No admin password is set &mdash; the admin UI is currently open. Setting one requires sign-in from then on.</span></p>{{end}}
+  <label class="field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password" required></label>
+  <label class="field"><span>Confirm new password</span><input type="password" name="confirm_password" autocomplete="new-password" required></label>
+  <button>{{if $.AuthEnabled}}Change password{{else}}Set password{{end}}</button>
+</form>
 {{end}}
 {{template "foot" .}}{{end}}

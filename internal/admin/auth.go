@@ -20,6 +20,7 @@ func (s *Server) handleLoginForm(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "login", "Sign in", s.flash(r), nil)
 }
 
+// handleLogin authenticates the admin and starts a session.
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if !s.authEnabled {
 		s.redirect(w, r, s.link(), "")
@@ -41,6 +42,44 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	s.throttle.success(s.clientIP(r))
 	s.setSession(w, r, Session{Auth: true, CSRF: randomToken()})
 	s.redirect(w, r, s.link(), "Signed in")
+}
+
+// handlePassword sets or changes the admin login password. When a password is
+// already set, the current one must be supplied. Setting a password on an open
+// instance enables sign-in from then on.
+func (s *Server) handlePassword(w http.ResponseWriter, r *http.Request) {
+	current := r.FormValue("current_password")
+	next := r.FormValue("new_password")
+	confirm := r.FormValue("confirm_password")
+
+	if next == "" {
+		s.redirect(w, r, s.link("settings"), "New password cannot be empty")
+		return
+	}
+	if next != confirm {
+		s.redirect(w, r, s.link("settings"), "New passwords do not match")
+		return
+	}
+	if s.passwordHash != "" && bcrypt.CompareHashAndPassword([]byte(s.passwordHash), []byte(current)) != nil {
+		s.redirect(w, r, s.link("settings"), "Current password is incorrect")
+		return
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(next), bcrypt.DefaultCost)
+	if err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not set password")
+		return
+	}
+	if err := s.store.SetSetting(r.Context(), "admin.password_hash", string(hash)); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not set password")
+		return
+	}
+	s.passwordHash = string(hash)
+	s.authEnabled = true
+	// Keep the current user signed in (and, if auth was just enabled, establish
+	// their authenticated session).
+	s.setSession(w, r, Session{Auth: true, CSRF: randomToken()})
+	s.redirect(w, r, s.link("settings"), "Password updated")
 }
 
 // applyLoginDelay sleeps for the throttle delay, bounding the number of
