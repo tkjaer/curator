@@ -461,9 +461,29 @@ type settingsData struct {
 	Title       string
 	BaseURL     string
 	FeedEnabled bool
+	Theme       string
+	Themes      []string
 	Webserver   string
 	ServerRoot  string
 	Facets      []model.FacetConfig
+}
+
+// themeOr returns the configured theme name, defaulting to "default" when unset.
+func themeOr(name string) string {
+	if name == "" {
+		return "default"
+	}
+	return name
+}
+
+// validTheme reports whether name is one of the available themes.
+func (s *Server) validTheme(name string) bool {
+	for _, t := range s.themes {
+		if t == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -482,6 +502,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Title:       settings["site.title"],
 		BaseURL:     settings["site.base_url"],
 		FeedEnabled: settings["site.feed_enabled"] == "true",
+		Theme:       themeOr(settings["site.theme"]),
+		Themes:      s.themes,
 		Webserver:   settings["site.webserver"],
 		ServerRoot:  settings["site.server_root"],
 		Facets:      facets,
@@ -512,6 +534,12 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedEnabled); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
+	}
+	if theme := r.FormValue("theme"); s.validTheme(theme) {
+		if err := s.store.SetSetting(ctx, "site.theme", theme); err != nil {
+			s.redirect(w, r, s.link("settings"), "Could not save settings")
+			return
+		}
 	}
 	if err := s.store.SetSetting(ctx, "site.webserver", r.FormValue("webserver")); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")

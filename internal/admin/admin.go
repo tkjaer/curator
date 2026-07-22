@@ -31,6 +31,7 @@ type Options struct {
 	BasePath   string
 	TrustProxy bool
 	Build      BuildFunc
+	Themes     []string
 }
 
 // Server is the admin HTTP application.
@@ -40,6 +41,7 @@ type Server struct {
 	basePath string
 	build    BuildFunc
 	tmpl     *template.Template
+	themes   []string
 
 	trustProxy   bool
 	authEnabled  bool
@@ -63,6 +65,7 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		basePath:   strings.TrimRight(opts.BasePath, "/"),
 		build:      opts.Build,
 		tmpl:       tmpl,
+		themes:     opts.Themes,
 		trustProxy: opts.TrustProxy,
 		throttle:   newThrottle(),
 		loginSem:   make(chan struct{}, throttleMaxConcurrent),

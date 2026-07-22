@@ -6,6 +6,14 @@
   <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
   <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input id="base_url" name="base_url" value="{{.BaseURL}}"></label>
 
+  <h2>Theme</h2>
+  {{$cur := .Theme}}
+  <label class="field"><span>Site theme</span>
+    <select name="theme">
+      {{range .Themes}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
+    </select>
+  </label>
+
   <h2>Syndication</h2>
   <label class="field"><input type="checkbox" id="feed_enabled" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Publish an Atom feed of published galleries at /feed.xml</label>
   <p id="feed_hint"{{if .BaseURL}} hidden{{end}}><small>Set a Base URL above to enable the feed.</small></p>

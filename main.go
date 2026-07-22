@@ -241,7 +241,7 @@ func buildSite(ctx context.Context, cfg config.Config, onProgress func(build.Pro
 	if err := st.Migrate(ctx); err != nil {
 		return build.Report{}, err
 	}
-	th, err := loadTheme("default")
+	th, err := loadSiteTheme(ctx, st)
 	if err != nil {
 		return build.Report{}, err
 	}
@@ -338,7 +338,7 @@ func cmdServe(args []string) error {
 	}
 
 	runBuild := func(ctx context.Context, onProgress func(build.Progress)) (build.Report, error) {
-		th, err := loadTheme("default")
+		th, err := loadSiteTheme(ctx, st)
 		if err != nil {
 			return build.Report{}, err
 		}
@@ -351,6 +351,7 @@ func cmdServe(args []string) error {
 		BasePath:   *basePath,
 		TrustProxy: *trustProxy,
 		Build:      runBuild,
+		Themes:     availableThemes(),
 	})
 	if err != nil {
 		return err
