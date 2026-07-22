@@ -41,6 +41,13 @@
   </label>
   <button>Create gallery</button>
 </form>
+
+<h2>Maintenance</h2>
+<form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read EXIF metadata from every photo?')">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <p><span>Re-read camera metadata (EXIF) from the original files &mdash; useful after editing originals or upgrading Curator. Does not add or remove photos.</span></p>
+  <button>Rescan EXIF</button>
+</form>
 {{end}}
 <script>
 (function () {

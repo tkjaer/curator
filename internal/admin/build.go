@@ -3,11 +3,13 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/tkjaer/curator/internal/build"
+	"github.com/tkjaer/curator/internal/ingest"
 )
 
 // buildStatus tracks an in-progress or finished build for the admin UI.
@@ -104,4 +106,19 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleBuildStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(s.builds.snapshot())
+}
+
+// handleRescan re-reads EXIF metadata from every item's original file. It runs
+// synchronously; the work is I/O-light (no image re-encoding).
+func (s *Server) handleRescan(w http.ResponseWriter, r *http.Request) {
+	updated, skipped, err := ingest.Rescan(r.Context(), s.store, s.cfg)
+	if err != nil {
+		s.redirect(w, r, s.link(), "Rescan failed: "+err.Error())
+		return
+	}
+	msg := fmt.Sprintf("Rescanned %d photo(s)", updated)
+	if skipped > 0 {
+		msg += fmt.Sprintf(", %d skipped", skipped)
+	}
+	s.redirect(w, r, s.link(), msg)
 }

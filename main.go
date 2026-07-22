@@ -17,7 +17,6 @@ import (
 	"github.com/tkjaer/curator/internal/admin"
 	"github.com/tkjaer/curator/internal/build"
 	"github.com/tkjaer/curator/internal/config"
-	"github.com/tkjaer/curator/internal/exif"
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 	slugpkg "github.com/tkjaer/curator/internal/slug"
@@ -182,31 +181,9 @@ func cmdRescan(args []string) error {
 		return err
 	}
 
-	items, err := st.AllItems(ctx)
+	updated, skipped, err := ingest.Rescan(ctx, st, cfg)
 	if err != nil {
 		return err
-	}
-
-	updated, skipped := 0, 0
-	for _, it := range items {
-		meta, err := exif.Extract(filepath.Join(cfg.OriginalsDir(), it.OriginalPath))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "rescan %s: %v\n", it.Filename, err)
-			skipped++
-			continue
-		}
-		it.EXIF = meta.Raw
-		it.Camera = meta.Camera
-		it.Lens = meta.Lens
-		it.Aperture = meta.Aperture
-		it.Shutter = meta.Shutter
-		it.ISO = meta.ISO
-		it.Focal = meta.Focal
-		it.TakenAt = meta.TakenAt
-		if err := st.UpdateItemEXIF(ctx, it); err != nil {
-			return err
-		}
-		updated++
 	}
 
 	fmt.Printf("rescanned %d item(s)", updated)

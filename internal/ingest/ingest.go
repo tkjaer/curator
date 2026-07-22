@@ -52,6 +52,37 @@ func ImportDir(ctx context.Context, st *store.Store, cfg config.Config, galleryI
 	return count, nil
 }
 
+// Rescan re-reads EXIF metadata from every item's original file and rewrites
+// the stored fields. It returns how many items were updated and how many were
+// skipped because their original could not be read. It does not add or remove
+// items.
+func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, skipped int, err error) {
+	items, err := st.AllItems(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	for _, it := range items {
+		meta, err := exif.Extract(filepath.Join(cfg.OriginalsDir(), it.OriginalPath))
+		if err != nil {
+			skipped++
+			continue
+		}
+		it.EXIF = meta.Raw
+		it.Camera = meta.Camera
+		it.Lens = meta.Lens
+		it.Aperture = meta.Aperture
+		it.Shutter = meta.Shutter
+		it.ISO = meta.ISO
+		it.Focal = meta.Focal
+		it.TakenAt = meta.TakenAt
+		if err := st.UpdateItemEXIF(ctx, it); err != nil {
+			return updated, skipped, err
+		}
+		updated++
+	}
+	return updated, skipped, nil
+}
+
 // ImportUpload writes a single uploaded image into the gallery's originals
 // folder and records it as an item.
 func ImportUpload(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, gallerySlug, filename string, r io.Reader) error {

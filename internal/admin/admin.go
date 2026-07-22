@@ -104,6 +104,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/settings"), s.handleSaveSettings)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)
 	mux.HandleFunc("GET "+s.path("/build/status"), s.handleBuildStatus)
+	mux.HandleFunc("POST "+s.path("/rescan"), s.handleRescan)
 
 	media := s.path("/media/")
 	mux.Handle("GET "+media, http.StripPrefix(media, http.FileServer(http.Dir(s.cfg.OriginalsDir()))))
