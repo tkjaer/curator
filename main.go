@@ -9,14 +9,13 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/tkjaer/curator/internal/admin"
 	"github.com/tkjaer/curator/internal/build"
 	"github.com/tkjaer/curator/internal/config"
+	"github.com/tkjaer/curator/internal/deploy"
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 	"github.com/tkjaer/curator/internal/publishapi"
@@ -298,32 +297,13 @@ func cmdPublish(args []string) error {
 			report.Galleries, report.Photos, feedSummary, report.Duration.Round(time.Millisecond))
 	}
 
-	// Refuse to publish an empty or missing build, which with -delete could wipe
-	// the remote site.
-	if _, err := os.Stat(filepath.Join(cfg.OutputDir, "index.html")); err != nil {
-		return fmt.Errorf("publish: %s/index.html not found; run a build first", cfg.OutputDir)
-	}
-
-	rsync, err := exec.LookPath("rsync")
-	if err != nil {
-		return errors.New("publish: rsync not found in PATH")
-	}
-
-	rsyncArgs := []string{"-a"}
-	if *del {
-		rsyncArgs = append(rsyncArgs, "--delete")
-	}
-	if *dryRun {
-		rsyncArgs = append(rsyncArgs, "--dry-run", "-v")
-	}
-	// Trailing slash: copy the contents of output, not the directory itself.
-	rsyncArgs = append(rsyncArgs, cfg.OutputDir+string(os.PathSeparator), *target)
-
-	fmt.Println("running: rsync", strings.Join(rsyncArgs, " "))
-	cmd := exec.Command(rsync, rsyncArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{
+		Target: *target,
+		Delete: *del,
+		DryRun: *dryRun,
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	}); err != nil {
 		return err
 	}
 

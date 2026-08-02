@@ -17,6 +17,7 @@ import (
 
 	"github.com/tkjaer/curator/internal/build"
 	"github.com/tkjaer/curator/internal/config"
+	"github.com/tkjaer/curator/internal/deploy"
 	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
 )
@@ -24,15 +25,18 @@ import (
 //go:embed templates/*.html
 var templatesFS embed.FS
 
-// BuildFunc runs a site build, reporting progress, and returns a summary. The
-// admin calls it when the user clicks "Build".
+// BuildFunc runs a site build, reporting progress, and returns a summary.
 type BuildFunc func(ctx context.Context, onProgress func(build.Progress)) (build.Report, error)
+
+// DeployFunc publishes a generated site to an rsync destination.
+type DeployFunc func(ctx context.Context, target string, delete bool) error
 
 // Options configure the admin server for direct or proxied operation.
 type Options struct {
 	BasePath   string
 	TrustProxy bool
 	Build      BuildFunc
+	Deploy     DeployFunc
 	Themes     []string
 }
 
@@ -42,6 +46,7 @@ type Server struct {
 	cfg        config.Config
 	basePath   string
 	build      BuildFunc
+	deploy     DeployFunc
 	tmpl       *template.Template
 	themes     []string
 	publishAPI *publishapi.API
@@ -63,11 +68,18 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		return nil, err
 	}
 
+	deploySite := opts.Deploy
+	if deploySite == nil {
+		deploySite = func(ctx context.Context, target string, delete bool) error {
+			return deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{Target: target, Delete: delete})
+		}
+	}
 	s := &Server{
 		store:      st,
 		cfg:        cfg,
 		basePath:   strings.TrimRight(opts.BasePath, "/"),
 		build:      opts.Build,
+		deploy:     deploySite,
 		tmpl:       tmpl,
 		themes:     opts.Themes,
 		trustProxy: opts.TrustProxy,

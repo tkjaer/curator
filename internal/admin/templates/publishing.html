@@ -15,6 +15,12 @@
     <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
 
+  <h2>Deployment</h2>
+  <label class="field"><input type="checkbox" name="rsync_enabled"{{if .RsyncEnabled}} checked{{end}}> Deploy with rsync after publishing the site</label>
+  <label class="field"><span>Rsync destination (e.g. user@host:/srv/site)</span><input name="rsync_target" value="{{.RsyncTarget}}" placeholder="user@host:/srv/site" autocomplete="off" spellcheck="false"></label>
+  <label class="field"><input type="checkbox" name="rsync_delete"{{if .RsyncDelete}} checked{{end}}> Delete remote files that are no longer in the generated site</label>
+  <p><span>Remote connections use your system's existing SSH and rsync configuration.</span></p>
+
   <h2>Syndication</h2>
   <label class="field"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Generate an Atom feed of published galleries at /feed.xml</label>
   {{if .BaseURL}}<p><span>Feed links use the Base URL <strong>{{.BaseURL}}</strong>.</span></p>{{else}}<p><span>Set a <a href="{{$.BasePath}}/settings">Base URL under Site settings</a> to enable the feed.</span></p>{{end}}

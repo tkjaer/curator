@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -170,6 +171,110 @@ func TestPublishingTokenCanBeCreatedInUI(t *testing.T) {
 		if rec.Code != wantStatus {
 			t.Fatalf("token status = %d, want %d", rec.Code, wantStatus)
 		}
+	}
+}
+
+func TestRsyncDeploymentCanBeConfiguredInUI(t *testing.T) {
+	srv, _ := newTestServer(t)
+	form := url.Values{
+		"rsync_enabled": {"on"},
+		"rsync_target":  {"photos@example.com:/srv/site"},
+		"rsync_delete":  {"on"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/settings/publishing", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("save publishing settings status = %d", rec.Code)
+	}
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{
+		"publish.rsync_enabled": "true",
+		"publish.rsync_target":  "photos@example.com:/srv/site",
+		"publish.rsync_delete":  "true",
+	} {
+		if settings[key] != want {
+			t.Errorf("%s = %q, want %q", key, settings[key], want)
+		}
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings/publishing", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, `name="rsync_enabled" checked`) ||
+		!strings.Contains(body, `value="photos@example.com:/srv/site"`) ||
+		!strings.Contains(body, `name="rsync_delete" checked`) {
+		t.Fatalf("saved rsync settings not rendered: %s", body)
+	}
+}
+
+func TestBuildDeploysConfiguredRsyncTarget(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	for key, value := range map[string]string{
+		"publish.rsync_enabled": "true",
+		"publish.rsync_target":  "photos@example.com:/srv/site",
+		"publish.rsync_delete":  "true",
+	} {
+		if err := srv.store.SetSetting(ctx, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var steps []string
+	srv.build = func(context.Context, func(build.Progress)) (build.Report, error) {
+		steps = append(steps, "build")
+		return build.Report{Galleries: 2, Photos: 12}, nil
+	}
+	srv.deploy = func(_ context.Context, target string, delete bool) error {
+		steps = append(steps, "deploy")
+		if target != "photos@example.com:/srv/site" || !delete {
+			t.Fatalf("deployment = %q, delete %t", target, delete)
+		}
+		return nil
+	}
+	if !srv.builds.begin() {
+		t.Fatal("build did not begin")
+	}
+	srv.runBuildQueue()
+
+	if strings.Join(steps, ",") != "build,deploy" {
+		t.Fatalf("publish steps = %v", steps)
+	}
+	status := srv.builds.snapshot()
+	if status.Running || status.Error != "" || status.Stage != "Deploying" {
+		t.Fatalf("publish status = %#v", status)
+	}
+}
+
+func TestFailedBuildDoesNotDeploy(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if err := srv.store.SetSetting(context.Background(), "publish.rsync_enabled", "true"); err != nil {
+		t.Fatal(err)
+	}
+	srv.build = func(context.Context, func(build.Progress)) (build.Report, error) {
+		return build.Report{}, errors.New("render failed")
+	}
+	deployed := false
+	srv.deploy = func(context.Context, string, bool) error {
+		deployed = true
+		return nil
+	}
+	if !srv.builds.begin() {
+		t.Fatal("build did not begin")
+	}
+	srv.runBuildQueue()
+
+	if deployed {
+		t.Fatal("deployment ran after a failed build")
+	}
+	if got := srv.builds.snapshot().Error; got != "render failed" {
+		t.Fatalf("publish error = %q", got)
 	}
 }
 

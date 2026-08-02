@@ -550,6 +550,9 @@ type publishingSettingsData struct {
 	FeedEnabled            bool
 	Webserver              string
 	ServerRoot             string
+	RsyncEnabled           bool
+	RsyncTarget            string
+	RsyncDelete            bool
 	PublishTokenConfigured bool
 	GeneratedPublishToken  string
 }
@@ -971,6 +974,9 @@ func (s *Server) handlePublishingSettings(w http.ResponseWriter, r *http.Request
 		FeedEnabled:            settings["site.feed_enabled"] == "true",
 		Webserver:              settings["site.webserver"],
 		ServerRoot:             settings["site.server_root"],
+		RsyncEnabled:           settings["publish.rsync_enabled"] == "true",
+		RsyncTarget:            settings["publish.rsync_target"],
+		RsyncDelete:            settings["publish.rsync_delete"] == "true",
 		PublishTokenConfigured: settings["publish.api_token_hash"] != "",
 	})
 }
@@ -1000,6 +1006,9 @@ func (s *Server) handleCreatePublishToken(w http.ResponseWriter, r *http.Request
 		FeedEnabled:            settings["site.feed_enabled"] == "true",
 		Webserver:              settings["site.webserver"],
 		ServerRoot:             settings["site.server_root"],
+		RsyncEnabled:           settings["publish.rsync_enabled"] == "true",
+		RsyncTarget:            settings["publish.rsync_target"],
+		RsyncDelete:            settings["publish.rsync_delete"] == "true",
 		PublishTokenConfigured: true,
 		GeneratedPublishToken:  token,
 	})
@@ -1022,6 +1031,13 @@ func (s *Server) handleSavePublishingSettings(w http.ResponseWriter, r *http.Req
 		webserver = "nginx"
 	}
 	serverRoot := strings.TrimSpace(r.FormValue("server_root"))
+	rsyncEnabled := r.FormValue("rsync_enabled") == "on"
+	rsyncTarget := strings.TrimSpace(r.FormValue("rsync_target"))
+	rsyncDelete := r.FormValue("rsync_delete") == "on"
+	if rsyncEnabled && rsyncTarget == "" {
+		s.redirect(w, r, s.link("settings", "publishing"), "Rsync destination is required when deployment is enabled")
+		return
+	}
 	buildNeeded := (settings["site.feed_enabled"] == "true") != feedEnabled ||
 		settings["site.webserver"] != webserver || settings["site.server_root"] != serverRoot
 
@@ -1030,9 +1046,12 @@ func (s *Server) handleSavePublishingSettings(w http.ResponseWriter, r *http.Req
 		feedValue = "true"
 	}
 	for key, value := range map[string]string{
-		"site.feed_enabled": feedValue,
-		"site.webserver":    webserver,
-		"site.server_root":  serverRoot,
+		"site.feed_enabled":     feedValue,
+		"site.webserver":        webserver,
+		"site.server_root":      serverRoot,
+		"publish.rsync_enabled": strconv.FormatBool(rsyncEnabled),
+		"publish.rsync_target":  rsyncTarget,
+		"publish.rsync_delete":  strconv.FormatBool(rsyncDelete),
 	} {
 		if err := s.store.SetSetting(ctx, key, value); err != nil {
 			s.redirect(w, r, s.link("settings", "publishing"), "Could not save publishing settings")

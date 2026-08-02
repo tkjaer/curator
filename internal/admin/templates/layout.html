@@ -271,7 +271,7 @@
     <a href="{{.BasePath}}/">Galleries</a>
     <a href="{{.BasePath}}/access">Access</a>
     <a href="{{.BasePath}}/settings">Settings</a>
-    <form class="inline" method="post" action="{{.BasePath}}/build"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button>Build site</button></form>
+    <form class="inline" method="post" action="{{.BasePath}}/build"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button>Publish site</button></form>
     {{if and .AuthEnabled .Authed}}<form class="inline secondary" method="post" action="{{.BasePath}}/logout"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button>Sign out</button></form>{{end}}
   </nav>
 </header>

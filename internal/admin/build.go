@@ -154,10 +154,29 @@ func (s *Server) queueBuild() error {
 func (s *Server) runBuildQueue() {
 	for {
 		report, err := s.build(context.Background(), s.builds.setProgress)
+		if err == nil {
+			err = s.deployAfterBuild(context.Background())
+		}
 		if !s.builds.finish(report, err) {
 			return
 		}
 	}
+}
+
+func (s *Server) deployAfterBuild(ctx context.Context) error {
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		return err
+	}
+	if settings["publish.rsync_enabled"] != "true" {
+		return nil
+	}
+	target := settings["publish.rsync_target"]
+	if target == "" {
+		return errors.New("rsync deployment is enabled but no destination is configured")
+	}
+	s.builds.setProgress(build.Progress{Stage: "Deploying"})
+	return s.deploy(ctx, target, settings["publish.rsync_delete"] == "true")
 }
 
 func (s *Server) handleBuildStatus(w http.ResponseWriter, r *http.Request) {

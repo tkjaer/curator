@@ -1,7 +1,7 @@
 {{define "dashboard"}}{{template "head" .}}
 {{with .Data}}
 <div id="build-status" class="card build-status" hidden>
-  <div class="build-status-heading"><div><strong>Build</strong> <span id="build-stage"></span></div><button class="build-dismiss" id="build-dismiss" type="button" aria-label="Dismiss build status" title="Dismiss">&times;</button></div>
+  <div class="build-status-heading"><div><strong>Publish</strong> <span id="build-stage"></span></div><button class="build-dismiss" id="build-dismiss" type="button" aria-label="Dismiss publish status" title="Dismiss">&times;</button></div>
   <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
   <p id="build-summary"></p>
 </div>
@@ -131,13 +131,13 @@
       if (s.running) {
         stage.textContent = s.stage + (s.total ? " " + s.done + "/" + s.total : "");
         bar.style.width = (s.total ? Math.round(s.done / s.total * 100) : 0) + "%";
-        summary.textContent = "Building…";
+        summary.textContent = s.stage === "Deploying" ? "Deploying with rsync…" : "Building site…";
         if (!timer) timer = setInterval(poll, 700);
       } else {
         bar.style.width = "100%";
         stage.textContent = "";
-        if (s.error) summary.textContent = "Build failed: " + s.error;
-        else summary.textContent = "Built " + s.galleries + " galleries, " + s.photos +
+        if (s.error) summary.textContent = "Publish failed: " + s.error;
+        else summary.textContent = (s.stage === "Deploying" ? "Published and deployed " : "Published ") + s.galleries + " galleries, " + s.photos +
           " photos (" + s.generated + " generated, " + s.reused + " reused" +
           (s.feedUpdated ? "; Atom feed updated" : "") + ") in " +
           (s.durationMs / 1000).toFixed(1) + "s";
