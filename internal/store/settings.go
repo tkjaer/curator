@@ -53,6 +53,20 @@ func (s *Store) EffectiveGallerySortMode(ctx context.Context, mode model.SortMod
 	return mode, nil
 }
 
+// GalleryDefaults returns the initial visibility and EXIF presentation for new
+// galleries. Missing settings retain the conservative draft/off behavior.
+func (s *Store) GalleryDefaults(ctx context.Context) (model.GalleryStatus, bool, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	status := model.GalleryDraft
+	if settings["site.default_gallery_published"] == "true" {
+		status = model.GalleryPublished
+	}
+	return status, settings["site.default_gallery_show_exif"] == "true", nil
+}
+
 func decodeSetting(raw string) string {
 	var s string
 	if err := json.Unmarshal([]byte(raw), &s); err == nil {

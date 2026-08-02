@@ -15,9 +15,10 @@ func (s *Store) CreateGallery(ctx context.Context, g model.Gallery) (int64, erro
 	}
 	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO galleries
-			(parent_id, slug, title, description, type, status, sort_mode, sort_order)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		g.ParentID, g.Slug, g.Title, g.Description, g.Type, g.Status, g.SortMode, g.SortOrder)
+			(parent_id, slug, title, description, type, status, sort_mode, sort_order, show_exif, published_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
+		g.ParentID, g.Slug, g.Title, g.Description, g.Type, g.Status, g.SortMode, g.SortOrder,
+		g.ShowEXIF, g.Status)
 	if err != nil {
 		return 0, err
 	}

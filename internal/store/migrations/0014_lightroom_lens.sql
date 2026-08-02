@@ -1,0 +1,1 @@
+ALTER TABLE items ADD COLUMN lightroom_lens TEXT NOT NULL DEFAULT '';

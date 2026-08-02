@@ -108,28 +108,29 @@ type Gallery struct {
 // Item is a single photo. The original file is immutable; derivatives are a
 // rebuildable cache keyed by content hash.
 type Item struct {
-	ID           int64
-	GalleryID    int64
-	OriginalPath string
-	Filename     string
-	Width        int
-	Height       int
-	Aspect       Aspect
-	Highlighted  bool
-	SortOrder    int
-	Status       ItemStatus
-	Caption      string
-	EXIF         string // raw EXIF JSON
-	Camera       string
-	Lens         string
-	EmbeddedLens string
-	SidecarLens  string
-	XMPLens      string
-	Aperture     string
-	Shutter      string
-	ISO          string
-	Focal        string
-	TakenAt      *time.Time
+	ID            int64
+	GalleryID     int64
+	OriginalPath  string
+	Filename      string
+	Width         int
+	Height        int
+	Aspect        Aspect
+	Highlighted   bool
+	SortOrder     int
+	Status        ItemStatus
+	Caption       string
+	EXIF          string // raw EXIF JSON
+	Camera        string
+	Lens          string
+	EmbeddedLens  string
+	LightroomLens string
+	SidecarLens   string
+	XMPLens       string
+	Aperture      string
+	Shutter       string
+	ISO           string
+	Focal         string
+	TakenAt       *time.Time
 }
 
 // Derivative is a generated size of an item's image.
