@@ -39,6 +39,9 @@
   {{range .Facets}}
   <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> Generate a <strong>{{.Label}}</strong> browse page</label>
   {{end}}
+  <label class="field"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> Paginate browse pages</label>
+  <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
+  <p><span>Photos are ordered newest first. Visitors can progressively load each additional static page while scrolling.</span></p>
 </form>
 <section class="xmp-profiles metadata-card">
   <h2>Detected Lightroom profiles</h2>
@@ -70,6 +73,14 @@
 </template>
 <script>
 (function () {
+  var pagination = document.getElementById("facet-pagination-enabled");
+  var pageSize = document.getElementById("facet-page-size");
+  function updatePagination() {
+    pageSize.disabled = !pagination.checked;
+  }
+  pagination.addEventListener("change", updatePagination);
+  updatePagination();
+
   var list = document.getElementById("mapping-list");
   var add = document.getElementById("add-mapping");
   var template = document.getElementById("mapping-row-template");

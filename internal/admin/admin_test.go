@@ -386,6 +386,8 @@ func TestLensMetadataSettings(t *testing.T) {
 		"mapping_camera":             {"FUJIFILM XF10"},
 		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
 		"facet_camera":               {"on"},
+		"facet_pagination_enabled":   {"on"},
+		"facet_page_size":            {"60"},
 	}
 	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -405,6 +407,9 @@ func TestLensMetadataSettings(t *testing.T) {
 	if settings["metadata.lens_mappings"] != "FUJIFILM XF10 = FUJINON 18.5mm F2.8" {
 		t.Errorf("lens mappings = %q", settings["metadata.lens_mappings"])
 	}
+	if settings["metadata.facet_pagination_enabled"] != "true" || settings["metadata.facet_page_size"] != "60" {
+		t.Fatalf("pagination settings = %q, %q", settings["metadata.facet_pagination_enabled"], settings["metadata.facet_page_size"])
+	}
 	facets, err := srv.store.FacetConfigs(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -419,6 +424,8 @@ func TestLensMetadataSettings(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
+		!strings.Contains(rec.Body.String(), `name="facet_pagination_enabled" checked`) ||
+		!strings.Contains(rec.Body.String(), `name="facet_page_size" value="60"`) ||
 		!strings.Contains(rec.Body.String(), `Generate a <strong>Camera</strong> browse page`) {
 		t.Fatal("settings page did not retain lens metadata settings")
 	}

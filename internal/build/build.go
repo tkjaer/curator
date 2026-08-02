@@ -60,7 +60,7 @@ type Builder struct {
 	settings    map[string]string
 	lensPolicy  ingest.LensPolicy
 	facets      []model.FacetConfig
-	facetGroups map[string]map[string][]render.PhotoView
+	facetGroups map[string]map[string][]facetPhoto
 	kept        map[string]bool
 
 	report     Report
@@ -340,12 +340,26 @@ func (b *Builder) browseValueURL(namespace, value string) string {
 	return b.browseURL(namespace) + slug.Make(value) + "/"
 }
 
+func (b *Builder) browseValuePageURL(namespace, value string, page int) string {
+	if page <= 1 {
+		return b.browseValueURL(namespace, value)
+	}
+	return b.browseValueURL(namespace, value) + "page/" + strconv.Itoa(page) + "/"
+}
+
 func (b *Builder) browseIndexOutput(namespace string) string {
 	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, "index.html")
 }
 
 func (b *Builder) browseValueOutput(namespace, value string) string {
 	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, slug.Make(value), "index.html")
+}
+
+func (b *Builder) browseValuePageOutput(namespace, value string, page int) string {
+	if page <= 1 {
+		return b.browseValueOutput(namespace, value)
+	}
+	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, slug.Make(value), "page", strconv.Itoa(page), "index.html")
 }
 
 func (b *Builder) writeHTML(path, tmpl string, data any) error {

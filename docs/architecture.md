@@ -224,7 +224,13 @@ Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
 `/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in
 a dedicated namespace, so manual tags and EXIF facets share one browse/render
-path. The panorama aspect is applied as an automatic `aspect:pano` tag.
+path. Photos on value pages are ordered newest first, with undated photos last.
+By default, value pages are split into static pages of 100 photos; the Metadata
+settings can change that size or disable pagination. Page one keeps the value's
+canonical URL, later pages live below `/page/<number>/`, and progressive loading
+enhances the ordinary Previous/Next links when JavaScript is available. When
+pagination is disabled, Curator emits only the canonical page. The panorama
+aspect is applied as an automatic `aspect:pano` tag.
 
 Because source metadata is already stored on each item, enabling a new facet or
 changing lens policy only re-groups existing data. Refresh source metadata only

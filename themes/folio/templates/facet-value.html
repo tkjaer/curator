@@ -1,6 +1,11 @@
 {{define "facet-value"}}{{template "site-head" .}}
 <article class="facet-value">
   <header class="gallery-head"><h1>{{.Title}}</h1></header>
-  {{template "grid" .Rows}}
+  <div data-facet-page>{{template "grid" .Rows}}</div>
+  {{if gt .PageCount 1}}<nav class="facet-pagination" aria-label="Browse pages">
+    {{if .PreviousURL}}<a class="facet-prev" href="{{.PreviousURL}}">Previous</a>{{end}}
+    <span class="facet-page-status">Page {{.Page}} of {{.PageCount}}</span>
+    {{if .NextURL}}<a class="facet-next" href="{{.NextURL}}" data-load-more>Load more</a>{{end}}
+  </nav>{{end}}
 </article>
 {{template "site-foot" .}}{{end}}

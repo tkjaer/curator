@@ -156,8 +156,12 @@ type FacetIndexView struct {
 
 // FacetValueView shows the photos for a single facet value.
 type FacetValueView struct {
-	Title   string
-	Rows    []GridRow
-	Options map[string]any
-	Site    SiteView
+	Title       string
+	Rows        []GridRow
+	Page        int
+	PageCount   int
+	PreviousURL string
+	NextURL     string
+	Options     map[string]any
+	Site        SiteView
 }

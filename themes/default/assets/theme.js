@@ -8,13 +8,23 @@
   const img = dialog.querySelector(".lb-img");
   const caption = dialog.querySelector(".lb-caption");
   const exif = dialog.querySelector(".lb-exif");
-  const links = Array.from(document.querySelectorAll("a[data-lightbox]"));
-  if (links.length === 0) return;
-
+  const links = [];
   const indexByID = new Map();
-  links.forEach((link, i) => {
-    if (link.dataset.id) indexByID.set(link.dataset.id, i);
-  });
+  function registerLinks(root) {
+    root.querySelectorAll("a[data-lightbox]").forEach((link) => {
+      if (link.dataset.lightboxBound) return;
+      link.dataset.lightboxBound = "true";
+      const i = links.length;
+      links.push(link);
+      if (link.dataset.id) indexByID.set(link.dataset.id, i);
+      link.addEventListener("click", (e) => {
+        e.preventDefault();
+        openAt(i);
+      });
+    });
+  }
+  registerLinks(document);
+  if (links.length === 0) return;
 
   let index = -1;
 
@@ -57,12 +67,7 @@
   dialog.addEventListener("close", clearHash);
   dialog.addEventListener("cancel", clearHash);
 
-  links.forEach((link, i) => {
-    link.addEventListener("click", (e) => {
-      e.preventDefault();
-      openAt(i);
-    });
-  });
+  document.addEventListener("curator:content-added", (e) => registerLinks(e.detail || document));
 
   bindClick(".lb-next", () => openAt(index + 1));
   bindClick(".lb-prev", () => openAt(index - 1));
@@ -105,4 +110,44 @@
   }
   window.addEventListener("hashchange", openFromHash);
   openFromHash();
+})();
+
+// Facet pages are static and fully navigable without JavaScript. Enhance their
+// Load more link by appending the next page's justified rows in place.
+(function () {
+  const next = document.querySelector("a[data-load-more]");
+  const target = document.querySelector("[data-facet-page] .grid");
+  if (!next || !target) return;
+
+  next.addEventListener("click", async (e) => {
+    e.preventDefault();
+    if (next.dataset.loading) return;
+    next.dataset.loading = "true";
+    next.textContent = "Loading...";
+    try {
+      const response = await fetch(next.href);
+      if (!response.ok) throw new Error("page load failed");
+      const page = new DOMParser().parseFromString(await response.text(), "text/html");
+      const source = page.querySelector("[data-facet-page] .grid");
+      if (!source) throw new Error("page content missing");
+      const added = document.createDocumentFragment();
+      Array.from(source.children).forEach((row) => added.appendChild(document.importNode(row, true)));
+      target.appendChild(added);
+      document.dispatchEvent(new CustomEvent("curator:content-added", { detail: target }));
+      const following = page.querySelector("a[data-load-more]");
+      const status = document.querySelector(".facet-page-status");
+      const followingStatus = page.querySelector(".facet-page-status");
+      if (status && followingStatus) status.textContent = followingStatus.textContent;
+      if (following) {
+        next.href = following.href;
+        next.textContent = "Load more";
+        delete next.dataset.loading;
+      } else {
+        next.remove();
+      }
+    } catch (error) {
+      next.textContent = "Try again";
+      delete next.dataset.loading;
+    }
+  });
 })();

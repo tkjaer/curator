@@ -532,6 +532,8 @@ type metadataSettingsData struct {
 	Mappings            []lensMappingRow
 	XMPProfiles         []xmpProfileRow
 	Facets              []model.FacetConfig
+	PaginationEnabled   bool
+	PageSize            int
 }
 
 type publishingSettingsData struct {
@@ -717,11 +719,17 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	useLightroomProfile := settings["metadata.use_lightroom_lens_profile"] == "true"
+	pageSize, err := strconv.Atoi(settings["metadata.facet_page_size"])
+	if err != nil || pageSize < 1 {
+		pageSize = 100
+	}
 	s.render(w, r, "metadata-settings", "Metadata settings", s.flash(r), metadataSettingsData{
 		UseLightroomProfile: useLightroomProfile,
 		Mappings:            rows,
 		XMPProfiles:         xmpProfileRows(profileUsages, mappings, useLightroomProfile),
 		Facets:              facets,
+		PaginationEnabled:   settings["metadata.facet_pagination_enabled"] != "false",
+		PageSize:            pageSize,
 	})
 }
 
@@ -875,6 +883,23 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 	}
 
 	ctx := r.Context()
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	pageSizeValue := r.FormValue("facet_page_size")
+	if pageSizeValue == "" {
+		pageSizeValue = settings["metadata.facet_page_size"]
+		if pageSizeValue == "" {
+			pageSizeValue = "100"
+		}
+	}
+	pageSize, err := strconv.Atoi(pageSizeValue)
+	if err != nil || pageSize < 1 || pageSize > 1000 {
+		s.redirect(w, r, s.link("settings", "metadata"), "Photos per browse page must be between 1 and 1000")
+		return
+	}
 	useLightroomProfile := "false"
 	if r.FormValue("use_lightroom_lens_profile") == "on" {
 		useLightroomProfile = "true"
@@ -884,6 +909,18 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	if err := s.store.SetSetting(ctx, "metadata.lens_mappings", lensMappings); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	paginationEnabled := "false"
+	if r.FormValue("facet_pagination_enabled") == "on" {
+		paginationEnabled = "true"
+	}
+	if err := s.store.SetSetting(ctx, "metadata.facet_pagination_enabled", paginationEnabled); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "metadata.facet_page_size", strconv.Itoa(pageSize)); err != nil {
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
 		return
 	}
