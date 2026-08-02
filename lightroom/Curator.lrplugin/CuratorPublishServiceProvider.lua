@@ -13,6 +13,7 @@ local provider = {
     supportsIncrementalPublish = true,
     supportsCustomSortOrder = true,
     canExportVideo = false,
+    small_icon = LrPathUtils.child("assets", "Curator.png"),
 
     exportPresetFields = {
         { key = "curatorURL", default = "http://127.0.0.1:8080" },

@@ -5,7 +5,7 @@ return {
     LrPluginName = "Curator",
     LrPluginInfoUrl = "https://github.com/tkjaer/curator",
 
-    VERSION = { major = 0, minor = 3, revision = 0, build = 5 },
+    VERSION = { major = 0, minor = 3, revision = 0, build = 6 },
 
     LrExportServiceProvider = {
         title = "Curator",
