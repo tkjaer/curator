@@ -12,6 +12,12 @@ and publishing from Lightroom Classic.
 Initial setup and Curator-specific settings live in the admin UI. Galleries and
 photos can then be managed there or published day to day from Lightroom Classic.
 
+## Screenshots
+
+![Curator gallery administration dashboard](docs/images/admin-galleries.png)
+
+![Generated public photo gallery](docs/images/public-gallery.png)
+
 ## Quick start
 
 Curator requires Go 1.26 or newer.
