@@ -113,11 +113,12 @@ type FacetLink struct {
 
 // SiteView is the site-wide context available to every page.
 type SiteView struct {
-	Title   string
-	BaseURL string
-	FeedURL string
-	Nav     []NavNode
-	Facets  []FacetLink
+	Title     string
+	BaseURL   string
+	FeedURL   string
+	Copyright string
+	Nav       []NavNode
+	Facets    []FacetLink
 }
 
 // GalleryView is the model passed to a gallery template. Grid galleries use

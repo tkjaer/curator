@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
@@ -509,15 +510,18 @@ func (s *Server) handleGalleryEXIF(w http.ResponseWriter, r *http.Request) {
 }
 
 type settingsData struct {
-	Title        string
-	BaseURL      string
-	FeedEnabled  bool
-	Theme        string
-	Themes       []string
-	Webserver    string
-	ServerRoot   string
-	Facets       []model.FacetConfig
-	DefaultOrder string
+	Title           string
+	BaseURL         string
+	CopyrightHolder string
+	CopyrightYear   string
+	CurrentYear     int
+	FeedEnabled     bool
+	Theme           string
+	Themes          []string
+	Webserver       string
+	ServerRoot      string
+	Facets          []model.FacetConfig
+	DefaultOrder    string
 }
 
 type lensMappingRow struct {
@@ -573,14 +577,17 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
-		Title:       settings["site.title"],
-		BaseURL:     settings["site.base_url"],
-		FeedEnabled: settings["site.feed_enabled"] == "true",
-		Theme:       themeOr(settings["site.theme"]),
-		Themes:      s.themes,
-		Webserver:   settings["site.webserver"],
-		ServerRoot:  settings["site.server_root"],
-		Facets:      facets,
+		Title:           settings["site.title"],
+		BaseURL:         settings["site.base_url"],
+		CopyrightHolder: settings["site.copyright_holder"],
+		CopyrightYear:   settings["site.copyright_start_year"],
+		CurrentYear:     time.Now().Year(),
+		FeedEnabled:     settings["site.feed_enabled"] == "true",
+		Theme:           themeOr(settings["site.theme"]),
+		Themes:          s.themes,
+		Webserver:       settings["site.webserver"],
+		ServerRoot:      settings["site.server_root"],
+		Facets:          facets,
 		DefaultOrder: func() string {
 			if settings["site.default_gallery_order"] == string(model.SortByFilename) {
 				return string(model.SortByFilename)
@@ -609,6 +616,18 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 
 	title := r.FormValue("title")
 	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
+	copyrightHolder := strings.TrimSpace(r.FormValue("copyright_holder"))
+	copyrightYear := strings.TrimSpace(r.FormValue("copyright_start_year"))
+	if copyrightHolder != "" && copyrightYear == "" {
+		copyrightYear = strconv.Itoa(time.Now().Year())
+	}
+	if copyrightYear != "" {
+		year, err := strconv.Atoi(copyrightYear)
+		if err != nil || year <= 0 || year > time.Now().Year() {
+			s.redirect(w, r, s.link("settings"), "Copyright start year must be a valid year")
+			return
+		}
+	}
 	feedEnabled := baseURL != "" && r.FormValue("feed_enabled") == "on"
 	theme := themeOr(settings["site.theme"])
 	if requestedTheme := r.FormValue("theme"); s.validTheme(requestedTheme) {
@@ -616,6 +635,8 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	buildNeeded := settings["site.title"] != title ||
 		settings["site.base_url"] != baseURL ||
+		settings["site.copyright_holder"] != copyrightHolder ||
+		settings["site.copyright_start_year"] != copyrightYear ||
 		(settings["site.feed_enabled"] == "true") != feedEnabled ||
 		themeOr(settings["site.theme"]) != theme ||
 		settings["site.webserver"] != r.FormValue("webserver") ||
@@ -631,6 +652,14 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.SetSetting(ctx, "site.base_url", baseURL); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.copyright_holder", copyrightHolder); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.copyright_start_year", copyrightYear); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}

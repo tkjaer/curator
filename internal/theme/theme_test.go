@@ -175,6 +175,31 @@ func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
 	}
 }
 
+func TestThemesRenderCopyrightFooter(t *testing.T) {
+	for _, name := range []string{"default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatalf("load theme: %v", err)
+			}
+			site := sampleSite()
+			site.Copyright = "© 2025–2026 Example Name"
+			view := render.GalleryView{
+				Title: "Copyright gallery", Type: "grid",
+				Options: th.Manifest.Defaults(), Site: site,
+			}
+
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "gallery-grid", view); err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			if !strings.Contains(buf.String(), "© 2025–2026 Example Name") {
+				t.Error("copyright footer missing")
+			}
+		})
+	}
+}
+
 func TestThemesRenderFacetCards(t *testing.T) {
 	for _, name := range []string{"default", "folio"} {
 		t.Run(name, func(t *testing.T) {

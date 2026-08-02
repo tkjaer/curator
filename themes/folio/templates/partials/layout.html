@@ -22,7 +22,7 @@
 {{end}}
 
 {{define "site-foot"}}</main>
-<footer class="site-footer"><span>{{.Site.Title}}</span><a href="#top">Back to top</a></footer>
+<footer class="site-footer"><span>{{if .Site.Copyright}}{{.Site.Copyright}}{{else}}{{.Site.Title}}{{end}}</span><a href="#top">Back to top</a></footer>
 {{template "lightbox" .}}
 <script src="{{.Site.BaseURL}}/assets/theme.js" defer></script>
 </body>

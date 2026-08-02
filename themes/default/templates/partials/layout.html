@@ -20,6 +20,7 @@
 {{end}}
 
 {{define "site-foot"}}</main>
+{{with .Site.Copyright}}<footer class="site-footer">{{.}}</footer>{{end}}
 {{template "lightbox" .}}
 <script src="{{.Site.BaseURL}}/assets/theme.js" defer></script>
 </body>

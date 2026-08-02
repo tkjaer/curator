@@ -168,6 +168,20 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	mustExist(t, mappedPage)
 }
 
+func TestCopyrightLine(t *testing.T) {
+	settings := map[string]string{
+		"site.copyright_holder":     "Example Name",
+		"site.copyright_start_year": "2025",
+	}
+	if got := copyrightLine(settings, 2026); got != "© 2025–2026 Example Name" {
+		t.Fatalf("copyright line = %q", got)
+	}
+	settings["site.copyright_start_year"] = "2026"
+	if got := copyrightLine(settings, 2026); got != "© 2026 Example Name" {
+		t.Fatalf("single-year copyright line = %q", got)
+	}
+}
+
 func TestBuildUnlistedIsBuiltButNotLinked(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))

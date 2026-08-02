@@ -9,6 +9,10 @@
 </nav>
 <form class="card settings-card metadata-card" method="post" action="{{$.BasePath}}/settings/metadata" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <div class="settings-save-row" data-dirty="false">
+    <button data-save-button disabled>Save metadata settings</button>
+    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
+  </div>
   <h2>Lens metadata</h2>
   <label class="field"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> Use Lightroom XMP lens profiles as a fallback</label>
   <p><span>Per-photo lens names from adjacent XMP sidecars take precedence. Camera mappings remain useful for fixed-lens cameras, followed by the optional Lightroom fallback. The next build uses these choices; no metadata refresh is needed.</span></p>
@@ -27,10 +31,6 @@
       {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
     </div>
     {{end}}
-  </div>
-  <div class="settings-save-row">
-    <button data-save-button disabled>Save metadata settings</button>
-    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
 </form>
 <section class="xmp-profiles metadata-card">

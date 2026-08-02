@@ -278,6 +278,41 @@ func TestSettingsSavePromptsForBuildWhenThemeChanges(t *testing.T) {
 	}
 }
 
+func TestCopyrightSettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"default"}
+	form := url.Values{
+		"title":                 {"My Photos"},
+		"copyright_holder":      {"Example Name"},
+		"copyright_start_year":  {"2025"},
+		"theme":                 {"default"},
+		"webserver":             {"nginx"},
+		"default_gallery_order": {"date"},
+	}
+	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
+		t.Fatalf("redirect = %q, want build prompt", location)
+	}
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["site.copyright_holder"] != "Example Name" || settings["site.copyright_start_year"] != "2025" {
+		t.Fatalf("copyright settings = %q, %q", settings["site.copyright_holder"], settings["site.copyright_start_year"])
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings", nil))
+	if !strings.Contains(rec.Body.String(), `name="copyright_holder" value="Example Name"`) ||
+		!strings.Contains(rec.Body.String(), `name="copyright_start_year" value="2025"`) {
+		t.Fatal("settings page did not retain copyright settings")
+	}
+}
+
 func TestSettingsSavePromptsForBuildForSystemGalleryDefault(t *testing.T) {
 	srv, _ := newTestServer(t)
 	srv.themes = []string{"default"}

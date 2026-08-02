@@ -84,7 +84,8 @@
   .settings-tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
   .settings-card h2 { padding-top: 1.5rem; border-top: 1px solid var(--line); }
   .settings-card h2:first-of-type { padding-top: 0; border-top: 0; }
-  .settings-save-row { display: flex; align-items: center; gap: .8rem; margin-top: 1.5rem; }
+  .settings-save-row { position: sticky; top: 64px; z-index: 5; display: flex; align-items: center; gap: .8rem; margin: -1.25rem -1.25rem 1.25rem; padding: .75rem 1.25rem; background: var(--surface); border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; transition: background .15s, box-shadow .15s; }
+  .settings-save-row[data-dirty="true"] { background: var(--accent-soft); box-shadow: 0 5px 14px #20212414; }
   .settings-save-status { color: var(--muted); font-size: .8rem; font-weight: 650; }
   .settings-save-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: .4rem; background: var(--line); border-radius: 50%; vertical-align: .05em; }
   .settings-save-status[data-dirty="true"] { color: var(--accent); }
@@ -223,6 +224,7 @@
     .dashboard-actions { grid-template-columns: 1fr; gap: 0; }
     .mapping-heading { align-items: stretch; flex-direction: column; }
     .mapping-heading button { align-self: flex-start; }
+    .settings-save-row { top: 0; }
     .settings-heading { align-items: flex-start; flex-direction: column; }
     .settings-links { width: 100%; justify-content: flex-start; }
     .settings-row { grid-template-columns: 1fr 1fr; }
@@ -277,6 +279,7 @@
   document.querySelectorAll("[data-dirty-form]").forEach(function (form) {
     var button = form.querySelector("[data-save-button]");
     var status = form.querySelector("[data-save-status]");
+    var row = status.closest(".settings-save-row");
     var state = { form: form, initial: values(form), dirty: false, submitting: false };
     states.push(state);
     function update() {
@@ -284,6 +287,7 @@
       button.disabled = !state.dirty;
       status.textContent = state.dirty ? "Unsaved changes" : "No unsaved changes";
       status.dataset.dirty = String(state.dirty);
+      row.dataset.dirty = String(state.dirty);
     }
     form.addEventListener("input", update);
     form.addEventListener("change", update);
@@ -296,6 +300,7 @@
       button.disabled = true;
       status.textContent = "Saving...";
       status.dataset.dirty = "false";
+      row.dataset.dirty = "false";
     });
     update();
   });

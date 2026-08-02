@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -126,8 +127,9 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	b.report.Galleries = len(visible)
 
 	b.site = render.SiteView{
-		Title:   settings["site.title"],
-		BaseURL: strings.TrimRight(settings["site.base_url"], "/"),
+		Title:     settings["site.title"],
+		BaseURL:   strings.TrimRight(settings["site.base_url"], "/"),
+		Copyright: copyrightLine(settings, time.Now().Year()),
 	}
 	if settings["site.feed_enabled"] == "true" && b.site.BaseURL != "" {
 		b.site.FeedURL = b.site.BaseURL + "/feed.xml"
@@ -202,6 +204,18 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 
 	b.report.Duration = time.Since(start)
 	return b.report, nil
+}
+
+func copyrightLine(settings map[string]string, currentYear int) string {
+	holder := strings.TrimSpace(settings["site.copyright_holder"])
+	if holder == "" {
+		return ""
+	}
+	year, err := strconv.Atoi(settings["site.copyright_start_year"])
+	if err != nil || year <= 0 || year >= currentYear {
+		return fmt.Sprintf("© %d %s", currentYear, holder)
+	}
+	return fmt.Sprintf("© %d–%d %s", year, currentYear, holder)
 }
 
 func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []render.PhotoView, byItem map[int64]render.PhotoView, kids []model.Gallery, covers map[int64]render.Source) error {

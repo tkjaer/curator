@@ -51,6 +51,7 @@ a { color: inherit; }
 .breadcrumbs a:last-of-type + .sep { display: none; }
 
 h1 { font-weight: 600; letter-spacing: -.01em; }
+.site-footer { padding: 2rem var(--gap); color: var(--muted); text-align: center; font-size: .8rem; }
 
 .prose { max-width: 44rem; color: var(--fg); }
 .prose.description { color: var(--muted); }
