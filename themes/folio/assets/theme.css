@@ -52,6 +52,7 @@
 }
 
 * { box-sizing: border-box; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
@@ -115,6 +116,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 .prose > :first-child { margin-top: 0; }
 .prose > :last-child { margin-bottom: 0; }
 .prose.description { align-self: end; color: var(--muted); font-size: var(--text-base); }
+.gallery-intro { margin: 0 0 3rem; }
 
 .grid { margin: 2rem 0 0; }
 .row { display: flex; gap: var(--gap); margin-bottom: var(--gap); }

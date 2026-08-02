@@ -141,6 +141,60 @@ func TestFolioTheme(t *testing.T) {
 	}
 }
 
+func TestFolioHomepageOmitsRepeatedSiteTitle(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/folio"))
+	if err != nil {
+		t.Fatalf("load folio theme: %v", err)
+	}
+	site := sampleSite()
+	view := render.GalleryView{Title: site.Title, Options: th.Manifest.Defaults(), Site: site}
+
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatalf("render homepage: %v", err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">My Photos</h1>`) {
+		t.Error("homepage repeated the site title as a page heading")
+	}
+	if !strings.Contains(buf.String(), "<title>My Photos</title>") {
+		t.Error("homepage repeated the site name in the document title")
+	}
+
+	view.Title = "Trips"
+	view.Breadcrumb = []render.Crumb{{Title: "Trips", Href: "/trips/"}}
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatalf("render folder: %v", err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">Trips</h1>`) {
+		t.Error("folder gallery lost its semantic page heading")
+	}
+}
+
+func TestFolioGalleryTitlesAreVisuallyHidden(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/folio"))
+	if err != nil {
+		t.Fatalf("load folio theme: %v", err)
+	}
+	view := render.GalleryView{Title: "Summer", Options: th.Manifest.Defaults(), Site: sampleSite()}
+
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-grid", view); err != nil {
+		t.Fatalf("render grid: %v", err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">Summer</h1>`) {
+		t.Error("grid gallery title should be visually hidden")
+	}
+
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-story", view); err != nil {
+		t.Fatalf("render story: %v", err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">Summer</h1>`) {
+		t.Error("story gallery title should be visually hidden")
+	}
+}
+
 func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
 	for _, name := range []string{"default", "folio"} {
 		t.Run(name, func(t *testing.T) {

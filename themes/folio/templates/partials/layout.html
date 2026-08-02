@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} &middot; {{.Site.Title}}</title>
+<title>{{if eq .Title .Site.Title}}{{.Site.Title}}{{else}}{{.Title}} &middot; {{.Site.Title}}{{end}}</title>
 <link rel="stylesheet" href="{{.Site.BaseURL}}/assets/theme.css">
 {{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
 {{end}}<style>:root{
