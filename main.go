@@ -220,9 +220,13 @@ func cmdBuild(args []string) error {
 	if !*quiet {
 		fmt.Fprintln(os.Stderr) // finish the progress line
 	}
-	fmt.Printf("built %d galleries, %d photos (%d images generated, %d reused) in %s → %s\n",
+	feedSummary := ""
+	if report.FeedUpdated {
+		feedSummary = "; Atom feed updated"
+	}
+	fmt.Printf("built %d galleries, %d photos (%d images generated, %d reused%s) in %s → %s\n",
 		report.Galleries, report.Photos, report.Generated, report.Reused,
-		report.Duration.Round(time.Millisecond), cfg.OutputDir)
+		feedSummary, report.Duration.Round(time.Millisecond), cfg.OutputDir)
 	return nil
 }
 
@@ -278,8 +282,12 @@ func cmdPublish(args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr)
-		fmt.Printf("built %d galleries, %d photos in %s\n",
-			report.Galleries, report.Photos, report.Duration.Round(time.Millisecond))
+		feedSummary := ""
+		if report.FeedUpdated {
+			feedSummary = "; Atom feed updated"
+		}
+		fmt.Printf("built %d galleries, %d photos%s in %s\n",
+			report.Galleries, report.Photos, feedSummary, report.Duration.Round(time.Millisecond))
 	}
 
 	// Refuse to publish an empty or missing build, which with -delete could wipe

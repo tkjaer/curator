@@ -150,6 +150,8 @@ func TestUpdateItemEXIF(t *testing.T) {
 		t.Fatal(err)
 	}
 	it.Camera = "Canon EOS R5"
+	it.EmbeddedLens = "RF 50mm F1.2"
+	it.XMPLens = "Adobe fallback"
 	it.ISO = "400"
 	it.Focal = "50 mm"
 	if err := st.UpdateItemEXIF(ctx, it); err != nil {
@@ -160,7 +162,8 @@ func TestUpdateItemEXIF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Camera != "Canon EOS R5" || got.ISO != "400" || got.Focal != "50 mm" {
+	if got.Camera != "Canon EOS R5" || got.EmbeddedLens != "RF 50mm F1.2" ||
+		got.XMPLens != "Adobe fallback" || got.ISO != "400" || got.Focal != "50 mm" {
 		t.Errorf("EXIF not updated: %+v", got)
 	}
 
@@ -170,6 +173,68 @@ func TestUpdateItemEXIF(t *testing.T) {
 	}
 	if len(all) != 1 {
 		t.Errorf("AllItems returned %d, want 1", len(all))
+	}
+}
+
+func TestCameraLensClues(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, _ := makeGalleryWithItems(t, st, 4)
+	items, err := st.ItemsByGallery(ctx, gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items[0].Camera = "FUJIFILM XF10"
+	items[0].Focal = "18.5 mm"
+	items[0].EXIF = `{"MaxApertureValue":["297/100"]}`
+	items[1].Camera = "FUJIFILM XF10"
+	items[1].Focal = "18.5 mm"
+	items[1].EXIF = `{"MaxApertureValue":["297/100"]}`
+	items[2].Camera = "Canon EOS R5"
+	items[2].Lens = "RF 50mm F1.2"
+	items[2].EmbeddedLens = "RF 50mm F1.2"
+	items[3].Camera = "  "
+	for _, item := range items {
+		if err := st.UpdateItemEXIF(ctx, item); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	clues, err := st.CameraLensClues(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(clues) != 1 || clues[0].Camera != "FUJIFILM XF10" || clues[0].Focal != "18.5 mm" ||
+		clues[0].MaxApertureAPEX != "297/100" || clues[0].Count != 2 {
+		t.Fatalf("clues = %+v", clues)
+	}
+}
+
+func TestXMPProfileUsages(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, _ := makeGalleryWithItems(t, st, 3)
+	items, err := st.ItemsByGallery(ctx, gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	items[0].Camera, items[0].XMPLens = "FUJIFILM GFX 50R", "Voigtlander 15mm"
+	items[0].SidecarLens = "Voigtlander 15mm f/4.5"
+	items[1].Camera, items[1].XMPLens = "FUJIFILM GFX 50R", "Voigtlander 15mm"
+	items[2].Camera, items[2].XMPLens = "Leica M10", "Voigtlander 15mm"
+	for _, item := range items {
+		if err := st.UpdateItemEXIF(ctx, item); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	usages, err := st.XMPProfileUsages(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(usages) != 2 || usages[0].Camera != "FUJIFILM GFX 50R" || usages[0].Count != 2 || usages[0].SidecarCount != 1 ||
+		usages[1].Camera != "Leica M10" || usages[1].Count != 1 {
+		t.Fatalf("profile usages = %+v", usages)
 	}
 }
 

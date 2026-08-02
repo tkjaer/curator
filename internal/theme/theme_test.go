@@ -141,6 +141,40 @@ func TestFolioTheme(t *testing.T) {
 	}
 }
 
+func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
+	for _, name := range []string{"default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatalf("load theme: %v", err)
+			}
+			photos := samplePhotos()
+			photos[0].Caption = "Visible caption"
+			photos[0].Exif = &render.ExifView{Camera: "Example Camera", ISO: "200"}
+			rows := render.Justify(photos, 1000, 300, 8, false)
+			view := render.GalleryView{
+				Title: "EXIF gallery", Type: "grid", Rows: rows,
+				Options: th.Manifest.Defaults(), Site: sampleSite(),
+			}
+
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "gallery-grid", view); err != nil {
+				t.Fatalf("render: %v", err)
+			}
+			out := buf.String()
+			if !strings.Contains(out, `data-exif="Example Camera · ISO 200"`) {
+				t.Error("lightbox EXIF data missing")
+			}
+			if !strings.Contains(out, `<span class="fig-caption">Visible caption</span>`) {
+				t.Error("grid caption missing")
+			}
+			if strings.Contains(out, `class="fig-exif"`) {
+				t.Error("EXIF should not be visible in the grid")
+			}
+		})
+	}
+}
+
 func TestThemesRenderFacetCards(t *testing.T) {
 	for _, name := range []string{"default", "folio"} {
 		t.Run(name, func(t *testing.T) {

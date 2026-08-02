@@ -149,8 +149,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
   transition: opacity .2s;
 }
 .photo:hover figcaption, .photo:focus-within figcaption { opacity: 1; }
-.fig-caption, .fig-exif { display: block; }
-.fig-exif { margin-top: .15rem; color: #d5d5d5; font-size: var(--text-small); }
+.fig-caption { display: block; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 400px)); gap: 2.75rem var(--gap); justify-content: start; margin: 2rem 0 4rem; }
 .card { display: block; min-width: 0; text-decoration: none; }

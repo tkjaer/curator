@@ -27,8 +27,8 @@ func (s *Store) Settings(ctx context.Context) (map[string]string, error) {
 	return out, rows.Err()
 }
 
-// DefaultGallerySortMode returns the ordering inherited by newly created
-// galleries. Existing databases without the setting retain date ordering.
+// DefaultGallerySortMode returns the system ordering inherited by galleries
+// whose sort mode is default.
 func (s *Store) DefaultGallerySortMode(ctx context.Context) (model.SortMode, error) {
 	var raw string
 	err := s.DB.QueryRowContext(ctx,
@@ -43,6 +43,14 @@ func (s *Store) DefaultGallerySortMode(ctx context.Context) (model.SortMode, err
 		return mode, nil
 	}
 	return model.SortByDate, nil
+}
+
+// EffectiveGallerySortMode resolves a gallery's inherited ordering.
+func (s *Store) EffectiveGallerySortMode(ctx context.Context, mode model.SortMode) (model.SortMode, error) {
+	if mode == model.SortDefault || mode == "" {
+		return s.DefaultGallerySortMode(ctx)
+	}
+	return mode, nil
 }
 
 func decodeSetting(raw string) string {

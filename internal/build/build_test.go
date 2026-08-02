@@ -103,6 +103,71 @@ func TestBuildProducesSite(t *testing.T) {
 	}
 }
 
+func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetFacetEnabled(ctx, "lens", true); err != nil {
+		t.Fatal(err)
+	}
+
+	gid, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "trip", Title: "Trip", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSourceImage(t, filepath.Join(cfg.OriginalsDir(), "trip", "a.jpg"), 1)
+	if _, err := st.CreateItem(ctx, model.Item{
+		GalleryID: gid, OriginalPath: filepath.Join("trip", "a.jpg"), Filename: "a.jpg",
+		Width: 600, Height: 400, Aspect: model.AspectLandscape, Status: model.ItemPublished,
+		Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	th, err := theme.Load(os.DirFS("../../themes/default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := func() {
+		t.Helper()
+		if err := New(st, th, cfg).Build(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
+	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
+
+	build()
+	mustNotExist(t, xmpPage)
+
+	if err := st.SetSetting(ctx, "metadata.use_lightroom_lens_profile", "true"); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustExist(t, xmpPage)
+
+	if err := st.SetSetting(ctx, "metadata.use_lightroom_lens_profile", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "metadata.lens_mappings", "FUJIFILM GFX 50R = Mapped 15mm"); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, xmpPage)
+	mustExist(t, mappedPage)
+}
+
 func TestBuildUnlistedIsBuiltButNotLinked(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))
@@ -280,6 +345,13 @@ func mustExist(t *testing.T, path string) {
 	t.Helper()
 	if _, err := os.Stat(path); err != nil {
 		t.Errorf("expected %s to exist: %v", path, err)
+	}
+}
+
+func mustNotExist(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Errorf("expected %s not to exist, got %v", path, err)
 	}
 }
 

@@ -27,7 +27,7 @@ type ExifView struct {
 	TakenAt  string
 }
 
-// Line renders the metadata as a single compact string for captions and badges.
+// Line renders the metadata as a compact lightbox summary.
 func (e ExifView) Line() string {
 	var parts []string
 	if e.Camera != "" {

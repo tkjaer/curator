@@ -32,11 +32,12 @@ const (
 	GalleryStory GalleryType = "story"
 )
 
-// SortMode decides the default ordering of items within a gallery. Manual
-// ordering always wins via each item's SortOrder.
+// SortMode decides the automatic ordering of items within a gallery. Default
+// inherits the system setting; manual positions always win via item SortOrder.
 type SortMode string
 
 const (
+	SortDefault    SortMode = "default"
 	SortByDate     SortMode = "date"
 	SortByFilename SortMode = "filename"
 	SortManual     SortMode = "manual"
@@ -121,6 +122,9 @@ type Item struct {
 	EXIF         string // raw EXIF JSON
 	Camera       string
 	Lens         string
+	EmbeddedLens string
+	SidecarLens  string
+	XMPLens      string
 	Aperture     string
 	Shutter      string
 	ISO          string

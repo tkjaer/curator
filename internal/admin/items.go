@@ -56,7 +56,7 @@ func (s *Server) handleGalleryItemOrder(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	mode := model.SortMode(r.FormValue("mode"))
-	if mode != model.SortByDate && mode != model.SortByFilename {
+	if mode != model.SortDefault && mode != model.SortByDate && mode != model.SortByFilename {
 		s.redirect(w, r, s.galleryLink(id), "Unknown ordering")
 		return
 	}

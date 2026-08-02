@@ -7,7 +7,6 @@
     { "key": "accent",        "type": "color", "label": "Accent color (blank = auto for light/dark)", "default": "" },
     { "key": "gridGap",       "type": "int",   "label": "Grid gap (px)",       "default": 8 },
     { "key": "rowHeight",     "type": "int",   "label": "Target row height",   "default": 300 },
-    { "key": "panoFullWidth", "type": "bool",  "label": "Panoramas full width", "default": false },
-    { "key": "showExif",      "type": "bool",  "label": "Show EXIF badge",     "default": false }
+    { "key": "panoFullWidth", "type": "bool",  "label": "Panoramas full width", "default": false }
   ]
 }

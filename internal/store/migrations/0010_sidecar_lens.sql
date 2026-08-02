@@ -1,0 +1,1 @@
+ALTER TABLE items ADD COLUMN sidecar_lens TEXT NOT NULL DEFAULT '';

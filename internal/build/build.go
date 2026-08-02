@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tkjaer/curator/internal/config"
+	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 	"github.com/tkjaer/curator/internal/render"
 	"github.com/tkjaer/curator/internal/slug"
@@ -34,11 +35,12 @@ type Progress struct {
 
 // Report summarizes a completed build.
 type Report struct {
-	Galleries int
-	Photos    int
-	Generated int // image derivatives written this build
-	Reused    int // derivatives already on disk
-	Duration  time.Duration
+	Galleries   int
+	Photos      int
+	Generated   int // image derivatives written this build
+	Reused      int // derivatives already on disk
+	FeedUpdated bool
+	Duration    time.Duration
 }
 
 // Builder renders a site from the store through a theme into the output dir.
@@ -55,6 +57,7 @@ type Builder struct {
 	byID    map[int64]model.Gallery
 
 	settings    map[string]string
+	lensPolicy  ingest.LensPolicy
 	facets      []model.FacetConfig
 	facetGroups map[string]map[string][]render.PhotoView
 	kept        map[string]bool
@@ -86,7 +89,13 @@ func (b *Builder) Build(ctx context.Context) error {
 // returns a summary report.
 func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	start := time.Now()
+	b.report = Report{}
+	b.processed = 0
 	settings, err := b.Store.Settings(ctx)
+	if err != nil {
+		return Report{}, err
+	}
+	lensPolicy, err := ingest.LensPolicyFromSettings(settings)
 	if err != nil {
 		return Report{}, err
 	}
@@ -106,6 +115,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		b.byID[g.ID] = g
 	}
 	b.kept = map[string]bool{}
+	b.lensPolicy = lensPolicy
 
 	if err := b.loadFacets(ctx); err != nil {
 		return Report{}, err

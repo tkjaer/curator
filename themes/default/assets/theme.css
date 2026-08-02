@@ -81,7 +81,6 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
 }
 .photo:hover figcaption { opacity: 1; }
 .fig-caption { display: block; }
-.fig-exif { display: block; font-size: .72rem; opacity: .85; margin-top: .1rem; }
 
 /* Folder / facet cards */
 .cards {

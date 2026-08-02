@@ -57,6 +57,47 @@ func TestDashboardRenders(t *testing.T) {
 	}
 }
 
+func TestBuildStatusIDsDistinguishBuilds(t *testing.T) {
+	status := newBuildStatus()
+	if !status.begin() {
+		t.Fatal("first build did not begin")
+	}
+	first := status.snapshot().BuildID
+	status.finish(build.Report{FeedUpdated: true}, nil)
+	if !status.snapshot().FeedUpdated {
+		t.Fatal("Atom feed update missing from build status")
+	}
+	if !status.begin() {
+		t.Fatal("second build did not begin")
+	}
+	second := status.snapshot().BuildID
+	if first == 0 || second != first+1 {
+		t.Fatalf("build IDs = %d, %d", first, second)
+	}
+}
+
+func TestBuildStatusInstancesDistinguishRestarts(t *testing.T) {
+	first := newBuildStatus()
+	second := newBuildStatus()
+	if !first.begin() || !second.begin() {
+		t.Fatal("build did not begin")
+	}
+	firstStatus := first.snapshot()
+	secondStatus := second.snapshot()
+	if firstStatus.BuildID != secondStatus.BuildID || firstStatus.BuildInstance == secondStatus.BuildInstance {
+		t.Fatalf("build identities = %q:%d and %q:%d",
+			firstStatus.BuildInstance, firstStatus.BuildID, secondStatus.BuildInstance, secondStatus.BuildID)
+	}
+}
+
+func TestUploadStemPairsSidecars(t *testing.T) {
+	for _, name := range []string{"photo.jpg", "photo.xmp", "photo.jpg.xmp", "PHOTO.XMP"} {
+		if got := uploadStem(name); got != "photo" {
+			t.Errorf("uploadStem(%q) = %q, want photo", name, got)
+		}
+	}
+}
+
 func TestCreateGalleryThenAppears(t *testing.T) {
 	srv, _ := newTestServer(t)
 	h := srv.Handler()
@@ -145,7 +186,7 @@ func TestGalleryCustomOrderCanBeReset(t *testing.T) {
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
 	if !strings.Contains(rec.Body.String(), `data-custom="false"`) ||
-		!strings.Contains(rec.Body.String(), `<option value="date" selected>Date taken (default)</option>`) {
+		!strings.Contains(rec.Body.String(), `<option value="date" selected>Date taken</option>`) {
 		t.Fatal("gallery did not return to automatic ordering")
 	}
 }
@@ -176,14 +217,211 @@ func TestDefaultGalleryOrderAppliesToNewGalleries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gallery.SortMode != model.SortByFilename {
-		t.Fatalf("new gallery sort mode = %q, want filename", gallery.SortMode)
+	if gallery.SortMode != model.SortDefault {
+		t.Fatalf("new gallery sort mode = %q, want default", gallery.SortMode)
+	}
+	earlier := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	later := earlier.Add(time.Hour)
+	firstID, err := srv.store.CreateItem(context.Background(), model.Item{
+		GalleryID: gallery.ID, OriginalPath: "alphabetical-gallery/z.jpg", Filename: "z.jpg", TakenAt: &earlier,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID, err := srv.store.CreateItem(context.Background(), model.Item{
+		GalleryID: gallery.ID, OriginalPath: "alphabetical-gallery/a.jpg", Filename: "a.jpg", TakenAt: &later,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items, err := srv.store.ItemsByGallery(context.Background(), gallery.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items[0].ID != secondID || items[1].ID != firstID {
+		t.Fatalf("inherited alphabetical order = %d, %d", items[0].ID, items[1].ID)
+	}
+	if err := srv.store.SetSetting(context.Background(), "site.default_gallery_order", "date"); err != nil {
+		t.Fatal(err)
+	}
+	items, err = srv.store.ItemsByGallery(context.Background(), gallery.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if items[0].ID != firstID || items[1].ID != secondID {
+		t.Fatalf("inherited date order = %d, %d", items[0].ID, items[1].ID)
 	}
 
 	rec = httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest("GET", "/settings", nil))
-	if !strings.Contains(rec.Body.String(), `<option value="filename" selected>Alphabetical</option>`) {
-		t.Fatal("settings page did not retain alphabetical default")
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
+	if !strings.Contains(rec.Body.String(), `<option value="default" selected>System default (Date taken)</option>`) {
+		t.Fatal("gallery did not show inherited system ordering")
+	}
+}
+
+func TestSettingsSavePromptsForBuildWhenThemeChanges(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"default", "folio"}
+	form := url.Values{
+		"title":                 {"My Photos"},
+		"theme":                 {"folio"},
+		"webserver":             {"nginx"},
+		"default_gallery_order": {"date"},
+	}
+	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
+		t.Fatalf("redirect = %q, want build prompt", location)
+	}
+}
+
+func TestSettingsSavePromptsForBuildForSystemGalleryDefault(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"default"}
+	form := url.Values{
+		"title":                 {"My Photos"},
+		"theme":                 {"default"},
+		"webserver":             {"nginx"},
+		"default_gallery_order": {"filename"},
+	}
+	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
+		t.Fatalf("redirect = %q, want build prompt for inherited ordering", location)
+	}
+}
+
+func TestLensMetadataSettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	form := url.Values{
+		"use_lightroom_lens_profile": {"on"},
+		"mapping_camera":             {"FUJIFILM XF10"},
+		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
+	}
+	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("settings status = %d, want 303", rec.Code)
+	}
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["metadata.use_lightroom_lens_profile"] != "true" {
+		t.Error("Lightroom profile fallback was not enabled")
+	}
+	if settings["metadata.lens_mappings"] != "FUJIFILM XF10 = FUJINON 18.5mm F2.8" {
+		t.Errorf("lens mappings = %q", settings["metadata.lens_mappings"])
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings/metadata", nil))
+	if !strings.Contains(rec.Body.String(), `name="use_lightroom_lens_profile" checked`) ||
+		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
+		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) {
+		t.Fatal("settings page did not retain lens metadata settings")
+	}
+}
+
+func TestXMPProfileRows(t *testing.T) {
+	usages := []store.XMPProfileUsage{
+		{Profile: "Profile A", Camera: "Camera A", Count: 2},
+		{Profile: "Profile A", Camera: "Camera B", Count: 1},
+		{Profile: "Profile B", Camera: "Camera C", Count: 3},
+	}
+	mappings := map[string]string{"Camera A": "Mapped lens"}
+
+	rows := xmpProfileRows(usages, mappings, true)
+	if len(rows) != 2 || rows[0].Count != 3 || rows[0].Status != "Partially overridden" ||
+		rows[0].Cameras != "Camera A, Camera B" || rows[1].Status != "Used" {
+		t.Fatalf("enabled profile rows = %+v", rows)
+	}
+
+	rows = xmpProfileRows(usages, mappings, false)
+	if rows[0].Status != "Disabled" || rows[1].Status != "Disabled" {
+		t.Fatalf("disabled profile rows = %+v", rows)
+	}
+}
+
+func TestCameraLensSuggestions(t *testing.T) {
+	clues := []store.CameraLensClue{
+		{Camera: "FUJIFILM XF10", Focal: "18.5 mm", MaxApertureAPEX: "297/100", Count: 27},
+		{Camera: "FUJIFILM GFX 50R", XMPProfile: "Voigtlander 12mm", Count: 4},
+		{Camera: "FUJIFILM GFX 50R", XMPProfile: "Voigtlander 15mm", Count: 3},
+	}
+
+	suggestions := cameraLensSuggestions(clues)
+	if got := suggestions["FUJIFILM XF10"]; got.Lens != "FUJIFILM XF10 18.5mm f/2.8" ||
+		!strings.Contains(got.Evidence, "27 photos") || !strings.Contains(got.Evidence, "max f/2.8") {
+		t.Fatalf("XF10 suggestion = %+v", got)
+	}
+	if got := suggestions["FUJIFILM GFX 50R"]; got.Lens != "" ||
+		!strings.Contains(got.Evidence, "2 XMP profiles") {
+		t.Fatalf("ambiguous GFX suggestion = %+v", got)
+	}
+}
+
+func TestInvalidLensMappingIsRejected(t *testing.T) {
+	srv, _ := newTestServer(t)
+	form := url.Values{"mapping_camera": {""}, "mapping_lens": {"FUJINON 18.5mm F2.8"}}
+	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "needs+a+camera+and+lens") {
+		t.Fatalf("invalid mapping response = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["metadata.lens_mappings"] != "" {
+		t.Errorf("invalid mapping was stored as %q", settings["metadata.lens_mappings"])
+	}
+}
+
+func TestMetadataSettingsSuggestCamerasWithoutLens(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "missing-lens", Title: "Missing lens"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := srv.store.CreateItem(ctx, model.Item{
+			GalleryID: galleryID, OriginalPath: "missing-lens/photo.jpg", Filename: "photo.jpg",
+			Camera: "FUJIFILM XF10", Status: model.ItemPublished,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings/metadata", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got := strings.Count(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`); got != 1 {
+		t.Fatalf("suggested camera rows = %d, want 1", got)
+	}
+
+	form := url.Values{"mapping_camera": {"FUJIFILM XF10"}, "mapping_lens": {""}}
+	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "Metadata+settings+saved") {
+		t.Fatalf("blank suggestion response = %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 }
 
@@ -194,6 +432,9 @@ func TestBuildButtonInvokesBuild(t *testing.T) {
 
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("build status = %d, want 303", rec.Code)
+	}
+	if location := rec.Header().Get("Location"); location != "/" {
+		t.Fatalf("build redirect = %q, want dashboard without flash", location)
 	}
 	select {
 	case <-built:

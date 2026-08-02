@@ -89,5 +89,6 @@ func (b *Builder) emitFeed(visible []model.Gallery) error {
 		return err
 	}
 	b.keep(dest)
+	b.report.FeedUpdated = true
 	return nil
 }

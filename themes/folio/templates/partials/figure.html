@@ -5,8 +5,5 @@
          sizes="(max-width: 700px) 100vw, {{printf "%.0f" .FlexBasis}}vw"
          width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
   </a>
-  {{if or .Caption .Exif}}<figcaption>
-    {{with .Caption}}<span class="fig-caption">{{.}}</span>{{end}}
-    {{with .Exif}}<span class="fig-exif">{{.Line}}</span>{{end}}
-  </figcaption>{{end}}
+  {{with .Caption}}<figcaption><span class="fig-caption">{{.}}</span></figcaption>{{end}}
 </figure>{{end}}

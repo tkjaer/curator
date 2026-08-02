@@ -40,8 +40,9 @@
       <label><span>Ordering</span>
         <select name="mode">
           {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
-          <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken{{if eq (printf "%s" .Gallery.SortMode) "date"}} (default){{end}}</option>
-          <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical{{if eq (printf "%s" .Gallery.SortMode) "filename"}} (default){{end}}</option>
+          <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>System default ({{.AutomaticOrder}})</option>
+          <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
+          <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
         </select>
       </label>
     </form>
@@ -50,7 +51,7 @@
     <span>Metadata</span>
     <form class="toggle-form" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF</label>
+      <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF in lightbox</label>
     </form>
   </div>
   <details class="settings-menu">
@@ -110,7 +111,7 @@
   <h2>{{if .IsStory}}Media library{{else}}Photos{{end}} <span>{{len .Items}}</span></h2>
   <form class="upload-form" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <input type="file" name="images" multiple accept="image/jpeg,image/png">
+  <input type="file" name="images" multiple accept="image/jpeg,image/png,.xmp" aria-label="Images and matching XMP sidecars" title="Select images and optional matching XMP sidecars">
   <button>Upload</button>
 </form></div>
 

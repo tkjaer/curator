@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/tkjaer/curator/internal/build"
@@ -15,12 +17,21 @@ import (
 // buildStatus tracks an in-progress or finished build for the admin UI.
 type buildStatus struct {
 	mu         sync.Mutex
+	instance   string
+	id         uint64
 	running    bool
 	everRun    bool
 	progress   build.Progress
 	report     build.Report
 	err        string
 	finishedAt time.Time
+}
+
+var buildInstanceSequence atomic.Uint64
+
+func newBuildStatus() *buildStatus {
+	return &buildStatus{instance: strconv.FormatInt(time.Now().UnixNano(), 36) + "-" +
+		strconv.FormatUint(buildInstanceSequence.Add(1), 36)}
 }
 
 // begin marks a build as started, returning false if one is already running.
@@ -30,6 +41,7 @@ func (b *buildStatus) begin() bool {
 	if b.running {
 		return false
 	}
+	b.id++
 	b.running = true
 	b.everRun = true
 	b.progress = build.Progress{}
@@ -56,34 +68,40 @@ func (b *buildStatus) finish(report build.Report, err error) {
 }
 
 type buildStatusJSON struct {
-	Running    bool   `json:"running"`
-	EverRun    bool   `json:"everRun"`
-	Stage      string `json:"stage"`
-	Done       int    `json:"done"`
-	Total      int    `json:"total"`
-	Error      string `json:"error"`
-	Galleries  int    `json:"galleries"`
-	Photos     int    `json:"photos"`
-	Generated  int    `json:"generated"`
-	Reused     int    `json:"reused"`
-	DurationMs int64  `json:"durationMs"`
+	BuildInstance string `json:"buildInstance"`
+	BuildID       uint64 `json:"buildId"`
+	Running       bool   `json:"running"`
+	EverRun       bool   `json:"everRun"`
+	Stage         string `json:"stage"`
+	Done          int    `json:"done"`
+	Total         int    `json:"total"`
+	Error         string `json:"error"`
+	Galleries     int    `json:"galleries"`
+	Photos        int    `json:"photos"`
+	Generated     int    `json:"generated"`
+	Reused        int    `json:"reused"`
+	FeedUpdated   bool   `json:"feedUpdated"`
+	DurationMs    int64  `json:"durationMs"`
 }
 
 func (b *buildStatus) snapshot() buildStatusJSON {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return buildStatusJSON{
-		Running:    b.running,
-		EverRun:    b.everRun,
-		Stage:      b.progress.Stage,
-		Done:       b.progress.Done,
-		Total:      b.progress.Total,
-		Error:      b.err,
-		Galleries:  b.report.Galleries,
-		Photos:     b.report.Photos,
-		Generated:  b.report.Generated,
-		Reused:     b.report.Reused,
-		DurationMs: b.report.Duration.Milliseconds(),
+		BuildInstance: b.instance,
+		BuildID:       b.id,
+		Running:       b.running,
+		EverRun:       b.everRun,
+		Stage:         b.progress.Stage,
+		Done:          b.progress.Done,
+		Total:         b.progress.Total,
+		Error:         b.err,
+		Galleries:     b.report.Galleries,
+		Photos:        b.report.Photos,
+		Generated:     b.report.Generated,
+		Reused:        b.report.Reused,
+		FeedUpdated:   b.report.FeedUpdated,
+		DurationMs:    b.report.Duration.Milliseconds(),
 	}
 }
 
@@ -100,7 +118,7 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 		report, err := s.build(context.Background(), s.builds.setProgress)
 		s.builds.finish(report, err)
 	}()
-	s.redirect(w, r, s.link(), "Build started")
+	s.redirect(w, r, s.link(), "")
 }
 
 func (s *Server) handleBuildStatus(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +134,7 @@ func (s *Server) handleRescan(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link(), "Rescan failed: "+err.Error())
 		return
 	}
-	msg := fmt.Sprintf("Rescanned %d photo(s)", updated)
+	msg := fmt.Sprintf("Refreshed metadata for %d photo(s)", updated)
 	if skipped > 0 {
 		msg += fmt.Sprintf(", %d skipped", skipped)
 	}

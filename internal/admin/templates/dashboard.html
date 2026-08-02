@@ -1,7 +1,7 @@
 {{define "dashboard"}}{{template "head" .}}
 {{with .Data}}
-<div id="build-status" class="card" hidden>
-  <strong>Build</strong> <span id="build-stage"></span>
+<div id="build-status" class="card build-status" hidden>
+  <div class="build-status-heading"><div><strong>Build</strong> <span id="build-stage"></span></div><button class="build-dismiss" id="build-dismiss" type="button" aria-label="Dismiss build status" title="Dismiss">&times;</button></div>
   <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
   <p id="build-summary"></p>
 </div>
@@ -51,10 +51,10 @@
   </section>
   <section>
     <h2>Maintenance</h2>
-    <form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read EXIF metadata from every photo?')">
+    <form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read source metadata from every photo?')">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <p>Re-read camera metadata from the original files after editing originals or upgrading Curator.</p>
-      <button>Rescan EXIF</button>
+      <p>Re-read embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p>
+      <button>Refresh metadata</button>
     </form>
   </section>
 </div>
@@ -66,11 +66,26 @@
   var bar = document.getElementById("build-bar");
   var stage = document.getElementById("build-stage");
   var summary = document.getElementById("build-summary");
+  var dismiss = document.getElementById("build-dismiss");
+  var currentBuildKey = "";
+  var dismissKey = "curator-dismissed-build:" + base;
   var timer = null;
+  dismiss.addEventListener("click", function () {
+    sessionStorage.setItem(dismissKey, currentBuildKey);
+    box.hidden = true;
+    if (timer) { clearInterval(timer); timer = null; }
+  });
   function poll() {
     fetch(base + "/build/status").then(function (r) { return r.json(); }).then(function (s) {
       if (!s.everRun) { box.hidden = true; return; }
+      currentBuildKey = s.buildInstance + ":" + s.buildId;
+      if (sessionStorage.getItem(dismissKey) === currentBuildKey) {
+        box.hidden = true;
+        if (timer) { clearInterval(timer); timer = null; }
+        return;
+      }
       box.hidden = false;
+      dismiss.hidden = s.running;
       if (s.running) {
         stage.textContent = s.stage + (s.total ? " " + s.done + "/" + s.total : "");
         bar.style.width = (s.total ? Math.round(s.done / s.total * 100) : 0) + "%";
@@ -81,7 +96,8 @@
         stage.textContent = "";
         if (s.error) summary.textContent = "Build failed: " + s.error;
         else summary.textContent = "Built " + s.galleries + " galleries, " + s.photos +
-          " photos (" + s.generated + " generated, " + s.reused + " reused) in " +
+          " photos (" + s.generated + " generated, " + s.reused + " reused" +
+          (s.feedUpdated ? "; Atom feed updated" : "") + ") in " +
           (s.durationMs / 1000).toFixed(1) + "s";
         if (timer) { clearInterval(timer); timer = null; }
       }

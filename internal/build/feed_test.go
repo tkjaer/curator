@@ -15,7 +15,7 @@ import (
 
 // buildFeedFixture creates a store with one published gallery (its published_at
 // stamped) and applies the given settings, then builds the site.
-func buildFeedFixture(t *testing.T, settings map[string]string) config.Config {
+func buildFeedFixture(t *testing.T, settings map[string]string) (config.Config, Report) {
 	t.Helper()
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))
@@ -57,17 +57,21 @@ func buildFeedFixture(t *testing.T, settings map[string]string) config.Config {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := New(st, th, cfg).Build(ctx); err != nil {
+	report, err := New(st, th, cfg).BuildReport(ctx)
+	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	return cfg
+	return cfg, report
 }
 
 func TestFeedGeneratedWhenEnabled(t *testing.T) {
-	cfg := buildFeedFixture(t, map[string]string{
+	cfg, report := buildFeedFixture(t, map[string]string{
 		"site.feed_enabled": "true",
 		"site.base_url":     "https://ex.com",
 	})
+	if !report.FeedUpdated {
+		t.Fatal("build report did not include Atom feed update")
+	}
 
 	body, err := os.ReadFile(filepath.Join(cfg.OutputDir, "feed.xml"))
 	if err != nil {
@@ -97,18 +101,24 @@ func TestFeedGeneratedWhenEnabled(t *testing.T) {
 }
 
 func TestFeedNotWrittenWhenDisabled(t *testing.T) {
-	cfg := buildFeedFixture(t, map[string]string{
+	cfg, report := buildFeedFixture(t, map[string]string{
 		"site.base_url": "https://ex.com",
 	})
+	if report.FeedUpdated {
+		t.Fatal("build report included disabled Atom feed")
+	}
 	if _, err := os.Stat(filepath.Join(cfg.OutputDir, "feed.xml")); !os.IsNotExist(err) {
 		t.Errorf("feed.xml should not exist when the feed is disabled (err=%v)", err)
 	}
 }
 
 func TestFeedRequiresBaseURL(t *testing.T) {
-	cfg := buildFeedFixture(t, map[string]string{
+	cfg, report := buildFeedFixture(t, map[string]string{
 		"site.feed_enabled": "true",
 	})
+	if report.FeedUpdated {
+		t.Fatal("build report included Atom feed without Base URL")
+	}
 	if _, err := os.Stat(filepath.Join(cfg.OutputDir, "feed.xml")); !os.IsNotExist(err) {
 		t.Errorf("feed.xml should not exist without a base URL (err=%v)", err)
 	}

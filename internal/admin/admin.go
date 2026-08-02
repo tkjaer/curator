@@ -70,7 +70,7 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		trustProxy: opts.TrustProxy,
 		throttle:   newThrottle(),
 		loginSem:   make(chan struct{}, throttleMaxConcurrent),
-		builds:     &buildStatus{},
+		builds:     newBuildStatus(),
 	}
 	if err := s.loadAuth(context.Background()); err != nil {
 		return nil, err
@@ -107,6 +107,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/access/{id}/delete"), s.handleDeleteAccessUser)
 	mux.HandleFunc("GET "+s.path("/settings"), s.handleSettings)
 	mux.HandleFunc("POST "+s.path("/settings"), s.handleSaveSettings)
+	mux.HandleFunc("GET "+s.path("/settings/metadata"), s.handleMetadataSettings)
+	mux.HandleFunc("POST "+s.path("/settings/metadata"), s.handleSaveMetadataSettings)
 	mux.HandleFunc("POST "+s.path("/settings/password"), s.handlePassword)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)
 	mux.HandleFunc("GET "+s.path("/build/status"), s.handleBuildStatus)

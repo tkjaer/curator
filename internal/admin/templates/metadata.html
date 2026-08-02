@@ -1,0 +1,90 @@
+{{define "metadata-settings"}}{{template "head" .}}
+{{with .Data}}
+<div class="page-head">
+  <div><h1>Settings</h1><p>Choose how Curator resolves missing lens metadata when building the site.</p></div>
+</div>
+<nav class="settings-tabs" aria-label="Settings sections">
+  <a href="{{$.BasePath}}/settings">General</a>
+  <a href="{{$.BasePath}}/settings/metadata" aria-current="page">Metadata</a>
+</nav>
+<form class="card settings-card metadata-card" method="post" action="{{$.BasePath}}/settings/metadata" data-dirty-form>
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <h2>Lens metadata</h2>
+  <label class="field"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> Use Lightroom XMP lens profiles as a fallback</label>
+  <p><span>Per-photo lens names from adjacent XMP sidecars take precedence. Camera mappings remain useful for fixed-lens cameras, followed by the optional Lightroom fallback. The next build uses these choices; no metadata refresh is needed.</span></p>
+  <p><span>This does not control the public Lens section; manage that under <a href="{{$.BasePath}}/settings#browse-facets">General settings</a>.</span></p>
+
+  <div class="mapping-heading">
+    <div><h3>Camera-to-lens mappings</h3><p>Mappings apply at build time only when embedded EXIF has no lens.</p></div>
+    <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
+  </div>
+  <div class="mapping-list" id="mapping-list">
+    {{range .Mappings}}
+    <div class="mapping-row">
+      <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
+      <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
+      <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
+      {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
+    </div>
+    {{end}}
+  </div>
+  <div class="settings-save-row">
+    <button data-save-button disabled>Save metadata settings</button>
+    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
+  </div>
+</form>
+<section class="xmp-profiles metadata-card">
+  <h2>Detected Lightroom profiles</h2>
+  <p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p>
+  {{if .XMPProfiles}}
+  <table>
+    <thead><tr><th>Profile</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
+    <tbody>
+      {{range .XMPProfiles}}
+      <tr><td>{{.Name}}</td><td>{{if .Cameras}}{{.Cameras}}{{else}}Unknown{{end}}</td><td>{{.Count}}</td><td><span class="badge">{{.Status}}</span></td></tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p>No Lightroom XMP lens profiles found.</p>
+  {{end}}
+</section>
+<form class="metadata-rescan" method="post" action="{{$.BasePath}}/rescan">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <div><strong>Refresh source metadata</strong><p>Re-read embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
+  <button class="secondary-button">Refresh metadata</button>
+</form>
+<template id="mapping-row-template">
+  <div class="mapping-row">
+    <label><span>Camera</span><input name="mapping_camera" placeholder="Camera model"></label>
+    <label><span>Lens</span><input name="mapping_lens" placeholder="Lens name"></label>
+    <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
+  </div>
+</template>
+<script>
+(function () {
+  var list = document.getElementById("mapping-list");
+  var add = document.getElementById("add-mapping");
+  var template = document.getElementById("mapping-row-template");
+  if (!list || !add || !template) return;
+  add.addEventListener("click", function () {
+    list.appendChild(template.content.cloneNode(true));
+    list.lastElementChild.querySelector("input").focus();
+  });
+  list.addEventListener("click", function (event) {
+    var use = event.target.closest(".mapping-use");
+    if (use) {
+      var row = use.closest(".mapping-row");
+      row.querySelector('input[name="mapping_lens"]').value = use.dataset.suggestion;
+      use.remove();
+      return;
+    }
+    var button = event.target.closest(".mapping-remove");
+    if (!button) return;
+    button.closest(".mapping-row").remove();
+    if (!list.children.length) add.click();
+  });
+})();
+</script>
+{{end}}
+{{template "foot" .}}{{end}}

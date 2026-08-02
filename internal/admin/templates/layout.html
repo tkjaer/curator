@@ -59,6 +59,7 @@
   input[type="file"]::file-selector-button { margin-right: 1.1rem; padding: .35rem .7rem; border: 0; border-radius: 4px; background: var(--surface); cursor: pointer; }
   button { padding: .5rem .85rem; color: #fff; background: var(--accent); border-color: var(--accent); font-weight: 650; cursor: pointer; }
   button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button:disabled { color: var(--muted); background: var(--surface-muted); border-color: var(--line); cursor: default; }
   header button, .item-actions button { min-height: 34px; padding: .35rem .65rem; font-size: .85rem; }
   header .secondary button, .item-actions button { color: var(--ink); background: transparent; border-color: var(--line); }
   header .secondary button:hover, .item-actions button:hover { background: var(--surface-muted); }
@@ -77,9 +78,38 @@
   .toolbar select { width: auto; min-width: 130px; margin-left: .25rem; }
   .login-card { max-width: 420px; margin-top: 1.5rem; }
   .login-card input { width: 100% !important; }
+  .settings-tabs { display: flex; gap: .25rem; margin: 0 0 1.25rem; border-bottom: 1px solid var(--line); }
+  .settings-tabs a { padding: .65rem .85rem; color: var(--muted); font-size: .85rem; font-weight: 700; text-decoration: none; border-bottom: 2px solid transparent; }
+  .settings-tabs a:hover { color: var(--ink); }
+  .settings-tabs a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
   .settings-card h2 { padding-top: 1.5rem; border-top: 1px solid var(--line); }
+  .settings-card h2:first-of-type { padding-top: 0; border-top: 0; }
+  .settings-save-row { display: flex; align-items: center; gap: .8rem; margin-top: 1.5rem; }
+  .settings-save-status { color: var(--muted); font-size: .8rem; font-weight: 650; }
+  .settings-save-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: .4rem; background: var(--line); border-radius: 50%; vertical-align: .05em; }
+  .settings-save-status[data-dirty="true"] { color: var(--accent); }
+  .settings-save-status[data-dirty="true"]::before { background: var(--accent); }
   .grid-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .5rem; margin: .6rem 0 1rem; }
   .grid-choices label { padding: .5rem; background: var(--canvas); border-radius: 4px; overflow-wrap: anywhere; }
+  .metadata-card { max-width: 900px; }
+  .xmp-profiles { margin-top: 2rem; }
+  .xmp-profiles > p { margin: -.25rem 0 1rem; }
+  .mapping-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2rem 0 .75rem; }
+  .mapping-heading h3, .mapping-heading p { margin: 0; }
+  .mapping-heading p { font-size: .82rem; }
+  .mapping-list { display: grid; gap: .65rem; margin-bottom: 1.25rem; }
+  .mapping-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: .65rem; align-items: end; }
+  .mapping-row label { min-width: 0; }
+  .mapping-row label > span { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .72rem; font-weight: 700; }
+  .mapping-row input { width: 100% !important; }
+  .mapping-evidence { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: .75rem; margin-top: -.25rem; color: var(--muted); font-size: .76rem; }
+  .mapping-evidence button { flex: 0 0 auto; padding: .35rem .55rem; font-size: .72rem; }
+  button.secondary-button { color: var(--ink); background: var(--surface); border-color: var(--line); }
+  button.secondary-button:hover { background: var(--surface-muted); border-color: var(--line); }
+  .mapping-remove { width: 40px; padding: 0; color: var(--muted); background: transparent; border-color: var(--line); font-size: 1.35rem; }
+  .mapping-remove:hover { color: var(--danger); background: transparent; border-color: #ddb8b4; }
+  .metadata-rescan { display: flex; max-width: 900px; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 0; }
+  .metadata-rescan p { margin: 0; }
   .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.25rem; }
   .thumbs figure { overflow: hidden; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
   .thumbs img { display: block; width: 100%; aspect-ratio: 3/2; object-fit: cover; background: var(--surface-muted); }
@@ -94,6 +124,10 @@
   .badge { display: inline-block; padding: .15rem .5rem; color: #2949ae; background: var(--accent-soft); border: 1px solid #c4cef2; border-radius: 999px; font-size: .72rem; font-weight: 700; }
   .progress { height: 7px; overflow: hidden; margin: .7rem 0; background: var(--surface-muted); border-radius: 99px; }
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .build-status { position: relative; }
+  .build-status-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .build-dismiss { width: 32px; min-height: 32px; padding: 0; color: var(--muted); background: transparent; border-color: transparent; font-size: 1.25rem; }
+  .build-dismiss:hover { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .subgalleries { padding: 0; list-style: none; }
   .subgalleries li { padding: .65rem 0; border-bottom: 1px solid var(--line); }
   .gallery-page-head { margin-bottom: .75rem; }
@@ -187,6 +221,8 @@
     table { display: block; overflow-x: auto; white-space: nowrap; }
     .page-head { display: block; }
     .dashboard-actions { grid-template-columns: 1fr; gap: 0; }
+    .mapping-heading { align-items: stretch; flex-direction: column; }
+    .mapping-heading button { align-self: flex-start; }
     .settings-heading { align-items: flex-start; flex-direction: column; }
     .settings-links { width: 100%; justify-content: flex-start; }
     .settings-row { grid-template-columns: 1fr 1fr; }
@@ -198,6 +234,13 @@
     .thumbs { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
   }
   @media (max-width: 480px) {
+    .mapping-row { grid-template-columns: 1fr 40px; padding-bottom: .65rem; border-bottom: 1px solid var(--line); }
+    .mapping-row label:first-child { grid-column: 1; grid-row: 1; }
+    .mapping-row label:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+    .mapping-row .mapping-remove { grid-column: 2; grid-row: 1; }
+    .mapping-evidence { align-items: flex-start; flex-direction: column; grid-row: 3; }
+    .metadata-rescan { align-items: stretch; flex-direction: column; }
+    .metadata-rescan button { align-self: flex-start; }
     .settings-row { grid-template-columns: 1fr; }
     .settings-identity { flex-wrap: wrap; }
     .settings-links { flex-wrap: wrap; white-space: normal; }
@@ -225,6 +268,44 @@
 {{end}}
 
 {{define "foot"}}</main>
+<script>
+(function () {
+  var states = [];
+  function values(form) {
+    return new URLSearchParams(new FormData(form)).toString();
+  }
+  document.querySelectorAll("[data-dirty-form]").forEach(function (form) {
+    var button = form.querySelector("[data-save-button]");
+    var status = form.querySelector("[data-save-status]");
+    var state = { form: form, initial: values(form), dirty: false, submitting: false };
+    states.push(state);
+    function update() {
+      state.dirty = values(form) !== state.initial;
+      button.disabled = !state.dirty;
+      status.textContent = state.dirty ? "Unsaved changes" : "No unsaved changes";
+      status.dataset.dirty = String(state.dirty);
+    }
+    form.addEventListener("input", update);
+    form.addEventListener("change", update);
+    var dynamicFields = form.querySelector("#mapping-list");
+    if (dynamicFields) {
+      new MutationObserver(update).observe(dynamicFields, { childList: true, subtree: true });
+    }
+    form.addEventListener("submit", function () {
+      state.submitting = true;
+      button.disabled = true;
+      status.textContent = "Saving...";
+      status.dataset.dirty = "false";
+    });
+    update();
+  });
+  window.addEventListener("beforeunload", function (event) {
+    if (!states.some(function (state) { return state.dirty && !state.submitting; })) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+})();
+</script>
 </body>
 </html>
 {{end}}

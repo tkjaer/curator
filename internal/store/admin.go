@@ -46,7 +46,7 @@ func (s *Store) UpdateGalleryStatus(ctx context.Context, id int64, status model.
 	return err
 }
 
-// UpdateGalleryShowEXIF toggles whether a gallery shows camera metadata.
+// UpdateGalleryShowEXIF toggles camera metadata in a gallery's lightbox.
 func (s *Store) UpdateGalleryShowEXIF(ctx context.Context, id int64, show bool) error {
 	_, err := s.DB.ExecContext(ctx,
 		`UPDATE galleries SET show_exif = ?, updated_at = datetime('now') WHERE id = ?`, show, id)
@@ -134,11 +134,12 @@ func (s *Store) Item(ctx context.Context, id int64) (model.Item, error) {
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
 		        highlighted, sort_order, status, caption, exif, camera, lens,
-		        aperture, shutter, iso, focal, taken_at
+		        embedded_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items WHERE id = ?`, id).
 		Scan(&it.ID, &it.GalleryID, &it.OriginalPath, &it.Filename, &it.Width, &it.Height,
 			&it.Aspect, &it.Highlighted, &it.SortOrder, &it.Status, &it.Caption, &it.EXIF,
-			&it.Camera, &it.Lens, &it.Aperture, &it.Shutter, &it.ISO, &it.Focal, &taken)
+			&it.Camera, &it.Lens, &it.EmbeddedLens, &it.SidecarLens, &it.XMPLens,
+			&it.Aperture, &it.Shutter, &it.ISO, &it.Focal, &taken)
 	if err != nil {
 		return model.Item{}, err
 	}

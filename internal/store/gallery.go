@@ -11,7 +11,7 @@ import (
 // CreateGallery inserts a gallery and returns its new id.
 func (s *Store) CreateGallery(ctx context.Context, g model.Gallery) (int64, error) {
 	if g.SortMode == "" {
-		g.SortMode = model.SortByDate
+		g.SortMode = model.SortDefault
 	}
 	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO galleries

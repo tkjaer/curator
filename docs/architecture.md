@@ -148,7 +148,7 @@ derivatives are a rebuildable cache.
 GALLERY
   id, parent_id (nesting), slug, title, description,
   type (grid | story), status,
-  cover_item_id, sort_mode (date | filename | manual),
+  cover_item_id, sort_mode (default | date | filename | manual),
   theme (optional override), password_realm (protected),
   published_at
 
@@ -156,7 +156,8 @@ ITEM
   id, gallery_id, original_path, filename,
   width, height, aspect (landscape | portrait | square | pano),
   highlighted, sort_order, status,
-  caption (markdown), exif (json), taken_at
+  caption (markdown), exif (json), camera,
+  embedded_lens, sidecar_lens, xmp_lens, lens (effective cache), taken_at
 
 DERIVATIVE
   id, item_id, preset (thumb | display | w800 | w1600 | …),
@@ -209,8 +210,15 @@ responsive widths from the original. Derivative filenames come from
 
 ## EXIF and facet browsing
 
-EXIF is extracted once, when an image is ingested or replaced, and stored as
-JSON on the item along with a few normalized columns (camera, lens, taken_at).
+EXIF and Lightroom XMP are extracted when an image is ingested or source
+metadata is explicitly refreshed. Curator stores the raw EXIF JSON and keeps
+embedded and XMP lens values as separate source facts.
+
+Each build resolves the effective lens from the current metadata policy:
+embedded EXIF first, then a standard adjacent XMP sidecar (`aux:Lens` or
+`exifEX:LensModel`), then a configured fixed-camera mapping, then Lightroom XMP
+when that fallback is enabled. Changing this policy therefore requires only
+another build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
@@ -218,9 +226,10 @@ published, non-protected items by facet value and emits browseable pages, e.g.
 a dedicated namespace, so manual tags and EXIF facets share one browse/render
 path. The panorama aspect is applied as an automatic `aspect:pano` tag.
 
-Because EXIF is already stored on each item, enabling a new facet later only
-re-groups existing data — it does not re-read the original files. Only a change
-to extraction itself would require re-reading originals.
+Because source metadata is already stored on each item, enabling a new facet or
+changing lens policy only re-groups existing data. Refresh source metadata only
+after originals change, extraction changes, or an upgrade introduces a new
+stored source field.
 
 ## Configuration
 

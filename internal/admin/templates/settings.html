@@ -3,13 +3,17 @@
 <div class="page-head">
   <div><h1>Settings</h1><p>Configure the published site, theme, and protected galleries.</p></div>
 </div>
-<form class="card settings-card" method="post" action="{{$.BasePath}}/settings">
+<nav class="settings-tabs" aria-label="Settings sections">
+  <a href="{{$.BasePath}}/settings" aria-current="page">General</a>
+  <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
+</nav>
+<form class="card settings-card" method="post" action="{{$.BasePath}}/settings" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
   <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input id="base_url" name="base_url" value="{{.BaseURL}}"></label>
 
   <h2>Gallery defaults</h2>
-  <label class="field"><span>Ordering for new galleries</span>
+  <label class="field"><span>Default ordering for new galleries</span>
     <select name="default_gallery_order">
       <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
       <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
@@ -51,13 +55,16 @@
   </label>
   <label class="field"><span>Server root (absolute path where output is deployed, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
 
-  <h2>Browse facets</h2>
-  <p><span>Enable browsing photos by camera or lens (built from EXIF).</span></p>
+  <h2 id="browse-facets">Browse facets</h2>
+  <p><span>Choose which metadata sections appear on the public site. Lens values and fallbacks are configured under <a href="{{$.BasePath}}/settings/metadata">Metadata settings</a>.</span></p>
   {{range .Facets}}
   <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> {{.Label}}</label>
   {{end}}
 
-  <button>Save settings</button>
+  <div class="settings-save-row">
+    <button data-save-button disabled>Save settings</button>
+    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
+  </div>
 </form>
 
 <h2>Admin password</h2>

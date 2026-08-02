@@ -2,13 +2,19 @@ package admin
 
 import (
 	"context"
+	"io"
+	"maps"
+	"math"
 	"net/http"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 	"github.com/tkjaer/curator/internal/slug"
+	"github.com/tkjaer/curator/internal/store"
 )
 
 const maxUpload = 256 << 20 // 256 MiB per upload request
@@ -180,15 +186,9 @@ func (s *Server) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 			parentID = &id
 		}
 	}
-	sortMode, err := s.store.DefaultGallerySortMode(r.Context())
-	if err != nil {
-		s.redirect(w, r, s.link(), "Could not load gallery defaults")
-		return
-	}
-
 	id, err := s.store.CreateGallery(r.Context(), model.Gallery{
 		ParentID: parentID, Slug: sl, Title: title, Type: gType,
-		Status: model.GalleryDraft, SortMode: sortMode,
+		Status: model.GalleryDraft, SortMode: model.SortDefault,
 	})
 	if err != nil {
 		s.redirect(w, r, s.link(), "Could not create gallery: "+err.Error())
@@ -308,7 +308,12 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		Protected:      g.Status == model.GalleryProtected,
 		AutomaticOrder: "Date taken",
 	}
-	if g.SortMode == model.SortByFilename {
+	effectiveSortMode, err := s.store.EffectiveGallerySortMode(ctx, g.SortMode)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if effectiveSortMode == model.SortByFilename {
 		data.AutomaticOrder = "Alphabetical"
 	}
 	for _, item := range items {
@@ -427,6 +432,12 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	files := r.MultipartForm.File["images"]
+	sidecars := map[string]int{}
+	for i, fh := range files {
+		if strings.EqualFold(filepath.Ext(fh.Filename), ".xmp") {
+			sidecars[uploadStem(fh.Filename)] = i
+		}
+	}
 	n := 0
 	for _, fh := range files {
 		if !ingest.IsImage(fh.Filename) {
@@ -437,8 +448,20 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 			s.redirect(w, r, s.galleryLink(id), "Upload failed: "+err.Error())
 			return
 		}
-		err = ingest.ImportUpload(ctx, s.store, s.cfg, id, g.Slug, fh.Filename, f)
+		var sidecar io.ReadCloser
+		if i, ok := sidecars[uploadStem(fh.Filename)]; ok {
+			sidecar, err = files[i].Open()
+			if err != nil {
+				f.Close()
+				s.redirect(w, r, s.galleryLink(id), "Upload failed: "+err.Error())
+				return
+			}
+		}
+		err = ingest.ImportUploadWithSidecar(ctx, s.store, s.cfg, id, g.Slug, fh.Filename, f, sidecar)
 		f.Close()
+		if sidecar != nil {
+			sidecar.Close()
+		}
 		if err != nil {
 			s.redirect(w, r, s.galleryLink(id), "Import failed: "+err.Error())
 			return
@@ -446,6 +469,17 @@ func (s *Server) handleUpload(w http.ResponseWriter, r *http.Request) {
 		n++
 	}
 	s.redirect(w, r, s.galleryLink(id), pluralize(n, "image")+" uploaded")
+}
+
+func uploadStem(name string) string {
+	name = filepath.Base(name)
+	if strings.EqualFold(filepath.Ext(name), ".xmp") {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	if ingest.IsImage(name) {
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+	}
+	return strings.ToLower(name)
 }
 
 func (s *Server) handleGalleryStatus(w http.ResponseWriter, r *http.Request) {
@@ -484,6 +518,28 @@ type settingsData struct {
 	ServerRoot   string
 	Facets       []model.FacetConfig
 	DefaultOrder string
+}
+
+type lensMappingRow struct {
+	Camera     string
+	Lens       string
+	Suggestion string
+	Evidence   string
+}
+
+type metadataSettingsData struct {
+	UseLightroomProfile bool
+	Mappings            []lensMappingRow
+	XMPProfiles         []xmpProfileRow
+}
+
+type xmpProfileRow struct {
+	Name         string
+	Cameras      string
+	Count        int
+	MappedCount  int
+	SidecarCount int
+	Status       string
 }
 
 // themeOr returns the configured theme name, defaulting to "default" when unset.
@@ -540,26 +596,55 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	if err := s.store.SetSetting(ctx, "site.title", r.FormValue("title")); err != nil {
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	facets, err := s.store.FacetConfigs(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	title := r.FormValue("title")
+	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
+	feedEnabled := baseURL != "" && r.FormValue("feed_enabled") == "on"
+	theme := themeOr(settings["site.theme"])
+	if requestedTheme := r.FormValue("theme"); s.validTheme(requestedTheme) {
+		theme = requestedTheme
+	}
+	buildNeeded := settings["site.title"] != title ||
+		settings["site.base_url"] != baseURL ||
+		(settings["site.feed_enabled"] == "true") != feedEnabled ||
+		themeOr(settings["site.theme"]) != theme ||
+		settings["site.webserver"] != r.FormValue("webserver") ||
+		settings["site.server_root"] != r.FormValue("server_root")
+	for _, facet := range facets {
+		if facet.Enabled != (r.FormValue("facet_"+facet.Namespace) == "on") {
+			buildNeeded = true
+		}
+	}
+
+	if err := s.store.SetSetting(ctx, "site.title", title); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
 	if err := s.store.SetSetting(ctx, "site.base_url", baseURL); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
 	// The Atom feed needs absolute URLs, so it can only be enabled once a base
 	// URL is set.
-	feedEnabled := "false"
-	if baseURL != "" && r.FormValue("feed_enabled") == "on" {
-		feedEnabled = "true"
+	feedValue := "false"
+	if feedEnabled {
+		feedValue = "true"
 	}
-	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedEnabled); err != nil {
+	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedValue); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	if theme := r.FormValue("theme"); s.validTheme(theme) {
+	if s.validTheme(theme) {
 		if err := s.store.SetSetting(ctx, "site.theme", theme); err != nil {
 			s.redirect(w, r, s.link("settings"), "Could not save settings")
 			return
@@ -577,14 +662,12 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if defaultOrder != model.SortByFilename {
 		defaultOrder = model.SortByDate
 	}
+	defaultOrderChanged := settings["site.default_gallery_order"] != string(defaultOrder)
+	if defaultOrderChanged {
+		buildNeeded = true
+	}
 	if err := s.store.SetSetting(ctx, "site.default_gallery_order", string(defaultOrder)); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
-		return
-	}
-
-	facets, err := s.store.FacetConfigs(ctx)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	for _, f := range facets {
@@ -594,7 +677,227 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	s.redirect(w, r, s.link("settings"), "Settings saved")
+	message := "Settings saved"
+	if buildNeeded {
+		message += "; build site to publish changes"
+	}
+	s.redirect(w, r, s.link("settings"), message)
+}
+
+func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	mappings, err := ingest.ParseLensMappings(settings["metadata.lens_mappings"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	clues, err := s.store.CameraLensClues(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	profileUsages, err := s.store.XMPProfileUsages(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	suggestions := cameraLensSuggestions(clues)
+	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
+	for camera, lens := range mappings {
+		rows = append(rows, lensMappingRow{Camera: camera, Lens: lens, Evidence: suggestions[camera].Evidence})
+	}
+	slices.SortFunc(rows, func(a, b lensMappingRow) int {
+		return strings.Compare(strings.ToLower(a.Camera), strings.ToLower(b.Camera))
+	})
+	for _, camera := range slices.Sorted(maps.Keys(suggestions)) {
+		if _, exists := mappings[camera]; !exists {
+			suggestion := suggestions[camera]
+			rows = append(rows, lensMappingRow{
+				Camera: camera, Suggestion: suggestion.Lens, Evidence: suggestion.Evidence,
+			})
+		}
+	}
+	if len(rows) == 0 {
+		rows = append(rows, lensMappingRow{})
+	}
+
+	useLightroomProfile := settings["metadata.use_lightroom_lens_profile"] == "true"
+	s.render(w, r, "metadata-settings", "Metadata settings", s.flash(r), metadataSettingsData{
+		UseLightroomProfile: useLightroomProfile,
+		Mappings:            rows,
+		XMPProfiles:         xmpProfileRows(profileUsages, mappings, useLightroomProfile),
+	})
+}
+
+type cameraLensSuggestion struct {
+	Lens     string
+	Evidence string
+}
+
+func cameraLensSuggestions(clues []store.CameraLensClue) map[string]cameraLensSuggestion {
+	type evidence struct {
+		count     int
+		focals    map[string]bool
+		apertures map[string]bool
+		profiles  map[string]bool
+	}
+	byCamera := map[string]*evidence{}
+	for _, clue := range clues {
+		e := byCamera[clue.Camera]
+		if e == nil {
+			e = &evidence{focals: map[string]bool{}, apertures: map[string]bool{}, profiles: map[string]bool{}}
+			byCamera[clue.Camera] = e
+		}
+		e.count += clue.Count
+		if clue.Focal != "" {
+			e.focals[clue.Focal] = true
+		}
+		if aperture := formatMaxAperture(clue.MaxApertureAPEX); aperture != "" {
+			e.apertures[aperture] = true
+		}
+		if clue.XMPProfile != "" {
+			e.profiles[clue.XMPProfile] = true
+		}
+	}
+
+	out := make(map[string]cameraLensSuggestion, len(byCamera))
+	for camera, e := range byCamera {
+		parts := []string{pluralize(e.count, "photo")}
+		if len(e.focals) == 1 {
+			parts = append(parts, firstKey(e.focals))
+		}
+		if len(e.apertures) == 1 {
+			parts = append(parts, "max "+firstKey(e.apertures))
+		}
+		if len(e.profiles) == 1 {
+			parts = append(parts, "XMP profile available; mapping unnecessary")
+		} else if len(e.profiles) > 1 {
+			parts = append(parts, pluralize(len(e.profiles), "XMP profile")+"; one mapping would affect all photos")
+		}
+
+		var lens string
+		if len(e.profiles) == 0 && len(e.focals) == 1 && len(e.apertures) == 1 {
+			lens = camera + " " + strings.ReplaceAll(firstKey(e.focals), " ", "") + " " + firstKey(e.apertures)
+			parts = append(parts, "one mapping affects every photo from this camera")
+		}
+		out[camera] = cameraLensSuggestion{Lens: lens, Evidence: strings.Join(parts, " · ")}
+	}
+	return out
+}
+
+func firstKey(values map[string]bool) string {
+	for value := range values {
+		return value
+	}
+	return ""
+}
+
+func formatMaxAperture(raw string) string {
+	numerator, denominator, ok := strings.Cut(raw, "/")
+	if !ok {
+		return ""
+	}
+	n, err := strconv.ParseFloat(numerator, 64)
+	if err != nil {
+		return ""
+	}
+	d, err := strconv.ParseFloat(denominator, 64)
+	if err != nil || d == 0 {
+		return ""
+	}
+	fNumber := math.Pow(2, (n/d)/2)
+	return "f/" + strings.TrimSuffix(strconv.FormatFloat(fNumber, 'f', 1, 64), ".0")
+}
+
+func xmpProfileRows(usages []store.XMPProfileUsage, mappings map[string]string, enabled bool) []xmpProfileRow {
+	var rows []xmpProfileRow
+	for _, usage := range usages {
+		if len(rows) == 0 || rows[len(rows)-1].Name != usage.Profile {
+			rows = append(rows, xmpProfileRow{Name: usage.Profile})
+		}
+		row := &rows[len(rows)-1]
+		if usage.Camera != "" {
+			if row.Cameras != "" {
+				row.Cameras += ", "
+			}
+			row.Cameras += usage.Camera
+		}
+		row.Count += usage.Count
+		row.SidecarCount += usage.SidecarCount
+		if mappings[usage.Camera] != "" {
+			row.MappedCount += usage.Count - usage.SidecarCount
+		}
+	}
+	for i := range rows {
+		switch {
+		case !enabled:
+			rows[i].Status = "Disabled"
+		case rows[i].SidecarCount == rows[i].Count:
+			rows[i].Status = "Overridden by sidecar"
+		case rows[i].MappedCount == rows[i].Count:
+			rows[i].Status = "Overridden by mapping"
+		case rows[i].SidecarCount+rows[i].MappedCount == rows[i].Count:
+			rows[i].Status = "Overridden"
+		case rows[i].SidecarCount+rows[i].MappedCount > 0:
+			rows[i].Status = "Partially overridden"
+		default:
+			rows[i].Status = "Used"
+		}
+	}
+	return rows
+}
+
+func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	cameras, lenses := r.Form["mapping_camera"], r.Form["mapping_lens"]
+	count := max(len(cameras), len(lenses))
+	lines := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		var camera, lens string
+		if i < len(cameras) {
+			camera = strings.TrimSpace(cameras[i])
+		}
+		if i < len(lenses) {
+			lens = strings.TrimSpace(lenses[i])
+		}
+		if lens == "" {
+			continue
+		}
+		if camera == "" || strings.Contains(camera, "=") {
+			s.redirect(w, r, s.link("settings", "metadata"), "Each mapping needs a camera and lens")
+			return
+		}
+		lines = append(lines, camera+" = "+lens)
+	}
+	lensMappings := strings.Join(lines, "\n")
+	if _, err := ingest.ParseLensMappings(lensMappings); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), err.Error())
+		return
+	}
+
+	ctx := r.Context()
+	useLightroomProfile := "false"
+	if r.FormValue("use_lightroom_lens_profile") == "on" {
+		useLightroomProfile = "true"
+	}
+	if err := s.store.SetSetting(ctx, "metadata.use_lightroom_lens_profile", useLightroomProfile); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "metadata.lens_mappings", lensMappings); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	s.redirect(w, r, s.link("settings", "metadata"), "Metadata settings saved; build site to publish changes")
 }
 
 func (s *Server) galleryLink(id int64) string {
