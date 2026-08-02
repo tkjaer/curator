@@ -313,6 +313,53 @@ func TestCopyrightSettings(t *testing.T) {
 	}
 }
 
+func TestPublishingSettingsRemainIndependentFromSite(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	if err := srv.store.SetSetting(ctx, "site.base_url", "https://photos.example.com"); err != nil {
+		t.Fatal(err)
+	}
+
+	form := url.Values{
+		"feed_enabled": {"on"},
+		"webserver":    {"apache"},
+		"server_root":  {"/srv/photos"},
+	}
+	req := httptest.NewRequest("POST", "/settings/publishing", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "build+site+to+publish+changes") {
+		t.Fatalf("publishing response = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+
+	siteForm := url.Values{
+		"title":                 {"My Photos"},
+		"theme":                 {"default"},
+		"default_gallery_order": {"date"},
+	}
+	req = httptest.NewRequest("POST", "/settings", strings.NewReader(siteForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	settings, err := srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["site.feed_enabled"] != "true" || settings["site.webserver"] != "apache" || settings["site.server_root"] != "/srv/photos" {
+		t.Fatalf("publishing settings changed after Site save: %+v", settings)
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings/publishing", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="/settings/publishing" aria-current="page"`) ||
+		!strings.Contains(rec.Body.String(), `name="feed_enabled" checked`) ||
+		!strings.Contains(rec.Body.String(), `<option value="apache" selected>`) {
+		t.Fatal("publishing settings page did not retain its values")
+	}
+}
+
 func TestSettingsSavePromptsForBuildForSystemGalleryDefault(t *testing.T) {
 	srv, _ := newTestServer(t)
 	srv.themes = []string{"default"}
@@ -338,6 +385,7 @@ func TestLensMetadataSettings(t *testing.T) {
 		"use_lightroom_lens_profile": {"on"},
 		"mapping_camera":             {"FUJIFILM XF10"},
 		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
+		"facet_camera":               {"on"},
 	}
 	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -357,12 +405,21 @@ func TestLensMetadataSettings(t *testing.T) {
 	if settings["metadata.lens_mappings"] != "FUJIFILM XF10 = FUJINON 18.5mm F2.8" {
 		t.Errorf("lens mappings = %q", settings["metadata.lens_mappings"])
 	}
+	facets, err := srv.store.FacetConfigs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(facets) < 2 || !facets[0].Enabled || facets[1].Enabled {
+		t.Fatalf("public browse pages = %+v", facets)
+	}
 
 	rec = httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings/metadata", nil))
 	if !strings.Contains(rec.Body.String(), `name="use_lightroom_lens_profile" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
-		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) {
+		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) ||
+		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
+		!strings.Contains(rec.Body.String(), `Generate a <strong>Camera</strong> browse page`) {
 		t.Fatal("settings page did not retain lens metadata settings")
 	}
 }

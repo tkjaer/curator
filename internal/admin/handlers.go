@@ -515,12 +515,8 @@ type settingsData struct {
 	CopyrightHolder string
 	CopyrightYear   string
 	CurrentYear     int
-	FeedEnabled     bool
 	Theme           string
 	Themes          []string
-	Webserver       string
-	ServerRoot      string
-	Facets          []model.FacetConfig
 	DefaultOrder    string
 }
 
@@ -535,6 +531,14 @@ type metadataSettingsData struct {
 	UseLightroomProfile bool
 	Mappings            []lensMappingRow
 	XMPProfiles         []xmpProfileRow
+	Facets              []model.FacetConfig
+}
+
+type publishingSettingsData struct {
+	BaseURL     string
+	FeedEnabled bool
+	Webserver   string
+	ServerRoot  string
 }
 
 type xmpProfileRow struct {
@@ -571,23 +575,14 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	facets, err := s.store.FacetConfigs(ctx)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
 		Title:           settings["site.title"],
 		BaseURL:         settings["site.base_url"],
 		CopyrightHolder: settings["site.copyright_holder"],
 		CopyrightYear:   settings["site.copyright_start_year"],
 		CurrentYear:     time.Now().Year(),
-		FeedEnabled:     settings["site.feed_enabled"] == "true",
 		Theme:           themeOr(settings["site.theme"]),
 		Themes:          s.themes,
-		Webserver:       settings["site.webserver"],
-		ServerRoot:      settings["site.server_root"],
-		Facets:          facets,
 		DefaultOrder: func() string {
 			if settings["site.default_gallery_order"] == string(model.SortByFilename) {
 				return string(model.SortByFilename)
@@ -608,12 +603,6 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	facets, err := s.store.FacetConfigs(ctx)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	title := r.FormValue("title")
 	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
 	copyrightHolder := strings.TrimSpace(r.FormValue("copyright_holder"))
@@ -628,7 +617,6 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	feedEnabled := baseURL != "" && r.FormValue("feed_enabled") == "on"
 	theme := themeOr(settings["site.theme"])
 	if requestedTheme := r.FormValue("theme"); s.validTheme(requestedTheme) {
 		theme = requestedTheme
@@ -637,15 +625,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		settings["site.base_url"] != baseURL ||
 		settings["site.copyright_holder"] != copyrightHolder ||
 		settings["site.copyright_start_year"] != copyrightYear ||
-		(settings["site.feed_enabled"] == "true") != feedEnabled ||
-		themeOr(settings["site.theme"]) != theme ||
-		settings["site.webserver"] != r.FormValue("webserver") ||
-		settings["site.server_root"] != r.FormValue("server_root")
-	for _, facet := range facets {
-		if facet.Enabled != (r.FormValue("facet_"+facet.Namespace) == "on") {
-			buildNeeded = true
-		}
-	}
+		themeOr(settings["site.theme"]) != theme
 
 	if err := s.store.SetSetting(ctx, "site.title", title); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
@@ -663,29 +643,11 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	// The Atom feed needs absolute URLs, so it can only be enabled once a base
-	// URL is set.
-	feedValue := "false"
-	if feedEnabled {
-		feedValue = "true"
-	}
-	if err := s.store.SetSetting(ctx, "site.feed_enabled", feedValue); err != nil {
-		s.redirect(w, r, s.link("settings"), "Could not save settings")
-		return
-	}
 	if s.validTheme(theme) {
 		if err := s.store.SetSetting(ctx, "site.theme", theme); err != nil {
 			s.redirect(w, r, s.link("settings"), "Could not save settings")
 			return
 		}
-	}
-	if err := s.store.SetSetting(ctx, "site.webserver", r.FormValue("webserver")); err != nil {
-		s.redirect(w, r, s.link("settings"), "Could not save settings")
-		return
-	}
-	if err := s.store.SetSetting(ctx, "site.server_root", r.FormValue("server_root")); err != nil {
-		s.redirect(w, r, s.link("settings"), "Could not save settings")
-		return
 	}
 	defaultOrder := model.SortMode(r.FormValue("default_gallery_order"))
 	if defaultOrder != model.SortByFilename {
@@ -699,14 +661,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	for _, f := range facets {
-		enabled := r.FormValue("facet_"+f.Namespace) == "on"
-		if err := s.store.SetFacetEnabled(ctx, f.Namespace, enabled); err != nil {
-			s.redirect(w, r, s.link("settings"), "Could not save facets")
-			return
-		}
-	}
-	message := "Settings saved"
+	message := "Site settings saved"
 	if buildNeeded {
 		message += "; build site to publish changes"
 	}
@@ -731,6 +686,11 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	profileUsages, err := s.store.XMPProfileUsages(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	facets, err := s.store.FacetConfigs(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -761,6 +721,7 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		UseLightroomProfile: useLightroomProfile,
 		Mappings:            rows,
 		XMPProfiles:         xmpProfileRows(profileUsages, mappings, useLightroomProfile),
+		Facets:              facets,
 	})
 }
 
@@ -926,7 +887,74 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
 		return
 	}
+	facets, err := s.store.FacetConfigs(ctx)
+	if err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	for _, facet := range facets {
+		enabled := r.FormValue("facet_"+facet.Namespace) == "on"
+		if err := s.store.SetFacetEnabled(ctx, facet.Namespace, enabled); err != nil {
+			s.redirect(w, r, s.link("settings", "metadata"), "Could not save public browse pages")
+			return
+		}
+	}
 	s.redirect(w, r, s.link("settings", "metadata"), "Metadata settings saved; build site to publish changes")
+}
+
+func (s *Server) handlePublishingSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.render(w, r, "publishing-settings", "Publishing settings", s.flash(r), publishingSettingsData{
+		BaseURL:     settings["site.base_url"],
+		FeedEnabled: settings["site.feed_enabled"] == "true",
+		Webserver:   settings["site.webserver"],
+		ServerRoot:  settings["site.server_root"],
+	})
+}
+
+func (s *Server) handleSavePublishingSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		s.redirect(w, r, s.link("settings", "publishing"), "Could not save publishing settings")
+		return
+	}
+	ctx := r.Context()
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	feedEnabled := settings["site.base_url"] != "" && r.FormValue("feed_enabled") == "on"
+	webserver := r.FormValue("webserver")
+	if webserver != "apache" {
+		webserver = "nginx"
+	}
+	serverRoot := strings.TrimSpace(r.FormValue("server_root"))
+	buildNeeded := (settings["site.feed_enabled"] == "true") != feedEnabled ||
+		settings["site.webserver"] != webserver || settings["site.server_root"] != serverRoot
+
+	feedValue := "false"
+	if feedEnabled {
+		feedValue = "true"
+	}
+	for key, value := range map[string]string{
+		"site.feed_enabled": feedValue,
+		"site.webserver":    webserver,
+		"site.server_root":  serverRoot,
+	} {
+		if err := s.store.SetSetting(ctx, key, value); err != nil {
+			s.redirect(w, r, s.link("settings", "publishing"), "Could not save publishing settings")
+			return
+		}
+	}
+	message := "Publishing settings saved"
+	if buildNeeded {
+		message += "; build site to publish changes"
+	}
+	s.redirect(w, r, s.link("settings", "publishing"), message)
 }
 
 func (s *Server) galleryLink(id int64) string {

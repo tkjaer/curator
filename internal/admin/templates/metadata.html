@@ -1,11 +1,12 @@
 {{define "metadata-settings"}}{{template "head" .}}
 {{with .Data}}
 <div class="page-head">
-  <div><h1>Settings</h1><p>Choose how Curator resolves missing lens metadata when building the site.</p></div>
+  <div><h1>Settings</h1><p>Resolve source metadata and choose which metadata visitors can browse.</p></div>
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
-  <a href="{{$.BasePath}}/settings">General</a>
+  <a href="{{$.BasePath}}/settings">Site</a>
   <a href="{{$.BasePath}}/settings/metadata" aria-current="page">Metadata</a>
+  <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
 <form class="card settings-card metadata-card" method="post" action="{{$.BasePath}}/settings/metadata" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -16,7 +17,7 @@
   <h2>Lens metadata</h2>
   <label class="field"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> Use Lightroom XMP lens profiles as a fallback</label>
   <p><span>Per-photo lens names from adjacent XMP sidecars take precedence. Camera mappings remain useful for fixed-lens cameras, followed by the optional Lightroom fallback. The next build uses these choices; no metadata refresh is needed.</span></p>
-  <p><span>This does not control the public Lens section; manage that under <a href="{{$.BasePath}}/settings#browse-facets">General settings</a>.</span></p>
+  <p><span>This controls how lens values are resolved. Choose whether to generate a public Lens browse page below.</span></p>
 
   <div class="mapping-heading">
     <div><h3>Camera-to-lens mappings</h3><p>Mappings apply at build time only when embedded EXIF has no lens.</p></div>
@@ -32,6 +33,12 @@
     </div>
     {{end}}
   </div>
+
+  <h2 id="public-browse-pages">Public browse pages</h2>
+  <p><span>Choose which metadata indexes Curator generates on the public site.</span></p>
+  {{range .Facets}}
+  <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> Generate a <strong>{{.Label}}</strong> browse page</label>
+  {{end}}
 </form>
 <section class="xmp-profiles metadata-card">
   <h2>Detected Lightroom profiles</h2>

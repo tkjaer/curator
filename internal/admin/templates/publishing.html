@@ -1,0 +1,33 @@
+{{define "publishing-settings"}}{{template "head" .}}
+{{with .Data}}
+<div class="page-head">
+  <div><h1>Settings</h1><p>Configure generated feeds and protected-gallery server files.</p></div>
+</div>
+<nav class="settings-tabs" aria-label="Settings sections">
+  <a href="{{$.BasePath}}/settings">Site</a>
+  <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
+  <a href="{{$.BasePath}}/settings/publishing" aria-current="page">Publishing</a>
+</nav>
+<form class="card settings-card" method="post" action="{{$.BasePath}}/settings/publishing" data-dirty-form>
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <div class="settings-save-row" data-dirty="false">
+    <button data-save-button disabled>Save publishing settings</button>
+    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
+  </div>
+
+  <h2>Syndication</h2>
+  <label class="field"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Generate an Atom feed of published galleries at /feed.xml</label>
+  {{if .BaseURL}}<p><span>Feed links use the Base URL <strong>{{.BaseURL}}</strong>.</span></p>{{else}}<p><span>Set a <a href="{{$.BasePath}}/settings">Base URL under Site settings</a> to enable the feed.</span></p>{{end}}
+
+  <h2>Protected galleries</h2>
+  <p><span>Generate access-control files for the web server that hosts the published site.</span></p>
+  <label class="field"><span>Web server</span>
+    <select name="webserver">
+      <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
+      <option value="apache"{{if eq .Webserver "apache"}} selected{{end}}>Apache</option>
+    </select>
+  </label>
+  <label class="field"><span>Server root (absolute deployed output path, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}

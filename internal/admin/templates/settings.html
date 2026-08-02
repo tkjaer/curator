@@ -1,11 +1,12 @@
 {{define "settings"}}{{template "head" .}}
 {{with .Data}}
 <div class="page-head">
-  <div><h1>Settings</h1><p>Configure the published site, theme, and protected galleries.</p></div>
+  <div><h1>Settings</h1><p>Configure the site's identity, appearance, and gallery defaults.</p></div>
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
-  <a href="{{$.BasePath}}/settings" aria-current="page">General</a>
+  <a href="{{$.BasePath}}/settings" aria-current="page">Site</a>
   <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
+  <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
 <form class="card settings-card" method="post" action="{{$.BasePath}}/settings" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -36,39 +37,6 @@
       {{range .Themes}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
     </select>
   </label>
-
-  <h2>Syndication</h2>
-  <label class="field"><input type="checkbox" id="feed_enabled" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Publish an Atom feed of published galleries at /feed.xml</label>
-  <p id="feed_hint"{{if .BaseURL}} hidden{{end}}><small>Set a Base URL above to enable the feed.</small></p>
-  <script>
-  (function () {
-    var u = document.getElementById("base_url"),
-        c = document.getElementById("feed_enabled"),
-        h = document.getElementById("feed_hint");
-    if (!u || !c) return;
-    u.addEventListener("input", function () {
-      var on = u.value.trim() !== "";
-      c.disabled = !on;
-      if (!on) c.checked = false;
-      if (h) h.hidden = on;
-    });
-  })();
-  </script>
-
-  <h2>Protected galleries</h2>
-  <label class="field"><span>Web server (for emitted auth files)</span>
-    <select name="webserver">
-      <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
-      <option value="apache"{{if eq .Webserver "apache"}} selected{{end}}>Apache</option>
-    </select>
-  </label>
-  <label class="field"><span>Server root (absolute path where output is deployed, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
-
-  <h2 id="browse-facets">Browse facets</h2>
-  <p><span>Choose which metadata sections appear on the public site. Lens values and fallbacks are configured under <a href="{{$.BasePath}}/settings/metadata">Metadata settings</a>.</span></p>
-  {{range .Facets}}
-  <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> {{.Label}}</label>
-  {{end}}
 
 </form>
 

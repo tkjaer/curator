@@ -109,6 +109,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/settings"), s.handleSaveSettings)
 	mux.HandleFunc("GET "+s.path("/settings/metadata"), s.handleMetadataSettings)
 	mux.HandleFunc("POST "+s.path("/settings/metadata"), s.handleSaveMetadataSettings)
+	mux.HandleFunc("GET "+s.path("/settings/publishing"), s.handlePublishingSettings)
+	mux.HandleFunc("POST "+s.path("/settings/publishing"), s.handleSavePublishingSettings)
 	mux.HandleFunc("POST "+s.path("/settings/password"), s.handlePassword)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)
 	mux.HandleFunc("GET "+s.path("/build/status"), s.handleBuildStatus)
