@@ -97,7 +97,7 @@ func cmdInit(args []string) error {
 	}
 
 	cfg := config.New(*content, "")
-	if err := os.MkdirAll(cfg.OriginalsDir(), 0o755); err != nil {
+	if err := ensureContentRoot(cfg); err != nil {
 		return err
 	}
 
@@ -113,6 +113,10 @@ func cmdInit(args []string) error {
 
 	fmt.Println("initialized content root at", cfg.ContentRoot)
 	return nil
+}
+
+func ensureContentRoot(cfg config.Config) error {
+	return os.MkdirAll(cfg.OriginalsDir(), 0o755)
 }
 
 func cmdImport(args []string) error {
@@ -344,6 +348,9 @@ func cmdServe(args []string) error {
 
 	ctx := context.Background()
 	cfg := config.New(*content, *output)
+	if err := ensureContentRoot(cfg); err != nil {
+		return err
+	}
 	st, err := store.Open(cfg.DBPath())
 	if err != nil {
 		return err
