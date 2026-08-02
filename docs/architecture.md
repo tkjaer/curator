@@ -157,7 +157,8 @@ ITEM
   width, height, aspect (landscape | portrait | square | pano),
   highlighted, sort_order, status,
   caption (markdown), exif (json), camera,
-  embedded_lens, sidecar_lens, xmp_lens, lens (effective cache), taken_at
+  embedded_lens, lightroom_lens, sidecar_lens, xmp_lens,
+  lens (effective cache), taken_at
 
 DERIVATIVE
   id, item_id, preset (thumb | display | w800 | w1600 | …),
@@ -215,10 +216,12 @@ metadata is explicitly refreshed. Curator stores the raw EXIF JSON and keeps
 embedded and XMP lens values as separate source facts.
 
 Each build resolves the effective lens from the current metadata policy:
-embedded EXIF first, then a standard adjacent XMP sidecar (`aux:Lens` or
-`exifEX:LensModel`), then a configured fixed-camera mapping, then Lightroom XMP
-when that fallback is enabled. Changing this policy therefore requires only
-another build, not a reread of the original files.
+a direct child of Lightroom's `Curator Lens` keyword first, then embedded EXIF,
+then a standard adjacent XMP sidecar (`aux:Lens` or `exifEX:LensModel`), then a
+configured fixed-camera mapping, then Lightroom XMP when that fallback is
+enabled. The explicit catalog keyword can therefore correct generic or
+incorrect embedded lens metadata. Changing this policy requires only another
+build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
@@ -247,6 +250,35 @@ rendered automatically as admin form fields and stored under
 `theme.<name>.*`.
 
 ## Build and publish
+
+### Lightroom Classic publishing
+
+The private admin server also exposes a versioned `/api/v1` publishing API for
+the Lightroom Classic Publish Service in `lightroom/Curator.lrplugin`. It uses a
+dedicated bearer token instead of browser session cookies and CSRF tokens. Run
+the create/rotate action under Publishing settings, or use
+`curator create-publish-token` for headless setup. The UI reveals the token only
+in the generating response, and only its SHA-256 digest is stored in Curator's
+settings database. UI rotation takes effect immediately.
+
+The API supports capability discovery, gallery listing and creation, and
+multipart photo uploads through the same ingest pipeline used by the admin.
+Two mapping tables associate publish-service-scoped Lightroom identities with
+Curator galleries and items. Collection sets and collections are idempotently
+upserted as the gallery hierarchy, including empty nodes; republishing replaces
+media while preserving the Curator item ID; Lightroom user order updates manual
+item positions; and remote deletion is restricted to mapped Lightroom-owned
+records. New Lightroom-managed galleries inherit the configured default
+publication and lightbox EXIF states; the conservative defaults are draft and
+EXIF hidden. Lightroom stores its bearer token in the SDK password vault and
+queues coalesced static builds after successful mutations. Curator returns
+public URLs only for addressable galleries when a Base URL is configured.
+An optional `Curator Lens` keyword child supplies a per-photo manual lens name;
+keyword changes trigger Lightroom republish and conflicting lens tags reject
+that photo instead of selecting an arbitrary value.
+Lightroom renders JPEGs, Curator owns originals and stored metadata, and public
+delivery remains entirely static without giving the plugin direct SQLite
+access.
 
 Builds are incremental. Editing anything marks the affected gallery dirty and
 bumps a content version; publishing rebuilds the dirty set and regenerates only
