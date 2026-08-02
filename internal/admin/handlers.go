@@ -14,6 +14,7 @@ import (
 
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
+	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/slug"
 	"github.com/tkjaer/curator/internal/store"
 )
@@ -187,9 +188,14 @@ func (s *Server) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 			parentID = &id
 		}
 	}
+	defaultStatus, defaultShowEXIF, err := s.store.GalleryDefaults(r.Context())
+	if err != nil {
+		s.redirect(w, r, s.link(), "Could not load gallery defaults")
+		return
+	}
 	id, err := s.store.CreateGallery(r.Context(), model.Gallery{
 		ParentID: parentID, Slug: sl, Title: title, Type: gType,
-		Status: model.GalleryDraft, SortMode: model.SortDefault,
+		Status: defaultStatus, SortMode: model.SortDefault, ShowEXIF: defaultShowEXIF,
 	})
 	if err != nil {
 		s.redirect(w, r, s.link(), "Could not create gallery: "+err.Error())
@@ -510,14 +516,16 @@ func (s *Server) handleGalleryEXIF(w http.ResponseWriter, r *http.Request) {
 }
 
 type settingsData struct {
-	Title           string
-	BaseURL         string
-	CopyrightHolder string
-	CopyrightYear   string
-	CurrentYear     int
-	Theme           string
-	Themes          []string
-	DefaultOrder    string
+	Title            string
+	BaseURL          string
+	CopyrightHolder  string
+	CopyrightYear    string
+	CurrentYear      int
+	Theme            string
+	Themes           []string
+	DefaultOrder     string
+	DefaultPublished bool
+	DefaultShowEXIF  bool
 }
 
 type lensMappingRow struct {
@@ -537,10 +545,12 @@ type metadataSettingsData struct {
 }
 
 type publishingSettingsData struct {
-	BaseURL     string
-	FeedEnabled bool
-	Webserver   string
-	ServerRoot  string
+	BaseURL                string
+	FeedEnabled            bool
+	Webserver              string
+	ServerRoot             string
+	PublishTokenConfigured bool
+	GeneratedPublishToken  string
 }
 
 type xmpProfileRow struct {
@@ -578,13 +588,15 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
-		Title:           settings["site.title"],
-		BaseURL:         settings["site.base_url"],
-		CopyrightHolder: settings["site.copyright_holder"],
-		CopyrightYear:   settings["site.copyright_start_year"],
-		CurrentYear:     time.Now().Year(),
-		Theme:           themeOr(settings["site.theme"]),
-		Themes:          s.themes,
+		Title:            settings["site.title"],
+		BaseURL:          settings["site.base_url"],
+		CopyrightHolder:  settings["site.copyright_holder"],
+		CopyrightYear:    settings["site.copyright_start_year"],
+		CurrentYear:      time.Now().Year(),
+		Theme:            themeOr(settings["site.theme"]),
+		Themes:           s.themes,
+		DefaultPublished: settings["site.default_gallery_published"] == "true",
+		DefaultShowEXIF:  settings["site.default_gallery_show_exif"] == "true",
 		DefaultOrder: func() string {
 			if settings["site.default_gallery_order"] == string(model.SortByFilename) {
 				return string(model.SortByFilename)
@@ -660,6 +672,14 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		buildNeeded = true
 	}
 	if err := s.store.SetSetting(ctx, "site.default_gallery_order", string(defaultOrder)); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_published", strconv.FormatBool(r.FormValue("default_gallery_published") == "on")); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_show_exif", strconv.FormatBool(r.FormValue("default_gallery_show_exif") == "on")); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
@@ -946,10 +966,41 @@ func (s *Server) handlePublishingSettings(w http.ResponseWriter, r *http.Request
 		return
 	}
 	s.render(w, r, "publishing-settings", "Publishing settings", s.flash(r), publishingSettingsData{
-		BaseURL:     settings["site.base_url"],
-		FeedEnabled: settings["site.feed_enabled"] == "true",
-		Webserver:   settings["site.webserver"],
-		ServerRoot:  settings["site.server_root"],
+		BaseURL:                settings["site.base_url"],
+		FeedEnabled:            settings["site.feed_enabled"] == "true",
+		Webserver:              settings["site.webserver"],
+		ServerRoot:             settings["site.server_root"],
+		PublishTokenConfigured: settings["publish.api_token_hash"] != "",
+	})
+}
+
+func (s *Server) handleCreatePublishToken(w http.ResponseWriter, r *http.Request) {
+	token, err := publishapi.GenerateToken()
+	if err != nil {
+		s.redirect(w, r, s.link("settings", "publishing"), "Could not generate publishing token")
+		return
+	}
+	hash := publishapi.TokenHash(token)
+	if err := s.store.SetSetting(r.Context(), "publish.api_token_hash", hash); err != nil {
+		s.redirect(w, r, s.link("settings", "publishing"), "Could not save publishing token")
+		return
+	}
+	s.publishTokenHash = hash
+	s.publishAPI.SetTokenHash(hash)
+
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	s.render(w, r, "publishing-settings", "Publishing settings", "Publishing token generated; copy it now", publishingSettingsData{
+		BaseURL:                settings["site.base_url"],
+		FeedEnabled:            settings["site.feed_enabled"] == "true",
+		Webserver:              settings["site.webserver"],
+		ServerRoot:             settings["site.server_root"],
+		PublishTokenConfigured: true,
+		GeneratedPublishToken:  token,
 	})
 }
 

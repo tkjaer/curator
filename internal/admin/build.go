@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,6 +21,7 @@ type buildStatus struct {
 	instance   string
 	id         uint64
 	running    bool
+	pending    bool
 	everRun    bool
 	progress   build.Progress
 	report     build.Report
@@ -41,13 +43,28 @@ func (b *buildStatus) begin() bool {
 	if b.running {
 		return false
 	}
+	b.startLocked()
+	return true
+}
+
+func (b *buildStatus) queue() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.running {
+		b.pending = true
+		return false
+	}
+	b.startLocked()
+	return true
+}
+
+func (b *buildStatus) startLocked() {
 	b.id++
 	b.running = true
 	b.everRun = true
 	b.progress = build.Progress{}
 	b.report = build.Report{}
 	b.err = ""
-	return true
 }
 
 func (b *buildStatus) setProgress(p build.Progress) {
@@ -56,15 +73,21 @@ func (b *buildStatus) setProgress(p build.Progress) {
 	b.mu.Unlock()
 }
 
-func (b *buildStatus) finish(report build.Report, err error) {
+func (b *buildStatus) finish(report build.Report, err error) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.running = false
 	b.report = report
 	b.finishedAt = time.Now()
 	if err != nil {
 		b.err = err.Error()
 	}
+	if b.pending {
+		b.pending = false
+		b.startLocked()
+		return true
+	}
+	b.running = false
+	return false
 }
 
 type buildStatusJSON struct {
@@ -114,11 +137,27 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link(), "A build is already running")
 		return
 	}
-	go func() {
-		report, err := s.build(context.Background(), s.builds.setProgress)
-		s.builds.finish(report, err)
-	}()
+	go s.runBuildQueue()
 	s.redirect(w, r, s.link(), "")
+}
+
+func (s *Server) queueBuild() error {
+	if s.build == nil {
+		return errors.New("build is not available")
+	}
+	if s.builds.queue() {
+		go s.runBuildQueue()
+	}
+	return nil
+}
+
+func (s *Server) runBuildQueue() {
+	for {
+		report, err := s.build(context.Background(), s.builds.setProgress)
+		if !s.builds.finish(report, err) {
+			return
+		}
+	}
 }
 
 func (s *Server) handleBuildStatus(w http.ResponseWriter, r *http.Request) {

@@ -19,6 +19,7 @@ import (
 	"github.com/tkjaer/curator/internal/config"
 	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
+	"github.com/tkjaer/curator/internal/publishapi"
 	slugpkg "github.com/tkjaer/curator/internal/slug"
 	"github.com/tkjaer/curator/internal/store"
 	"golang.org/x/crypto/bcrypt"
@@ -56,6 +57,8 @@ func run(args []string) error {
 		return cmdServe(rest)
 	case "set-password":
 		return cmdSetPassword(rest)
+	case "create-publish-token":
+		return cmdCreatePublishToken(rest)
 	case "version", "-version", "--version":
 		fmt.Println("curator", version)
 		return nil
@@ -81,6 +84,7 @@ usage:
   curator serve [-listen ADDR] [-base-path P] [-content DIR] [-output DIR]
                                                    run the admin web UI
   curator set-password [-content DIR]               set the admin login password
+	curator create-publish-token [-content DIR]       create a Lightroom API token
   curator version                                   print the version
   curator help                                      show this help`)
 }
@@ -411,6 +415,36 @@ func cmdSetPassword(args []string) error {
 	}
 
 	fmt.Println("admin password set")
+	return nil
+}
+
+func cmdCreatePublishToken(args []string) error {
+	fs := flag.NewFlagSet("create-publish-token", flag.ContinueOnError)
+	content := fs.String("content", ".", "content root directory")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	token, err := publishapi.GenerateToken()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	cfg := config.New(*content, "")
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		return err
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		return err
+	}
+	if err := st.SetSetting(ctx, "publish.api_token_hash", publishapi.TokenHash(token)); err != nil {
+		return err
+	}
+
+	fmt.Println(token)
+	fmt.Fprintln(os.Stderr, "publishing token created; restart curator serve if it is already running")
 	return nil
 }
 

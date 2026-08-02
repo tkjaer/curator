@@ -13,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/tkjaer/curator/internal/config"
+	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
 )
 
@@ -146,5 +147,23 @@ func TestCSRFRejected(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403 for missing CSRF token", rec.Code)
+	}
+}
+
+func TestPublishAPIUsesBearerAuthInsteadOfBrowserSession(t *testing.T) {
+	srv := newAuthServer(t, "hunter2")
+	const token = "lightroom-token"
+	if err := srv.store.SetSetting(context.Background(), "publish.api_token_hash", publishapi.TokenHash(token)); err != nil {
+		t.Fatal(err)
+	}
+	srv.publishTokenHash = publishapi.TokenHash(token)
+	srv.publishAPI.SetTokenHash(publishapi.TokenHash(token))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"version":1`) {
+		t.Fatalf("publish API status = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }

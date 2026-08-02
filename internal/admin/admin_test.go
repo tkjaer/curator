@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/tkjaer/curator/internal/build"
 	"github.com/tkjaer/curator/internal/config"
 	"github.com/tkjaer/curator/internal/model"
+	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
 )
 
@@ -57,6 +59,93 @@ func TestDashboardRenders(t *testing.T) {
 	}
 }
 
+func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
+	srv, _ := newTestServer(t)
+	handler := srv.Handler()
+
+	settings := url.Values{
+		"default_gallery_order":     {"date"},
+		"default_gallery_published": {"on"},
+		"default_gallery_show_exif": {"on"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/settings", strings.NewReader(settings.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("save settings status = %d", rec.Code)
+	}
+
+	form := url.Values{"title": {"Published by default"}}
+	req = httptest.NewRequest(http.MethodPost, "/galleries", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create gallery status = %d", rec.Code)
+	}
+	galleries, err := srv.store.Galleries(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(galleries) != 1 || galleries[0].Status != model.GalleryPublished || !galleries[0].ShowEXIF || galleries[0].PublishedAt == nil {
+		t.Fatalf("gallery defaults not applied: %#v", galleries)
+	}
+}
+
+func TestPublishingTokenCanBeCreatedInUI(t *testing.T) {
+	srv, _ := newTestServer(t)
+	handler := srv.Handler()
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/publishing/token", nil))
+
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("create token status = %d, cache = %q", rec.Code, rec.Header().Get("Cache-Control"))
+	}
+	match := regexp.MustCompile(`id="publishing-token" value="([A-Za-z0-9_-]+)"`).FindStringSubmatch(rec.Body.String())
+	if match == nil {
+		t.Fatalf("generated token not shown in response")
+	}
+	token := match[1]
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["publish.api_token_hash"] == token || settings["publish.api_token_hash"] != publishapi.TokenHash(token) {
+		t.Fatalf("publishing token was not stored as its hash")
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("new token status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings/publishing", nil))
+	if strings.Contains(rec.Body.String(), token) || !strings.Contains(rec.Body.String(), "Rotate publishing token") {
+		t.Fatalf("token was redisplayed or configured state was missing")
+	}
+
+	rec = httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/publishing/token", nil))
+	rotated := regexp.MustCompile(`id="publishing-token" value="([A-Za-z0-9_-]+)"`).FindStringSubmatch(rec.Body.String())
+	if rotated == nil || rotated[1] == token {
+		t.Fatalf("rotated token was not generated")
+	}
+	for candidate, wantStatus := range map[string]int{token: http.StatusUnauthorized, rotated[1]: http.StatusOK} {
+		req = httptest.NewRequest(http.MethodGet, "/api/v1/", nil)
+		req.Header.Set("Authorization", "Bearer "+candidate)
+		rec = httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != wantStatus {
+			t.Fatalf("token status = %d, want %d", rec.Code, wantStatus)
+		}
+	}
+}
+
 func TestBuildStatusIDsDistinguishBuilds(t *testing.T) {
 	status := newBuildStatus()
 	if !status.begin() {
@@ -73,6 +162,28 @@ func TestBuildStatusIDsDistinguishBuilds(t *testing.T) {
 	second := status.snapshot().BuildID
 	if first == 0 || second != first+1 {
 		t.Fatalf("build IDs = %d, %d", first, second)
+	}
+}
+
+func TestBuildStatusCoalescesPendingBuilds(t *testing.T) {
+	status := newBuildStatus()
+	if !status.begin() {
+		t.Fatal("first build did not begin")
+	}
+	if status.queue() {
+		t.Fatal("pending build started while another build was running")
+	}
+	if status.queue() {
+		t.Fatal("pending build started while another build was running")
+	}
+	if !status.finish(build.Report{}, nil) {
+		t.Fatal("pending build was not scheduled after the running build")
+	}
+	if snapshot := status.snapshot(); !snapshot.Running || snapshot.BuildID != 2 {
+		t.Fatalf("queued build status = %#v", snapshot)
+	}
+	if status.finish(build.Report{}, nil) {
+		t.Fatal("unexpected third build")
 	}
 }
 

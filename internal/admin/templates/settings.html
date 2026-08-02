@@ -29,6 +29,8 @@
       <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
     </select>
   </label>
+  <label><input type="checkbox" name="default_gallery_published"{{if .DefaultPublished}} checked{{end}}> Publish new galleries immediately</label>
+  <label><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> Show EXIF in new gallery lightboxes</label>
 
   <h2>Theme</h2>
   {{$cur := .Theme}}

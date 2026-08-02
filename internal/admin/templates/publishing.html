@@ -29,5 +29,43 @@
   </label>
   <label class="field"><span>Server root (absolute deployed output path, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
 </form>
+
+<section class="card settings-card">
+  <h2>Lightroom Classic</h2>
+  <p><span>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</span></p>
+  {{if .GeneratedPublishToken}}
+  <label class="field"><span>Publishing token (shown once)</span>
+    <span class="input-action"><input id="publishing-token" value="{{.GeneratedPublishToken}}" readonly autocomplete="off"><button class="secondary-button" type="button" id="copy-publishing-token">Copy</button></span>
+  </label>
+  <p><strong>Store this token in Lightroom now. Curator cannot display it again.</strong></p>
+  {{end}}
+  <form method="post" action="{{$.BasePath}}/settings/publishing/token">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button class="secondary-button"{{if .PublishTokenConfigured}} onclick="return confirm('Rotate the publishing token? Existing Lightroom connections will stop working.')"{{end}}>{{if .PublishTokenConfigured}}Rotate publishing token{{else}}Create publishing token{{end}}</button>
+  </form>
+</section>
+{{if .GeneratedPublishToken}}
+<script>
+document.getElementById("copy-publishing-token").addEventListener("click", function () {
+  var input = document.getElementById("publishing-token");
+  var button = this;
+  function copied() {
+    input.select();
+    button.textContent = "Copied";
+  }
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(input.value).then(copied, function () {
+      input.select();
+      document.execCommand("copy");
+      copied();
+    });
+  } else {
+    input.select();
+    document.execCommand("copy");
+    copied();
+  }
+});
+</script>
+{{end}}
 {{end}}
 {{template "foot" .}}{{end}}

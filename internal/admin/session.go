@@ -32,6 +32,7 @@ func (s *Server) loadAuth(ctx context.Context) error {
 	}
 	s.passwordHash = settings["admin.password_hash"]
 	s.authEnabled = s.passwordHash != ""
+	s.publishTokenHash = settings["publish.api_token_hash"]
 
 	secret := settings["admin.session_secret"]
 	if secret == "" {

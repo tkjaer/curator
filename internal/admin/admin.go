@@ -17,6 +17,7 @@ import (
 
 	"github.com/tkjaer/curator/internal/build"
 	"github.com/tkjaer/curator/internal/config"
+	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
 )
 
@@ -37,20 +38,22 @@ type Options struct {
 
 // Server is the admin HTTP application.
 type Server struct {
-	store    *store.Store
-	cfg      config.Config
-	basePath string
-	build    BuildFunc
-	tmpl     *template.Template
-	themes   []string
+	store      *store.Store
+	cfg        config.Config
+	basePath   string
+	build      BuildFunc
+	tmpl       *template.Template
+	themes     []string
+	publishAPI *publishapi.API
 
-	trustProxy   bool
-	authEnabled  bool
-	passwordHash string
-	secret       []byte
-	throttle     *throttle
-	loginSem     chan struct{}
-	builds       *buildStatus
+	trustProxy       bool
+	authEnabled      bool
+	passwordHash     string
+	publishTokenHash string
+	secret           []byte
+	throttle         *throttle
+	loginSem         chan struct{}
+	builds           *buildStatus
 }
 
 // New parses templates, loads auth settings, and returns an admin server.
@@ -75,6 +78,8 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 	if err := s.loadAuth(context.Background()); err != nil {
 		return nil, err
 	}
+	s.publishAPI = publishapi.New(st, cfg, s.publishTokenHash)
+	s.publishAPI.SetBuildTrigger(s.queueBuild)
 	return s, nil
 }
 
@@ -111,6 +116,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/settings/metadata"), s.handleSaveMetadataSettings)
 	mux.HandleFunc("GET "+s.path("/settings/publishing"), s.handlePublishingSettings)
 	mux.HandleFunc("POST "+s.path("/settings/publishing"), s.handleSavePublishingSettings)
+	mux.HandleFunc("POST "+s.path("/settings/publishing/token"), s.handleCreatePublishToken)
 	mux.HandleFunc("POST "+s.path("/settings/password"), s.handlePassword)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)
 	mux.HandleFunc("GET "+s.path("/build/status"), s.handleBuildStatus)
@@ -118,7 +124,12 @@ func (s *Server) Handler() http.Handler {
 
 	media := s.path("/media/")
 	mux.Handle("GET "+media, http.StripPrefix(media, http.FileServer(http.Dir(s.cfg.OriginalsDir()))))
-	return s.withAuth(mux)
+
+	apiPrefix := s.path("/api/v1")
+	root := http.NewServeMux()
+	root.Handle(apiPrefix+"/", http.StripPrefix(apiPrefix, s.publishAPI.Handler()))
+	root.Handle("/", s.withAuth(mux))
+	return root
 }
 
 // path prefixes a route with the configured base path.

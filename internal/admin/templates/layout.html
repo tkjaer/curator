@@ -90,6 +90,9 @@
   .settings-save-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: .4rem; background: var(--line); border-radius: 50%; vertical-align: .05em; }
   .settings-save-status[data-dirty="true"] { color: var(--accent); }
   .settings-save-status[data-dirty="true"]::before { background: var(--accent); }
+  .input-action { display: flex !important; max-width: 680px; align-items: stretch; gap: .5rem; }
+  .input-action input { flex: 1; min-width: 0; font-family: ui-monospace, monospace; }
+  .input-action button { flex: 0 0 auto; }
   .grid-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .5rem; margin: .6rem 0 1rem; }
   .grid-choices label { padding: .5rem; background: var(--canvas); border-radius: 4px; overflow-wrap: anywhere; }
   .metadata-card { max-width: 900px; }
