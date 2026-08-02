@@ -1,0 +1,3 @@
+{{define "breadcrumbs"}}{{if .}}<nav class="breadcrumbs">
+  {{range .}}<a href="{{.Href}}">{{.Title}}</a><span class="sep">/</span>{{end}}
+</nav>{{end}}{{end}}

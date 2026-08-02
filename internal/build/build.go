@@ -147,11 +147,11 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		}
 		if g.CoverItemID != nil {
 			if pv, ok := items[*g.CoverItemID]; ok {
-				covers[g.ID] = pv.Thumb
+				covers[g.ID] = cardCover(pv)
 			}
 		}
 		if _, has := covers[g.ID]; !has && len(views) > 0 {
-			covers[g.ID] = views[0].Thumb
+			covers[g.ID] = cardCover(views[0])
 		}
 	}
 
@@ -248,6 +248,27 @@ func (b *Builder) cards(galleries []model.Gallery, covers map[int64]render.Sourc
 		})
 	}
 	return out
+}
+
+func cardCover(photo render.PhotoView) render.Source {
+	var best render.Source
+	for _, source := range photo.Srcset {
+		if source.Width >= 800 && (best.URL == "" || source.Width < best.Width) {
+			best = source
+		}
+	}
+	if best.URL != "" {
+		return best
+	}
+	for _, source := range photo.Srcset {
+		if source.Width > best.Width {
+			best = source
+		}
+	}
+	if best.URL != "" {
+		return best
+	}
+	return photo.Thumb
 }
 
 func (b *Builder) breadcrumb(id int64) []render.Crumb {

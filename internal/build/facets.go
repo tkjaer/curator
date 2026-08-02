@@ -74,7 +74,7 @@ func (b *Builder) renderFacets() error {
 
 			var cover render.Source
 			if len(pics) > 0 {
-				cover = pics[0].Thumb
+				cover = cardCover(pics[0])
 			}
 			items = append(items, render.FacetItem{
 				Title: v,

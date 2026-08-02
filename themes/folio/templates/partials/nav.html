@@ -1,0 +1,4 @@
+{{define "nav"}}<nav class="site-nav">
+  {{range .Nav}}<a href="{{.Href}}">{{.Title}}</a>{{end}}
+  {{range .Facets}}<a class="facet" href="{{.Href}}">{{.Label}}</a>{{end}}
+</nav>{{end}}

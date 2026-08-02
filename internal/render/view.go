@@ -138,10 +138,11 @@ type GalleryView struct {
 // FacetItem is one value within a facet, e.g. a single camera model. Its fields
 // mirror GalleryCard so both share the "cards" template.
 type FacetItem struct {
-	Title string
-	Href  string
-	Cover Source
-	Count int
+	Title  string
+	Href   string
+	Cover  Source
+	Count  int
+	Locked bool
 }
 
 // FacetIndexView lists the values of one facet (e.g. all cameras).

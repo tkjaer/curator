@@ -12,9 +12,27 @@ import (
 	"github.com/tkjaer/curator/internal/config"
 	"github.com/tkjaer/curator/internal/imaging"
 	"github.com/tkjaer/curator/internal/model"
+	"github.com/tkjaer/curator/internal/render"
 	"github.com/tkjaer/curator/internal/store"
 	"github.com/tkjaer/curator/internal/theme"
 )
+
+func TestCardCoverUsesResponsiveSource(t *testing.T) {
+	photo := render.PhotoView{
+		Thumb: render.Source{URL: "/thumb.jpg", Width: 400},
+		Srcset: []render.Source{
+			{URL: "/wide.jpg", Width: 1600},
+			{URL: "/card.jpg", Width: 800},
+		},
+	}
+	if got := cardCover(photo); got.URL != "/card.jpg" {
+		t.Fatalf("card cover = %q, want 800px source", got.URL)
+	}
+	photo.Srcset = nil
+	if got := cardCover(photo); got.URL != "/thumb.jpg" {
+		t.Fatalf("fallback card cover = %q, want thumbnail", got.URL)
+	}
+}
 
 func TestBuildProducesSite(t *testing.T) {
 	tmp := t.TempDir()

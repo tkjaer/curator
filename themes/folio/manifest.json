@@ -1,0 +1,13 @@
+{
+  "name": "folio",
+  "version": "1.0.0",
+  "engine": ">=0.1",
+  "requiresPresets": ["thumb", "display", "w800", "w1600", "w2400"],
+  "options": [
+    { "key": "accent",        "type": "color", "label": "Accent color",          "default": "#ee4935" },
+    { "key": "gridGap",       "type": "int",   "label": "Grid gap (px)",          "default": 12 },
+    { "key": "rowHeight",     "type": "int",   "label": "Target row height",       "default": 380 },
+    { "key": "panoFullWidth", "type": "bool",  "label": "Panoramas full width",    "default": true },
+    { "key": "showExif",      "type": "bool",  "label": "Show EXIF badge",         "default": false }
+  ]
+}

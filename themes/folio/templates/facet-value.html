@@ -1,0 +1,6 @@
+{{define "facet-value"}}{{template "site-head" .}}
+<article class="facet-value">
+  <header class="gallery-head"><h1>{{.Title}}</h1></header>
+  {{template "grid" .Rows}}
+</article>
+{{template "site-foot" .}}{{end}}

@@ -109,3 +109,65 @@ func TestManifestOptions(t *testing.T) {
 		t.Error("expected requiresPresets to be declared")
 	}
 }
+
+func TestFolioTheme(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/folio"))
+	if err != nil {
+		t.Fatalf("load folio theme: %v", err)
+	}
+	if th.Manifest.Name != "folio" {
+		t.Fatalf("manifest name = %q, want folio", th.Manifest.Name)
+	}
+	if _, err := th.Assets(); err != nil {
+		t.Fatalf("folio assets: %v", err)
+	}
+
+	rows := render.Justify(samplePhotos(), 1000, 340, 12, false)
+	views := []struct {
+		name string
+		view render.GalleryView
+	}{
+		{"gallery-grid", render.GalleryView{Title: "Modern Grid", Type: "grid", Rows: rows, Options: th.Manifest.Defaults(), Site: sampleSite()}},
+		{"gallery-story", render.GalleryView{Title: "Modern Story", Type: "story", Blocks: []render.BlockView{{Type: "text", HTML: "<p>Editorial copy.</p>"}, {Type: "grid", Rows: rows}}, Options: th.Manifest.Defaults(), Site: sampleSite()}},
+	}
+	for _, test := range views {
+		var buf bytes.Buffer
+		if err := th.Render(&buf, test.name, test.view); err != nil {
+			t.Fatalf("render %s: %v", test.name, err)
+		}
+		if strings.Contains(buf.String(), "<no value>") {
+			t.Errorf("%s produced <no value>", test.name)
+		}
+	}
+}
+
+func TestThemesRenderFacetCards(t *testing.T) {
+	for _, name := range []string{"default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatalf("load theme: %v", err)
+			}
+
+			view := render.FacetIndexView{
+				Title: "Camera",
+				Items: []render.FacetItem{{
+					Title: "Example Camera",
+					Href:  "/browse/camera/example-camera/",
+					Cover: render.Source{URL: "/img/camera.jpg", Width: 800, Height: 533},
+					Count: 3,
+				}},
+				Options: th.Manifest.Defaults(),
+				Site:    sampleSite(),
+			}
+
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "facet-index", view); err != nil {
+				t.Fatalf("render facet cards: %v", err)
+			}
+			if !strings.Contains(buf.String(), "Example Camera") {
+				t.Error("facet card title missing from output")
+			}
+		})
+	}
+}

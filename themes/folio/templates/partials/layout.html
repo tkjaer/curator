@@ -1,0 +1,30 @@
+{{define "site-head"}}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} &middot; {{.Site.Title}}</title>
+<link rel="stylesheet" href="{{.Site.BaseURL}}/assets/theme.css">
+{{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
+{{end}}<style>:root{
+{{if .Options.accent}}  --accent: {{.Options.accent}};
+{{end}}  --gap: {{if .Options.gridGap}}{{.Options.gridGap}}{{else}}8{{end}}px;
+}</style>
+</head>
+<body id="top">
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="site-title" href="{{.Site.BaseURL}}/"><span class="site-mark" aria-hidden="true"></span>{{.Site.Title}}</a>
+    {{template "nav" .Site}}
+  </div>
+</header>
+<main class="site-main">
+{{end}}
+
+{{define "site-foot"}}</main>
+<footer class="site-footer"><span>{{.Site.Title}}</span><a href="#top">Back to top</a></footer>
+{{template "lightbox" .}}
+<script src="{{.Site.BaseURL}}/assets/theme.js" defer></script>
+</body>
+</html>
+{{end}}

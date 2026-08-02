@@ -8,15 +8,15 @@ import (
 	"github.com/tkjaer/curator/internal/store"
 )
 
-func TestAvailableThemesIncludesDefault(t *testing.T) {
-	found := false
+func TestAvailableThemesIncludesBundledThemes(t *testing.T) {
+	found := map[string]bool{}
 	for _, name := range availableThemes() {
-		if name == "default" {
-			found = true
-		}
+		found[name] = true
 	}
-	if !found {
-		t.Errorf("availableThemes() = %v, want it to include \"default\"", availableThemes())
+	for _, name := range []string{"default", "folio"} {
+		if !found[name] {
+			t.Errorf("availableThemes() = %v, want it to include %q", availableThemes(), name)
+		}
 	}
 }
 
