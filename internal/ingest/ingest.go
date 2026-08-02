@@ -92,7 +92,7 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 		it.EmbeddedLens = meta.Lens
 		it.SidecarLens = meta.SidecarLens
 		it.XMPLens = meta.XMPLens
-		it.Lens = policy.Lens(meta)
+		it.Lens = policy.Resolve(meta.Camera, meta.Lens, it.LightroomLens, meta.SidecarLens, meta.XMPLens)
 		it.Aperture = meta.Aperture
 		it.Shutter = meta.Shutter
 		it.ISO = meta.ISO
@@ -115,34 +115,44 @@ func ImportUpload(ctx context.Context, st *store.Store, cfg config.Config, galle
 // ImportUploadWithSidecar imports an image and an optional standard XMP
 // sidecar. Sidecars are stored beside originals using the basename form.
 func ImportUploadWithSidecar(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, gallerySlug, filename string, r, sidecar io.Reader) error {
-	if !IsImage(filename) {
-		return fmt.Errorf("unsupported file type: %s", filename)
-	}
+	_, err := ImportUploadIDWithSidecar(ctx, st, cfg, galleryID, gallerySlug, filename, r, sidecar)
+	return err
+}
 
-	destDir := filepath.Join(cfg.OriginalsDir(), gallerySlug)
-	if err := os.MkdirAll(destDir, 0o755); err != nil {
+// ImportUploadIDWithSidecar imports an image and returns its item id.
+func ImportUploadIDWithSidecar(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, gallerySlug, filename string, r, sidecar io.Reader) (int64, error) {
+	return ImportUploadIDWithSidecarAt(ctx, st, cfg, galleryID, gallerySlug, filename, filename, r, sidecar)
+}
+
+// ImportUploadIDWithSidecarAt imports an image using a distinct storage name
+// while retaining filename as its user-facing name.
+func ImportUploadIDWithSidecarAt(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) (int64, error) {
+	item, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
+	if err != nil {
+		return 0, err
+	}
+	return st.CreateItem(ctx, item)
+}
+
+// ReplaceUploadWithSidecar replaces an item's source media while preserving
+// its id, caption, ordering, and publication state.
+func ReplaceUploadWithSidecar(ctx context.Context, st *store.Store, cfg config.Config, itemID, galleryID int64, gallerySlug, filename string, r, sidecar io.Reader) error {
+	return ReplaceUploadWithSidecarAt(ctx, st, cfg, itemID, galleryID, gallerySlug, filename, filename, r, sidecar)
+}
+
+// ReplaceUploadWithSidecarAt replaces synchronized media at a stable storage
+// name while retaining filename as its user-facing name.
+func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config.Config, itemID, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) error {
+	oldItem, err := st.Item(ctx, itemID)
+	if err != nil {
 		return err
 	}
-	name := filepath.Base(filename)
-	dest := filepath.Join(destDir, name)
-	if err := writeFile(dest, r); err != nil {
-		return fmt.Errorf("write %s: %w", name, err)
-	}
-	if sidecar != nil {
-		sidecarDest := strings.TrimSuffix(dest, filepath.Ext(dest)) + ".xmp"
-		if err := writeFile(sidecarDest, sidecar); err != nil {
-			return fmt.Errorf("write %s sidecar: %w", name, err)
-		}
-	}
-
-	w, h, err := imaging.Dimensions(dest)
+	item, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
 	if err != nil {
-		return fmt.Errorf("read %s: %w", name, err)
+		return err
 	}
-	meta, err := exif.Extract(dest)
-	if err != nil {
-		return fmt.Errorf("exif %s: %w", name, err)
-	}
+	item.ID = itemID
+	item.LightroomLens = oldItem.LightroomLens
 	settings, err := st.Settings(ctx)
 	if err != nil {
 		return err
@@ -151,10 +161,62 @@ func ImportUploadWithSidecar(ctx context.Context, st *store.Store, cfg config.Co
 	if err != nil {
 		return err
 	}
+	item.Lens = policy.Resolve(item.Camera, item.EmbeddedLens, item.LightroomLens, item.SidecarLens, item.XMPLens)
+	if err := st.ReplaceItemMedia(ctx, item); err != nil {
+		return err
+	}
+	if oldItem.OriginalPath != item.OriginalPath {
+		oldPath := filepath.Join(cfg.OriginalsDir(), filepath.FromSlash(oldItem.OriginalPath))
+		_ = os.Remove(oldPath)
+		_ = os.Remove(strings.TrimSuffix(oldPath, filepath.Ext(oldPath)) + ".xmp")
+	}
+	return nil
+}
 
-	_, err = st.CreateItem(ctx, model.Item{
+func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) (model.Item, error) {
+	if !IsImage(filename) {
+		return model.Item{}, fmt.Errorf("unsupported file type: %s", filename)
+	}
+
+	destDir := filepath.Join(cfg.OriginalsDir(), filepath.FromSlash(galleryPath))
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return model.Item{}, err
+	}
+	name := filepath.Base(filename)
+	storedName := filepath.Base(storageName)
+	dest := filepath.Join(destDir, storedName)
+	if err := writeFile(dest, r); err != nil {
+		return model.Item{}, fmt.Errorf("write %s: %w", storedName, err)
+	}
+	sidecarDest := strings.TrimSuffix(dest, filepath.Ext(dest)) + ".xmp"
+	if sidecar != nil {
+		if err := writeFile(sidecarDest, sidecar); err != nil {
+			return model.Item{}, fmt.Errorf("write %s sidecar: %w", name, err)
+		}
+	} else if err := os.Remove(sidecarDest); err != nil && !os.IsNotExist(err) {
+		return model.Item{}, fmt.Errorf("remove stale %s sidecar: %w", name, err)
+	}
+
+	w, h, err := imaging.Dimensions(dest)
+	if err != nil {
+		return model.Item{}, fmt.Errorf("read %s: %w", name, err)
+	}
+	meta, err := exif.Extract(dest)
+	if err != nil {
+		return model.Item{}, fmt.Errorf("exif %s: %w", name, err)
+	}
+	settings, err := st.Settings(ctx)
+	if err != nil {
+		return model.Item{}, err
+	}
+	policy, err := LensPolicyFromSettings(settings)
+	if err != nil {
+		return model.Item{}, err
+	}
+
+	return model.Item{
 		GalleryID:    galleryID,
-		OriginalPath: filepath.Join(gallerySlug, name),
+		OriginalPath: filepath.ToSlash(filepath.Join(galleryPath, storedName)),
 		Filename:     name,
 		Width:        w,
 		Height:       h,
@@ -171,11 +233,10 @@ func ImportUploadWithSidecar(ctx context.Context, st *store.Store, cfg config.Co
 		ISO:          meta.ISO,
 		Focal:        meta.Focal,
 		TakenAt:      meta.TakenAt,
-	})
-	return err
+	}, nil
 }
 
-// LensPolicy controls fallbacks used when a photo has no embedded EXIF lens.
+// LensPolicy controls explicit lens overrides and metadata fallbacks.
 type LensPolicy struct {
 	UseLightroom bool
 	Mappings     map[string]string
@@ -213,11 +274,14 @@ func ParseLensMappings(value string) (map[string]string, error) {
 
 // Lens resolves a stored lens using EXIF, configured mappings, then Lightroom.
 func (p LensPolicy) Lens(meta exif.Data) string {
-	return p.Resolve(meta.Camera, meta.Lens, meta.SidecarLens, meta.XMPLens)
+	return p.Resolve(meta.Camera, meta.Lens, "", meta.SidecarLens, meta.XMPLens)
 }
 
 // Resolve chooses a lens from stored source values without rereading a photo.
-func (p LensPolicy) Resolve(camera, embeddedLens, sidecarLens, xmpLens string) string {
+func (p LensPolicy) Resolve(camera, embeddedLens, lightroomLens, sidecarLens, xmpLens string) string {
+	if lightroomLens != "" {
+		return lightroomLens
+	}
 	if embeddedLens != "" {
 		return embeddedLens
 	}
@@ -234,14 +298,23 @@ func (p LensPolicy) Resolve(camera, embeddedLens, sidecarLens, xmpLens string) s
 }
 
 func writeFile(dest string, r io.Reader) error {
-	out, err := os.Create(dest)
+	out, err := os.CreateTemp(filepath.Dir(dest), ".curator-upload-*")
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	tempPath := out.Name()
+	defer os.Remove(tempPath)
 
 	if _, err := io.Copy(out, r); err != nil {
+		out.Close()
 		return err
 	}
-	return out.Close()
+	if err := out.Chmod(0o644); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, dest)
 }

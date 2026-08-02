@@ -25,17 +25,20 @@ func TestLensPolicy(t *testing.T) {
 	}
 
 	tests := []struct {
-		name string
-		meta exif.Data
-		want string
+		name          string
+		meta          exif.Data
+		lightroomLens string
+		want          string
 	}{
-		{"EXIF wins", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Embedded"},
-		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Manual 18mm", XMPLens: "Profile"}, "Manual 18mm"},
-		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "FUJINON 18.5mm F2.8"},
-		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "Voigtlander 15mm"},
+		{"Lightroom tag overrides EXIF", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Tagged lens", "Tagged lens"},
+		{"EXIF before sidecar", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens"}, "", "Embedded"},
+		{"Lightroom tag before sidecar", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "Tagged lens"},
+		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Manual 18mm", XMPLens: "Profile"}, "", "Manual 18mm"},
+		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "", "FUJINON 18.5mm F2.8"},
+		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "", "Voigtlander 15mm"},
 	}
 	for _, test := range tests {
-		if got := policy.Lens(test.meta); got != test.want {
+		if got := policy.Resolve(test.meta.Camera, test.meta.Lens, test.lightroomLens, test.meta.SidecarLens, test.meta.XMPLens); got != test.want {
 			t.Errorf("%s: lens = %q, want %q", test.name, got, test.want)
 		}
 	}

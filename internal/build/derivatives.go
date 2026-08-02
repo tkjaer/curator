@@ -37,7 +37,7 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 		if it.Status != model.ItemPublished {
 			continue
 		}
-		it.Lens = b.lensPolicy.Resolve(it.Camera, it.EmbeddedLens, it.SidecarLens, it.XMPLens)
+		it.Lens = b.lensPolicy.Resolve(it.Camera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens)
 		pv, err := b.derive(ctx, it, presets, imgPrefix)
 		if err != nil {
 			return nil, nil, err
