@@ -273,6 +273,16 @@
 <script>
 (function () {
   var states = [];
+  var allowNavigation = false;
+  function hasUnsavedChanges() {
+    return states.some(function (state) { return state.dirty && !state.submitting; });
+  }
+  function confirmNavigation() {
+    if (!hasUnsavedChanges()) return true;
+    if (!confirm("You have unsaved settings changes. Leave without saving?")) return false;
+    allowNavigation = true;
+    return true;
+  }
   function values(form) {
     return new URLSearchParams(new FormData(form)).toString();
   }
@@ -304,8 +314,20 @@
     });
     update();
   });
+  document.addEventListener("click", function (event) {
+    var link = event.target.closest("a[href]");
+    if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+        link.target === "_blank" || link.hasAttribute("download")) return;
+    var destination = new URL(link.href, location.href);
+    if (destination.pathname === location.pathname && destination.search === location.search && destination.hash) return;
+    if (!confirmNavigation()) event.preventDefault();
+  });
+  document.addEventListener("submit", function (event) {
+    if (event.target.matches("[data-dirty-form]") || confirmNavigation()) return;
+    event.preventDefault();
+  });
   window.addEventListener("beforeunload", function (event) {
-    if (!states.some(function (state) { return state.dirty && !state.submitting; })) return;
+    if (allowNavigation || !hasUnsavedChanges()) return;
     event.preventDefault();
     event.returnValue = "";
   });
