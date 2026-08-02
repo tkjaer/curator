@@ -1,10 +1,20 @@
 {{define "settings"}}{{template "head" .}}
 {{with .Data}}
-<h1>Settings</h1>
-<form class="card" method="post" action="{{$.BasePath}}/settings">
+<div class="page-head">
+  <div><h1>Settings</h1><p>Configure the published site, theme, and protected galleries.</p></div>
+</div>
+<form class="card settings-card" method="post" action="{{$.BasePath}}/settings">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
   <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input id="base_url" name="base_url" value="{{.BaseURL}}"></label>
+
+  <h2>Gallery defaults</h2>
+  <label class="field"><span>Ordering for new galleries</span>
+    <select name="default_gallery_order">
+      <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
+      <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
+    </select>
+  </label>
 
   <h2>Theme</h2>
   {{$cur := .Theme}}

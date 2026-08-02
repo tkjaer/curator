@@ -29,13 +29,22 @@ func (s *Store) CreateItem(ctx context.Context, it model.Item) (int64, error) {
 // ItemsByGallery returns a gallery's items in display order: manual sort order
 // first, then date taken, then filename.
 func (s *Store) ItemsByGallery(ctx context.Context, galleryID int64) ([]model.Item, error) {
+	var sortMode model.SortMode
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT sort_mode FROM galleries WHERE id = ?`, galleryID).Scan(&sortMode); err != nil {
+		return nil, err
+	}
+	orderBy := `sort_order, taken_at IS NULL, taken_at, filename`
+	if sortMode == model.SortByFilename {
+		orderBy = `sort_order, filename`
+	}
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
 		        highlighted, sort_order, status, caption, exif, camera, lens,
 		        aperture, shutter, iso, focal, taken_at
 		   FROM items
 		  WHERE gallery_id = ?
-		  ORDER BY sort_order, taken_at IS NULL, taken_at, filename`, galleryID)
+		  ORDER BY `+orderBy, galleryID)
 	if err != nil {
 		return nil, err
 	}

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 
 	"github.com/tkjaer/curator/internal/model"
@@ -24,6 +25,24 @@ func (s *Store) Settings(ctx context.Context) (map[string]string, error) {
 		out[key] = decodeSetting(value)
 	}
 	return out, rows.Err()
+}
+
+// DefaultGallerySortMode returns the ordering inherited by newly created
+// galleries. Existing databases without the setting retain date ordering.
+func (s *Store) DefaultGallerySortMode(ctx context.Context) (model.SortMode, error) {
+	var raw string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT value FROM settings WHERE key = 'site.default_gallery_order'`).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return model.SortByDate, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if mode := model.SortMode(decodeSetting(raw)); mode == model.SortByFilename {
+		return mode, nil
+	}
+	return model.SortByDate, nil
 }
 
 func decodeSetting(raw string) string {

@@ -142,13 +142,17 @@ func cmdImport(args []string) error {
 	if err := st.Migrate(ctx); err != nil {
 		return err
 	}
+	sortMode, err := st.DefaultGallerySortMode(ctx)
+	if err != nil {
+		return err
+	}
 
 	galleryID, err := st.CreateGallery(ctx, model.Gallery{
 		Slug:     slugValue,
 		Title:    *title,
 		Type:     model.GalleryGrid,
 		Status:   model.GalleryPublished,
-		SortMode: model.SortByDate,
+		SortMode: sortMode,
 	})
 	if err != nil {
 		return err

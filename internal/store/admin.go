@@ -223,3 +223,25 @@ func (s *Store) MoveItem(ctx context.Context, galleryID, itemID int64, up bool) 
 	}
 	return tx.Commit()
 }
+
+// SetGalleryItemOrder selects the gallery's automatic ordering and clears any
+// manual photo positions.
+func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode model.SortMode) error {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE galleries SET sort_mode = ?, updated_at = datetime('now') WHERE id = ?`,
+		mode, galleryID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE items SET sort_order = 0, updated_at = datetime('now') WHERE gallery_id = ?`,
+		galleryID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}

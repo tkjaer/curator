@@ -1,7 +1,8 @@
 {{define "access"}}{{template "head" .}}
 {{with .Data}}
-<h1>Access users</h1>
-<p><span>Basic-auth credentials for protected galleries. Grant users per gallery on its page.</span></p>
+<div class="page-head">
+  <div><h1>Access users</h1><p>Manage credentials for protected galleries. Gallery access is granted from each gallery page.</p></div>
+</div>
 {{if .Users}}
 <table>
   <tr><th>Username</th><th></th></tr>

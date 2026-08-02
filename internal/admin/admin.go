@@ -8,6 +8,7 @@ package admin
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"html/template"
 	"net/http"
 	"net/url"
@@ -91,6 +92,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/exif"), s.handleGalleryEXIF)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/delete"), s.handleDeleteGallery)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/move"), s.handleMoveGallery)
+	mux.HandleFunc("POST "+s.path("/galleries/{id}/order"), s.handleGalleryItemOrder)
 	mux.HandleFunc("POST "+s.path("/items/{id}/update"), s.handleItemUpdate)
 	mux.HandleFunc("POST "+s.path("/items/{id}/cover"), s.handleItemCover)
 	mux.HandleFunc("POST "+s.path("/items/{id}/move"), s.handleItemMove)
@@ -154,6 +156,11 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title, fla
 
 // redirect sends the browser to an admin URL with an optional flash message.
 func (s *Server) redirect(w http.ResponseWriter, r *http.Request, to, flash string) {
+	if r.Header.Get("X-Curator-Async") == "true" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{"message": flash, "redirect": to})
+		return
+	}
 	if flash != "" {
 		if strings.Contains(to, "?") {
 			to += "&msg=" + url.QueryEscape(flash)

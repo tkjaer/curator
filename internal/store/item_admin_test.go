@@ -72,6 +72,33 @@ func TestMoveItem(t *testing.T) {
 	}
 }
 
+func TestSetGalleryItemOrderAlphabetically(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, ids := makeGalleryWithItems(t, st, 3)
+
+	if err := st.MoveItem(ctx, gid, ids[2], true); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByFilename); err != nil {
+		t.Fatal(err)
+	}
+
+	got := orderIDs(t, st, gid)
+	for i := range ids {
+		if got[i] != ids[i] {
+			t.Fatalf("alphabetical order = %v, want %v", got, ids)
+		}
+	}
+	g, err := st.Gallery(ctx, gid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.SortMode != model.SortByFilename {
+		t.Fatalf("sort mode = %q, want filename", g.SortMode)
+	}
+}
+
 func TestDeleteItemClearsCover(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

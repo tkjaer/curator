@@ -180,10 +180,15 @@ func (s *Server) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 			parentID = &id
 		}
 	}
+	sortMode, err := s.store.DefaultGallerySortMode(r.Context())
+	if err != nil {
+		s.redirect(w, r, s.link(), "Could not load gallery defaults")
+		return
+	}
 
 	id, err := s.store.CreateGallery(r.Context(), model.Gallery{
 		ParentID: parentID, Slug: sl, Title: title, Type: gType,
-		Status: model.GalleryDraft, SortMode: model.SortByDate,
+		Status: model.GalleryDraft, SortMode: sortMode,
 	})
 	if err != nil {
 		s.redirect(w, r, s.link(), "Could not create gallery: "+err.Error())
@@ -250,6 +255,8 @@ type galleryData struct {
 	Blocks          []blockRow
 	BlockTypes      []string
 	ItemChoices     []itemChoice
+	CustomOrder     bool
+	AutomaticOrder  string
 }
 
 type blockRow struct {
@@ -293,12 +300,22 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := galleryData{
-		Gallery:      g,
-		Items:        items,
-		Statuses:     []string{"draft", "unlisted", "published", "protected"},
-		ItemStatuses: []string{"draft", "unlisted", "published"},
-		CoverID:      cover,
-		Protected:    g.Status == model.GalleryProtected,
+		Gallery:        g,
+		Items:          items,
+		Statuses:       []string{"draft", "unlisted", "published", "protected"},
+		ItemStatuses:   []string{"draft", "unlisted", "published"},
+		CoverID:        cover,
+		Protected:      g.Status == model.GalleryProtected,
+		AutomaticOrder: "Date taken",
+	}
+	if g.SortMode == model.SortByFilename {
+		data.AutomaticOrder = "Alphabetical"
+	}
+	for _, item := range items {
+		if item.SortOrder != 0 {
+			data.CustomOrder = true
+			break
+		}
 	}
 	if data.Protected {
 		users, err := s.store.AccessUsers(ctx)
@@ -458,14 +475,15 @@ func (s *Server) handleGalleryEXIF(w http.ResponseWriter, r *http.Request) {
 }
 
 type settingsData struct {
-	Title       string
-	BaseURL     string
-	FeedEnabled bool
-	Theme       string
-	Themes      []string
-	Webserver   string
-	ServerRoot  string
-	Facets      []model.FacetConfig
+	Title        string
+	BaseURL      string
+	FeedEnabled  bool
+	Theme        string
+	Themes       []string
+	Webserver    string
+	ServerRoot   string
+	Facets       []model.FacetConfig
+	DefaultOrder string
 }
 
 // themeOr returns the configured theme name, defaulting to "default" when unset.
@@ -507,6 +525,12 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		Webserver:   settings["site.webserver"],
 		ServerRoot:  settings["site.server_root"],
 		Facets:      facets,
+		DefaultOrder: func() string {
+			if settings["site.default_gallery_order"] == string(model.SortByFilename) {
+				return string(model.SortByFilename)
+			}
+			return string(model.SortByDate)
+		}(),
 	})
 }
 
@@ -546,6 +570,14 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.SetSetting(ctx, "site.server_root", r.FormValue("server_root")); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	defaultOrder := model.SortMode(r.FormValue("default_gallery_order"))
+	if defaultOrder != model.SortByFilename {
+		defaultOrder = model.SortByDate
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_order", string(defaultOrder)); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}

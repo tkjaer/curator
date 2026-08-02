@@ -50,6 +50,23 @@ func (s *Server) handleItemMove(w http.ResponseWriter, r *http.Request) {
 	s.redirect(w, r, s.galleryLink(it.GalleryID), "Order updated")
 }
 
+func (s *Server) handleGalleryItemOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	mode := model.SortMode(r.FormValue("mode"))
+	if mode != model.SortByDate && mode != model.SortByFilename {
+		s.redirect(w, r, s.galleryLink(id), "Unknown ordering")
+		return
+	}
+	if err := s.store.SetGalleryItemOrder(r.Context(), id, mode); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not update ordering")
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Ordering updated")
+}
+
 func (s *Server) handleItemDelete(w http.ResponseWriter, r *http.Request) {
 	it, ok := s.itemOr404(w, r)
 	if !ok {

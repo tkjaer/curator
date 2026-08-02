@@ -1,52 +1,80 @@
 {{define "gallery"}}{{template "head" .}}
 {{with .Data}}
-<p><a href="{{$.BasePath}}/">&larr; Galleries</a></p>
-<h1>{{.Gallery.Title}}</h1>
-<p>Slug: <code>{{.Gallery.Slug}}</code> &middot; Type: {{.Gallery.Type}} &middot; Status: <span class="badge">{{.Gallery.Status}}</span></p>
-<p>Public URL: <a href="{{.PublicURL}}">{{.PublicURL}}</a>{{if eq (printf "%s" .Gallery.Status) "unlisted"}} <span class="badge">unlisted: reachable by this link, not shown in navigation</span>{{end}}</p>
+<a class="back-link" href="{{$.BasePath}}/">&larr; All galleries</a>
+<div class="page-head gallery-page-head">
+  <h1>{{.Gallery.Title}}</h1>
+</div>
 
-<div class="card">
-  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
+<section class="gallery-settings">
+  <div class="settings-heading">
+    <div class="settings-identity">
+      <span class="gallery-type">{{.Gallery.Type}} gallery</span>
+    </div>
+    <div class="settings-links public-url-row">
+      <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
+      {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
+      <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
+    </div>
+  </div>
+  <div class="settings-row">
+  <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label>Status
+    <label><span>Listing</span>
       <select name="status">
         {{range .Statuses}}<option value="{{.}}"{{if eq . (printf "%s" $.Data.Gallery.Status)}} selected{{end}}>{{.}}</option>{{end}}
       </select>
     </label>
-    <button>Update</button>
   </form>
-  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif" style="margin-left:1rem">
+  <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF</label>
-    <button>Save</button>
+    <label><span>Placement</span>
+      <select name="parent">
+        <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
+        {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+    </label>
   </form>
-  <form class="inline" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" style="margin-left:1rem" onsubmit="return confirm('Delete this gallery and everything inside it?')">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <button class="danger">Delete gallery</button>
-  </form>
-</div>
+  <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
+    <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <label><span>Ordering</span>
+        <select name="mode">
+          {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
+          <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken{{if eq (printf "%s" .Gallery.SortMode) "date"}} (default){{end}}</option>
+          <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical{{if eq (printf "%s" .Gallery.SortMode) "filename"}} (default){{end}}</option>
+        </select>
+      </label>
+    </form>
+  </div>
+  <div class="setting-control exif-setting">
+    <span>Metadata</span>
+    <form class="toggle-form" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF</label>
+    </form>
+  </div>
+  <details class="settings-menu">
+    <summary aria-label="More gallery actions" title="More gallery actions">&hellip;</summary>
+    <form method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" onsubmit="return confirm('Delete this gallery and everything inside it?')">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <button class="danger">Delete gallery</button>
+    </form>
+  </details>
+  </div>
+</section>
 
-<h2>Move</h2>
-<form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <label class="field"><span>Move under</span>
-    <select name="parent">
-      <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
-      {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
-    </select>
-  </label>
-  <button>Move</button>
-</form>
-
-<h2>Sub-galleries</h2>
+<details class="organization-panel">
+<summary><span class="disclosure-title">Sub-galleries</span><span class="disclosure-meta">{{len .Children}} total</span></summary>
+<div class="organization-content">
+<h3>Sub-galleries</h3>
 {{if .Children}}
 <ul class="subgalleries">
   {{range .Children}}<li><a href="{{.URL}}">{{.Title}}</a> <span class="badge">{{.Status}}</span> &middot; {{.Count}} photos</li>{{end}}
 </ul>
 {{else}}
-<p><span>None yet.</span></p>
+<p>None yet.</p>
 {{end}}
-<form class="card" method="post" action="{{$.BasePath}}/galleries">
+<form class="compact-form" method="post" action="{{$.BasePath}}/galleries">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="hidden" name="parent" value="{{.Gallery.ID}}">
   <label class="field"><span>New sub-gallery title</span><input name="title" required></label>
@@ -55,7 +83,10 @@
   </label>
   <button>Add sub-gallery</button>
 </form>
+</div>
+</details>
 
+<div id="access-settings">
 {{if .Protected}}
 <h2>Access</h2>
 <form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/access">
@@ -71,57 +102,71 @@
   {{end}}
 </form>
 {{end}}
+</div>
 
-<h2>Upload photos</h2>
-<form class="card" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
+{{if .IsStory}}<details class="media-library"><summary>Media library <span>{{len .Items}} photos</span></summary>{{end}}
+<section class="media-section">
+<div class="section-heading">
+  <h2>{{if .IsStory}}Media library{{else}}Photos{{end}} <span>{{len .Items}}</span></h2>
+  <form class="upload-form" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="file" name="images" multiple accept="image/jpeg,image/png">
   <button>Upload</button>
-</form>
+</form></div>
 
-<h2>Photos ({{len .Items}})</h2>
 {{if .Items}}
+<div id="photo-list">
 <div class="thumbs">
   {{range .Items}}
-  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}">
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}">
     <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" loading="lazy">
     <figcaption>
-      <span class="fn">{{.Filename}}{{if eq .ID $.Data.CoverID}} &middot; cover{{end}}</span>
-      <form method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
+      <div class="item-title"><span class="fn">{{.Filename}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span></div>
+      <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
         <input type="text" name="caption" value="{{.Caption}}" placeholder="caption">
-        <select name="status">
-          {{$cur := printf "%s" .Status}}
-          {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
-        </select>
-        <label><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> highlight</label>
-        <button>Save</button>
+        <div class="item-options">
+          <select name="status" aria-label="Photo status">
+            {{$cur := printf "%s" .Status}}
+            {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
+          </select>
+          <label><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> Highlight</label>
+          <span class="save-state" aria-live="polite"></span>
+        </div>
       </form>
       <div class="item-actions">
-        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button title="Move up">&uarr;</button></form>
-        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button title="Move down">&darr;</button></form>
-        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button>Cover</button></form>
-        <form class="inline" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+        <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move photo up" title="Move up">&uarr;</button></form>
+        <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move photo down" title="Move down">&darr;</button></form>
+        <form data-async data-action="cover" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="icon-button" aria-label="Set gallery cover" title="Set as cover">&#9733;</button></form>
+        <form data-async data-action="delete" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="icon-button danger" aria-label="Delete photo" title="Delete">&times;</button></form>
       </div>
     </figcaption>
   </figure>
   {{end}}
 </div>
+</div>
 {{else}}
-<p>No photos yet.</p>
+<div id="photo-list"><p>No photos yet.</p></div>
 {{end}}
+</section>
+{{if .IsStory}}</details>{{end}}
 
 {{if .IsStory}}
-<h2>Content blocks</h2>
+<section class="story-editor-section">
+<div class="section-heading"><div><h2>Story</h2><p>Build the page from top to bottom.</p></div></div>
+<div class="story-editor">
 {{range $block := .Blocks}}
-<div class="card">
-  <div class="item-actions">
+<article class="story-block" data-block-id="{{$block.ID}}">
+  <div class="block-heading">
     <strong>{{$block.Type}}</strong>
-    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button title="Move up">&uarr;</button></form>
-    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button title="Move down">&darr;</button></form>
-    <form class="inline" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/delete" onsubmit="return confirm('Delete this block?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+    <span class="save-state" aria-live="polite"></span>
+    <div class="block-actions">
+      <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move block up" title="Move up">&uarr;</button></form>
+      <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move block down" title="Move down">&darr;</button></form>
+      <form data-async data-action="delete" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/delete" onsubmit="return confirm('Delete this block?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="icon-button danger" aria-label="Delete block" title="Delete">&times;</button></form>
+    </div>
   </div>
-  <form method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/update">
+  <form class="block-editor" data-async data-autosave method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/update">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     {{if or (eq $block.Type "heading") (eq $block.Type "text") (eq $block.Type "quote")}}
     <label class="field"><span>Text (Markdown)</span><textarea name="content" rows="4">{{$block.Content}}</textarea></label>
@@ -138,20 +183,157 @@
       {{range $.Data.ItemChoices}}<label><input type="checkbox" name="item_{{.ID}}"{{if index $block.GridItems .ID}} checked{{end}}> {{.Filename}}</label>{{end}}
     </div>
     {{end}}
-    <button>Save</button>
   </form>
-</div>
+</article>
 {{end}}
 
-<h3>Add block</h3>
-<form class="card" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/blocks">
+<form class="add-block" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/blocks">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <label class="field"><span>Type</span>
+  <label><span>Add block</span>
     <select name="type">{{range .BlockTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
   </label>
-  <label class="field"><span>Text (for heading/text/quote; leave blank for image/grid)</span><textarea name="content" rows="3"></textarea></label>
+  <label class="add-block-content"><span>Text (optional)</span><textarea name="content" rows="2"></textarea></label>
   <button>Add block</button>
 </form>
+</div>
+</section>
 {{end}}
 {{end}}
+<script>
+(function () {
+  var busy = new WeakSet();
+
+  function stateFor(form) {
+    var container = form.closest(".item, .story-block");
+    return form.querySelector(".save-state") ||
+      (container && container.querySelector(".save-state")) ||
+      document.getElementById("gallery-save-state");
+  }
+
+  function showState(form, text, failed) {
+    var state = stateFor(form);
+    if (!state) return;
+    state.textContent = text;
+    state.classList.toggle("is-error", !!failed);
+    if (!failed) {
+      setTimeout(function () {
+        if (state.textContent === text) state.textContent = "";
+      }, 1800);
+    }
+  }
+
+  function move(element, up) {
+    var selector = element.classList.contains("item") ? ".item" : ".story-block";
+    var sibling = up ? element.previousElementSibling : element.nextElementSibling;
+    if (!sibling || !sibling.matches(selector)) return;
+    if (up) element.parentNode.insertBefore(element, sibling);
+    else element.parentNode.insertBefore(sibling, element);
+  }
+
+  function markCustomOrder() {
+    var setting = document.querySelector(".order-setting");
+    if (!setting) return;
+    setting.dataset.custom = "true";
+    var select = setting.querySelector("select");
+    var custom = select.querySelector('option[value="custom"]');
+    if (!custom) {
+      custom = new Option("Custom", "custom", true, true);
+      custom.disabled = true;
+      select.prepend(custom);
+    }
+    select.value = "custom";
+  }
+
+  function applyAction(form) {
+    var action = form.dataset.action;
+    var element = form.closest(".item, .story-block");
+    if (!action || !element) return;
+    if (action === "move-up") move(element, true);
+    if (action === "move-down") move(element, false);
+    if ((action === "move-up" || action === "move-down") && element.classList.contains("item")) {
+      markCustomOrder();
+    }
+    if (action === "delete") element.remove();
+    if (action === "cover") {
+      document.querySelectorAll(".item.is-cover").forEach(function (item) {
+        item.classList.remove("is-cover");
+        item.querySelector(".cover-label").hidden = true;
+      });
+      element.classList.add("is-cover");
+      element.querySelector(".cover-label").hidden = false;
+    }
+  }
+
+  async function refreshFromServer(selectors) {
+    var response = await fetch(location.href, {
+      cache: "no-store",
+      headers: {"X-Curator-Partial": "true"}
+    });
+    if (!response.ok) return;
+    var page = new DOMParser().parseFromString(await response.text(), "text/html");
+    selectors.forEach(function (selector) {
+      var current = document.querySelector(selector);
+      var updated = page.querySelector(selector);
+      if (current && updated) current.replaceWith(updated);
+    });
+  }
+
+  async function submit(form) {
+    if (busy.has(form)) {
+      form.dataset.pendingSave = "true";
+      return;
+    }
+    busy.add(form);
+    form.classList.add("is-saving");
+    showState(form, "Saving...", false);
+    try {
+      var body = new URLSearchParams();
+      new FormData(form).forEach(function (value, key) { body.append(key, value); });
+      var response = await fetch(form.action, {
+        method: "POST",
+        body: body,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "X-Curator-Async": "true"
+        }
+      });
+      if (!response.ok) throw new Error("request failed");
+      var result = await response.json();
+      var failed = /^(Could not|Invalid|Unknown)/.test(result.message || "");
+      showState(form, failed ? result.message : "Saved", failed);
+      if (!failed) {
+        applyAction(form);
+        if (form.closest(".gallery-settings") &&
+            (form.action.endsWith("/status") || form.action.endsWith("/move"))) {
+          await refreshFromServer([".public-url-row", "#access-settings"]);
+        }
+        if (form.action.endsWith("/order")) {
+          await refreshFromServer([".order-setting", "#photo-list"]);
+        }
+      }
+    } catch (error) {
+      showState(form, "Could not save", true);
+    } finally {
+      busy.delete(form);
+      form.classList.remove("is-saving");
+      if (form.dataset.pendingSave) {
+        delete form.dataset.pendingSave;
+        submit(form);
+      }
+    }
+  }
+
+  document.addEventListener("submit", function (event) {
+    var form = event.target.closest("form[data-async]");
+    if (!form) return;
+    event.preventDefault();
+    submit(form);
+  });
+
+  document.addEventListener("change", function (event) {
+    var form = event.target.closest("form[data-autosave]");
+    if (form) submit(form);
+  });
+})();
+</script>
 {{template "foot" .}}{{end}}

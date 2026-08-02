@@ -5,7 +5,12 @@
   <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
   <p id="build-summary"></p>
 </div>
-<h1>Galleries</h1>
+<div class="page-head">
+  <div>
+    <h1>Galleries</h1>
+    <p>Organize, publish, and build your photo collection.</p>
+  </div>
+</div>
 {{if .Galleries}}
 <table>
   <tr><th>Title</th><th>Slug</th><th>Status</th><th>Photos</th></tr>
@@ -22,32 +27,37 @@
 <p>No galleries yet. Create one below.</p>
 {{end}}
 
-<h2>New gallery</h2>
-<form class="card" method="post" action="{{$.BasePath}}/galleries">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <label class="field"><span>Title</span><input name="title" required></label>
-  <label class="field"><span>Slug (optional)</span><input name="slug" placeholder="auto from title"></label>
-  <label class="field"><span>Parent gallery</span>
-    <select name="parent">
-      <option value="">(top level)</option>
-      {{range .Parents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
-    </select>
-  </label>
-  <label class="field"><span>Type</span>
-    <select name="type">
-      <option value="grid">Grid</option>
-      <option value="story">Story</option>
-    </select>
-  </label>
-  <button>Create gallery</button>
-</form>
-
-<h2>Maintenance</h2>
-<form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read EXIF metadata from every photo?')">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <p><span>Re-read camera metadata (EXIF) from the original files &mdash; useful after editing originals or upgrading Curator. Does not add or remove photos.</span></p>
-  <button>Rescan EXIF</button>
-</form>
+<div class="dashboard-actions">
+  <section>
+    <h2>New gallery</h2>
+    <form class="card" method="post" action="{{$.BasePath}}/galleries">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <label class="field"><span>Title</span><input name="title" required></label>
+      <label class="field"><span>Slug (optional)</span><input name="slug" placeholder="auto from title"></label>
+      <label class="field"><span>Parent gallery</span>
+        <select name="parent">
+          <option value="">(top level)</option>
+          {{range .Parents}}<option value="{{.ID}}">{{.Label}}</option>{{end}}
+        </select>
+      </label>
+      <label class="field"><span>Type</span>
+        <select name="type">
+          <option value="grid">Grid</option>
+          <option value="story">Story</option>
+        </select>
+      </label>
+      <button>Create gallery</button>
+    </form>
+  </section>
+  <section>
+    <h2>Maintenance</h2>
+    <form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read EXIF metadata from every photo?')">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <p>Re-read camera metadata from the original files after editing originals or upgrading Curator.</p>
+      <button>Rescan EXIF</button>
+    </form>
+  </section>
+</div>
 {{end}}
 <script>
 (function () {
