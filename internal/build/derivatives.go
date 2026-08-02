@@ -26,7 +26,7 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 		return nil, nil, err
 	}
 
-	imgPrefix := "img"
+	imgPrefix := generatedRoot + "/img"
 	if g.Status == model.GalleryProtected {
 		imgPrefix = strings.TrimSuffix(b.galleryRel(g.ID), "/") + "/img"
 	}

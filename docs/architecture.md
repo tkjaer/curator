@@ -56,15 +56,20 @@ content-root/            # source of truth — back this up / rsync this
 
 output/                  # generated, disposable, fully rebuildable
 ├── index.html
-├── galleries/…
-├── browse/…             # facet pages (browse by camera, lens, …)
-├── img/…                # image derivatives
-├── assets/…             # theme css/js, self-hosted
+├── 2026/…               # galleries live directly below the site root
+├── _curator/
+│   ├── browse/…         # facet pages (browse by camera, lens, …)
+│   ├── img/…            # image derivatives
+│   └── assets/…         # theme css/js, self-hosted
+├── feed.xml
 └── nginx-locations.conf # auth_basic includes for protected galleries
 ```
 
 Originals are never written into `output/`. Derivatives are a pure function of
 (original bytes + preset) and can always be regenerated.
+
+The root gallery slugs `_curator` and `feed.xml` are reserved for generated
+site files. Those names remain available to galleries nested below a parent.
 
 ## Technology
 
@@ -95,10 +100,10 @@ understand on every platform; bcrypt is available for Apache-only setups.
 `AllowOverride AuthConfig`):
 
 ```apache
-# output/galleries/private-trip/.htaccess
+# output/private-trip/.htaccess
 AuthType Basic
 AuthName "Restricted"
-AuthUserFile /srv/site/galleries/private-trip/.htpasswd
+AuthUserFile /srv/site/private-trip/.htpasswd
 Require valid-user
 ```
 
@@ -109,9 +114,9 @@ included once into the server block; rebuilds only rewrite that file:
 
 ```nginx
 # output/curator-auth.conf — include once in server { }
-location /galleries/private-trip/ {
+location /private-trip/ {
     auth_basic "Restricted";
-    auth_basic_user_file /srv/site/galleries/private-trip/.htpasswd;
+    auth_basic_user_file /srv/site/private-trip/.htpasswd;
 }
 ```
 
@@ -225,9 +230,10 @@ build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
-`/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in
-a dedicated namespace, so manual tags and EXIF facets share one browse/render
-path. Photos on value pages are ordered newest first, with undated photos last.
+`/_curator/browse/camera/` and `/_curator/browse/camera/x-t5/`. Facets are
+implemented as tags in a dedicated namespace, so manual tags and EXIF facets
+share one browse/render path. Photos on value pages are ordered newest first,
+with undated photos last.
 By default, value pages are split into static pages of 100 photos; the Metadata
 settings can change that size or disable pagination. Page one keeps the value's
 canonical URL, later pages live below `/page/<number>/`, and progressive loading

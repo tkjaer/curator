@@ -82,7 +82,7 @@ func TestFeedGeneratedWhenEnabled(t *testing.T) {
 		"<feed xmlns=\"http://www.w3.org/2005/Atom\">",
 		"<entry>",
 		"<title>Trip</title>",
-		"https://ex.com/galleries/trip/",
+		"https://ex.com/trip/",
 		"<summary>A trip.</summary>",
 	} {
 		if !strings.Contains(feed, want) {

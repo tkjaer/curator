@@ -22,14 +22,15 @@ import (
 const maxUpload = 256 << 20 // 256 MiB per upload request
 
 type galleryRow struct {
-	ID     int64
-	Title  string
-	Slug   string
-	Status string
-	Count  int
-	Depth  int
-	Indent string
-	URL    string
+	ID          int64
+	ParentID    *int64
+	Title       string
+	Slug        string
+	Status      string
+	Count       int
+	Depth       int
+	HasChildren bool
+	URL         string
 }
 
 type parentOption struct {
@@ -99,8 +100,8 @@ func (s *Server) orderRows(galleries []model.Gallery) []galleryRow {
 	var walk func(g model.Gallery, depth int)
 	walk = func(g model.Gallery, depth int) {
 		rows = append(rows, galleryRow{
-			ID: g.ID, Title: g.Title, Slug: g.Slug, Status: string(g.Status),
-			Depth: depth, Indent: strings.Repeat("— ", depth),
+			ID: g.ID, ParentID: g.ParentID, Title: g.Title, Slug: g.Slug,
+			Status: string(g.Status), Depth: depth, HasChildren: len(childrenOf[g.ID]) > 0,
 			URL: s.link("galleries", strconv.FormatInt(g.ID, 10)),
 		})
 		for _, c := range childrenOf[g.ID] {
@@ -133,7 +134,7 @@ func galleryPublicURL(all []model.Gallery, g model.Gallery, baseURL string) stri
 		}
 		cur = p
 	}
-	return baseURL + "/galleries/" + strings.Join(segs, "/") + "/"
+	return baseURL + "/" + strings.Join(segs, "/") + "/"
 }
 
 // descendantSet returns the id plus all of its descendant gallery ids.

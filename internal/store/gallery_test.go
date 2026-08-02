@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/tkjaer/curator/internal/model"
@@ -20,6 +21,31 @@ func galleryByID(t *testing.T, st *Store, id int64) model.Gallery {
 	}
 	t.Fatalf("gallery %d not found", id)
 	return model.Gallery{}
+}
+
+func TestReservedRootGallerySlugs(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+
+	parentID, err := st.CreateGallery(ctx, model.Gallery{Slug: "parent", Title: "Parent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gallerySlug := range []string{"_curator", "feed.xml"} {
+		if _, err := st.CreateGallery(ctx, model.Gallery{Slug: gallerySlug, Title: gallerySlug}); err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Errorf("CreateGallery(%q) error = %v, want reserved slug error", gallerySlug, err)
+		}
+		childID, err := st.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: gallerySlug, Title: gallerySlug})
+		if err != nil {
+			t.Fatalf("nested CreateGallery(%q): %v", gallerySlug, err)
+		}
+		if err := st.MoveGallery(ctx, childID, nil); err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Errorf("MoveGallery(%q) error = %v, want reserved slug error", gallerySlug, err)
+		}
+		if _, _, err := st.UpsertExternalGallery(ctx, "test", gallerySlug, model.Gallery{Slug: gallerySlug, Title: gallerySlug}); err == nil || !strings.Contains(err.Error(), "reserved") {
+			t.Errorf("UpsertExternalGallery(%q) error = %v, want reserved slug error", gallerySlug, err)
+		}
+	}
 }
 
 func TestPublishStampsPublishedAt(t *testing.T) {

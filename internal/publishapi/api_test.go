@@ -227,7 +227,7 @@ func TestSyncGalleryUsesConfiguredDefaults(t *testing.T) {
 	if gallery.Status != model.GalleryPublished || !gallery.ShowEXIF {
 		t.Fatalf("sync defaults not applied: %#v", gallery)
 	}
-	if response.URL != "https://photos.example.com/galleries/visible-now/" {
+	if response.URL != "https://photos.example.com/visible-now/" {
 		t.Fatalf("public URL = %q", response.URL)
 	}
 	var publishedAt string
@@ -324,7 +324,7 @@ func TestSyncPhotoReplacesExistingItem(t *testing.T) {
 	if firstStatus != http.StatusCreated || secondStatus != http.StatusOK || firstID != secondID {
 		t.Fatalf("statuses = %d, %d; ids = %d, %d", firstStatus, secondStatus, firstID, secondID)
 	}
-	if firstURL != "https://photos.example.com/galleries/synced/#photo-photo" {
+	if firstURL != "https://photos.example.com/synced/#photo-photo" {
 		t.Fatalf("photo URL = %q", firstURL)
 	}
 	items, err := st.ItemsByGallery(context.Background(), gallery.ID)

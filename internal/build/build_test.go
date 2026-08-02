@@ -86,10 +86,10 @@ func TestBuildProducesSite(t *testing.T) {
 	}
 
 	mustExist(t, filepath.Join(cfg.OutputDir, "index.html"))
-	mustExist(t, filepath.Join(cfg.OutputDir, "galleries", "trip", "index.html"))
-	mustExist(t, filepath.Join(cfg.OutputDir, "assets", "theme.css"))
+	mustExist(t, filepath.Join(cfg.OutputDir, "trip", "index.html"))
+	mustExist(t, filepath.Join(cfg.OutputDir, "_curator", "assets", "theme.css"))
 
-	imgs, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "img", "*.jpg"))
+	imgs, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "_curator", "img", "*.jpg"))
 	if len(imgs) == 0 {
 		t.Error("no image derivatives were generated")
 	}
@@ -145,8 +145,8 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
-	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
+	xmpPage := filepath.Join(cfg.OutputDir, "_curator", "browse", "lens", "voigtlander-15mm", "index.html")
+	mappedPage := filepath.Join(cfg.OutputDir, "_curator", "browse", "lens", "mapped-15mm", "index.html")
 
 	build()
 	mustNotExist(t, xmpPage)
@@ -220,7 +220,7 @@ func TestBuildUnlistedIsBuiltButNotLinked(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mustExist(t, filepath.Join(cfg.OutputDir, "galleries", "hidden", "index.html"))
+	mustExist(t, filepath.Join(cfg.OutputDir, "hidden", "index.html"))
 
 	index, err := os.ReadFile(filepath.Join(cfg.OutputDir, "index.html"))
 	if err != nil {
@@ -289,7 +289,7 @@ func TestBuildRendersStory(t *testing.T) {
 		t.Fatalf("build: %v", err)
 	}
 
-	html, err := os.ReadFile(filepath.Join(cfg.OutputDir, "galleries", "story", "index.html"))
+	html, err := os.ReadFile(filepath.Join(cfg.OutputDir, "story", "index.html"))
 	if err != nil {
 		t.Fatalf("story page not written: %v", err)
 	}
@@ -342,11 +342,11 @@ func TestBuildFillsDirectoryIndexes(t *testing.T) {
 	}
 
 	// Container and intermediate directories must all have an index.html.
-	for _, dir := range []string{"galleries", "img", filepath.Join("galleries", "2026")} {
+	for _, dir := range []string{"_curator", filepath.Join("_curator", "img"), "2026"} {
 		mustExist(t, filepath.Join(cfg.OutputDir, dir, "index.html"))
 	}
 	// The draft parent's placeholder must not reveal the hidden child.
-	parent, err := os.ReadFile(filepath.Join(cfg.OutputDir, "galleries", "2026", "index.html"))
+	parent, err := os.ReadFile(filepath.Join(cfg.OutputDir, "2026", "index.html"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -475,7 +475,7 @@ func TestBuildSweepsOrphanedDerivatives(t *testing.T) {
 	if err := New(st, th, cfg).Build(ctx); err != nil {
 		t.Fatal(err)
 	}
-	before, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "img", "*.jpg"))
+	before, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "_curator", "img", "*.jpg"))
 
 	// Remove one item and rebuild; its derivatives should be swept away.
 	if err := st.DeleteItem(ctx, itemIDs[0]); err != nil {
@@ -484,7 +484,7 @@ func TestBuildSweepsOrphanedDerivatives(t *testing.T) {
 	if err := New(st, th, cfg).Build(ctx); err != nil {
 		t.Fatal(err)
 	}
-	after, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "img", "*.jpg"))
+	after, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "_curator", "img", "*.jpg"))
 
 	if len(after) >= len(before) {
 		t.Errorf("expected fewer derivatives after deletion: before=%d after=%d", len(before), len(after))
@@ -544,13 +544,13 @@ func TestBuildEmitsNginxAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected curator-auth.conf: %v", err)
 	}
-	for _, want := range []string{"location /galleries/secret/", "auth_basic_user_file /srv/site/galleries/secret/.htpasswd"} {
+	for _, want := range []string{"location /secret/", "auth_basic_user_file /srv/site/secret/.htpasswd"} {
 		if !strings.Contains(string(conf), want) {
 			t.Errorf("curator-auth.conf missing %q\n%s", want, conf)
 		}
 	}
 
-	htp, err := os.ReadFile(filepath.Join(cfg.OutputDir, "galleries", "secret", ".htpasswd"))
+	htp, err := os.ReadFile(filepath.Join(cfg.OutputDir, "secret", ".htpasswd"))
 	if err != nil {
 		t.Fatalf("expected .htpasswd: %v", err)
 	}
@@ -559,13 +559,13 @@ func TestBuildEmitsNginxAuth(t *testing.T) {
 	}
 
 	// Protected derivatives must live under the auth-guarded gallery path, not
-	// in the shared /img pool.
-	protImgs, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "galleries", "secret", "img", "*.jpg"))
+	// in the shared /_curator/img pool.
+	protImgs, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "secret", "img", "*.jpg"))
 	if len(protImgs) == 0 {
 		t.Error("protected gallery derivatives were not written under its path")
 	}
-	shared, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "img", "*.jpg"))
+	shared, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "_curator", "img", "*.jpg"))
 	if len(shared) != 0 {
-		t.Errorf("protected gallery leaked %d derivative(s) into shared /img", len(shared))
+		t.Errorf("protected gallery leaked %d derivative(s) into shared /_curator/img", len(shared))
 	}
 }

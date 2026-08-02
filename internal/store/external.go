@@ -11,6 +11,9 @@ import (
 // UpsertExternalGallery creates or updates a gallery owned by an external
 // publisher and returns its stable Curator id.
 func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID string, gallery model.Gallery) (int64, bool, error) {
+	if err := validateGalleryRootSlug(gallery.ParentID, gallery.Slug); err != nil {
+		return 0, false, err
+	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, false, err

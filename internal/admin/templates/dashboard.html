@@ -12,11 +12,11 @@
   </div>
 </div>
 {{if .Galleries}}
-<table>
+<table id="gallery-tree">
   <tr><th>Title</th><th>Slug</th><th>Status</th><th>Photos</th></tr>
   {{range .Galleries}}
-  <tr>
-    <td>{{.Indent}}<a href="{{.URL}}">{{.Title}}</a></td>
+  <tr class="gallery-tree-row" data-gallery-id="{{.ID}}" data-parent-id="{{with .ParentID}}{{.}}{{end}}" data-depth="{{.Depth}}">
+    <td><div class="gallery-tree-title" style="--gallery-depth: {{.Depth}}">{{if .HasChildren}}<button class="gallery-tree-toggle" type="button" aria-expanded="false" aria-label="Expand {{.Title}}" title="Expand {{.Title}}"></button>{{else}}<span class="gallery-tree-spacer"></span>{{end}}<a href="{{.URL}}">{{.Title}}</a></div></td>
     <td>{{.Slug}}</td>
     <td><span class="badge">{{.Status}}</span></td>
     <td>{{.Count}}</td>
@@ -62,6 +62,48 @@
 <script>
 (function () {
   var base = "{{.BasePath}}";
+  var tree = document.getElementById("gallery-tree");
+  if (tree) {
+    var rows = Array.prototype.slice.call(tree.querySelectorAll(".gallery-tree-row"));
+    var rowByID = {};
+    rows.forEach(function (row) { rowByID[row.dataset.galleryId] = row; });
+    var storageKey = "curator-expanded-galleries:" + base;
+    var expanded = {};
+    try {
+      JSON.parse(localStorage.getItem(storageKey) || "[]").forEach(function (id) { expanded[id] = true; });
+    } catch (_) {}
+
+    function ancestorsExpanded(row) {
+      var parentID = row.dataset.parentId;
+      while (parentID) {
+        if (!expanded[parentID]) return false;
+        var parent = rowByID[parentID];
+        parentID = parent ? parent.dataset.parentId : "";
+      }
+      return true;
+    }
+    function refreshTree() {
+      rows.forEach(function (row) {
+        row.hidden = row.dataset.parentId !== "" && !ancestorsExpanded(row);
+        var toggle = row.querySelector(".gallery-tree-toggle");
+        if (!toggle) return;
+        var open = !!expanded[row.dataset.galleryId];
+        toggle.setAttribute("aria-expanded", String(open));
+        toggle.setAttribute("aria-label", (open ? "Collapse " : "Expand ") + row.querySelector("a").textContent);
+        toggle.title = toggle.getAttribute("aria-label");
+      });
+    }
+    tree.addEventListener("click", function (event) {
+      var toggle = event.target.closest(".gallery-tree-toggle");
+      if (!toggle) return;
+      var id = toggle.closest(".gallery-tree-row").dataset.galleryId;
+      if (expanded[id]) delete expanded[id]; else expanded[id] = true;
+      try { localStorage.setItem(storageKey, JSON.stringify(Object.keys(expanded))); } catch (_) {}
+      refreshTree();
+    });
+    refreshTree();
+  }
+
   var box = document.getElementById("build-status");
   var bar = document.getElementById("build-bar");
   var stage = document.getElementById("build-stage");

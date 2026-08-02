@@ -59,6 +59,33 @@ func TestDashboardRenders(t *testing.T) {
 	}
 }
 
+func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	parentID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "2026", Title: "2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.store.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "summer", Title: "Summer"}); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`id="gallery-tree"`,
+		`data-gallery-id="1" data-parent-id="" data-depth="0"`,
+		`aria-expanded="false" aria-label="Expand 2026"`,
+		`data-gallery-id="2" data-parent-id="1" data-depth="1"`,
+		`curator-expanded-galleries:`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("dashboard missing %q", want)
+		}
+	}
+}
+
 func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 	srv, _ := newTestServer(t)
 	handler := srv.Handler()

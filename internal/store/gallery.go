@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/tkjaer/curator/internal/model"
@@ -10,6 +12,9 @@ import (
 
 // CreateGallery inserts a gallery and returns its new id.
 func (s *Store) CreateGallery(ctx context.Context, g model.Gallery) (int64, error) {
+	if err := validateGalleryRootSlug(g.ParentID, g.Slug); err != nil {
+		return 0, err
+	}
 	if g.SortMode == "" {
 		g.SortMode = model.SortDefault
 	}
@@ -23,6 +28,18 @@ func (s *Store) CreateGallery(ctx context.Context, g model.Gallery) (int64, erro
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func validateGalleryRootSlug(parentID *int64, gallerySlug string) error {
+	if parentID != nil {
+		return nil
+	}
+	for _, reserved := range []string{"_curator", "feed.xml"} {
+		if strings.EqualFold(gallerySlug, reserved) {
+			return fmt.Errorf("gallery slug %q is reserved at the site root", gallerySlug)
+		}
+	}
+	return nil
 }
 
 // Galleries returns every gallery ordered for stable tree building.

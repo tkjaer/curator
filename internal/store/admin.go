@@ -102,6 +102,13 @@ func (s *Store) DeleteGallery(ctx context.Context, id int64) error {
 // (into itself or one of its own descendants). A nil parent moves it to the top
 // level.
 func (s *Store) MoveGallery(ctx context.Context, id int64, parent *int64) error {
+	g, err := s.Gallery(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := validateGalleryRootSlug(parent, g.Slug); err != nil {
+		return err
+	}
 	if parent != nil {
 		if *parent == id {
 			return errors.New("a gallery cannot be its own parent")
@@ -120,7 +127,7 @@ func (s *Store) MoveGallery(ctx context.Context, id int64, parent *int64) error 
 			cur = g.ParentID
 		}
 	}
-	_, err := s.DB.ExecContext(ctx,
+	_, err = s.DB.ExecContext(ctx,
 		`UPDATE galleries SET parent_id = ?, updated_at = datetime('now') WHERE id = ?`, parent, id)
 	return err
 }

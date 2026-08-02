@@ -26,6 +26,8 @@ import (
 
 const contentWidth = 1200
 
+const generatedRoot = "_curator"
+
 // Progress reports how far along a build is. Total is 0 for stages without a
 // known count.
 type Progress struct {
@@ -314,7 +316,7 @@ func (b *Builder) parent(g model.Gallery) (model.Gallery, bool) {
 	return p, ok
 }
 
-// urlPath is the site-relative URL of a gallery, e.g. /galleries/trip/day-one/.
+// urlPath is the site-relative URL of a gallery, e.g. /trip/day-one/.
 func (b *Builder) urlPath(id int64) string {
 	var segs []string
 	for cur, ok := b.byID[id]; ok; {
@@ -324,7 +326,7 @@ func (b *Builder) urlPath(id int64) string {
 		}
 		cur, ok = b.byID[*cur.ParentID]
 	}
-	return b.site.BaseURL + "/galleries/" + strings.Join(segs, "/") + "/"
+	return b.site.BaseURL + "/" + strings.Join(segs, "/") + "/"
 }
 
 func (b *Builder) outputPath(id int64) string {
@@ -333,7 +335,7 @@ func (b *Builder) outputPath(id int64) string {
 }
 
 func (b *Builder) browseURL(namespace string) string {
-	return b.site.BaseURL + "/browse/" + namespace + "/"
+	return b.site.BaseURL + "/" + generatedRoot + "/browse/" + namespace + "/"
 }
 
 func (b *Builder) browseValueURL(namespace, value string) string {
@@ -348,18 +350,18 @@ func (b *Builder) browseValuePageURL(namespace, value string, page int) string {
 }
 
 func (b *Builder) browseIndexOutput(namespace string) string {
-	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, "index.html")
+	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, "index.html")
 }
 
 func (b *Builder) browseValueOutput(namespace, value string) string {
-	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, slug.Make(value), "index.html")
+	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, slug.Make(value), "index.html")
 }
 
 func (b *Builder) browseValuePageOutput(namespace, value string, page int) string {
 	if page <= 1 {
 		return b.browseValueOutput(namespace, value)
 	}
-	return filepath.Join(b.Cfg.OutputDir, "browse", namespace, slug.Make(value), "page", strconv.Itoa(page), "index.html")
+	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, slug.Make(value), "page", strconv.Itoa(page), "index.html")
 }
 
 func (b *Builder) writeHTML(path, tmpl string, data any) error {
@@ -384,7 +386,7 @@ func (b *Builder) copyAssets() error {
 	if err != nil {
 		return err
 	}
-	destRoot := filepath.Join(b.Cfg.OutputDir, "assets")
+	destRoot := filepath.Join(b.Cfg.OutputDir, generatedRoot, "assets")
 
 	return fs.WalkDir(assets, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {

@@ -34,13 +34,13 @@ func TestBrowseValuePagePaths(t *testing.T) {
 	builder := &Builder{Cfg: cfg}
 	builder.site.BaseURL = "https://example.com"
 
-	if got := builder.browseValuePageURL("camera", "Leica M11", 1); got != "https://example.com/browse/camera/leica-m11/" {
+	if got := builder.browseValuePageURL("camera", "Leica M11", 1); got != "https://example.com/_curator/browse/camera/leica-m11/" {
 		t.Fatalf("page 1 URL = %q", got)
 	}
-	if got := builder.browseValuePageURL("camera", "Leica M11", 2); got != "https://example.com/browse/camera/leica-m11/page/2/" {
+	if got := builder.browseValuePageURL("camera", "Leica M11", 2); got != "https://example.com/_curator/browse/camera/leica-m11/page/2/" {
 		t.Fatalf("page 2 URL = %q", got)
 	}
-	want := filepath.Join(cfg.OutputDir, "browse", "camera", "leica-m11", "page", "2", "index.html")
+	want := filepath.Join(cfg.OutputDir, "_curator", "browse", "camera", "leica-m11", "page", "2", "index.html")
 	if got := builder.browseValuePageOutput("camera", "Leica M11", 2); got != want {
 		t.Fatalf("page 2 output = %q, want %q", got, want)
 	}

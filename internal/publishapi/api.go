@@ -237,7 +237,7 @@ func (a *API) publicGalleryURL(ctx context.Context, galleryID int64) (string, er
 		segments = append([]string{parent.Slug}, segments...)
 		gallery = parent
 	}
-	return baseURL + "/galleries/" + strings.Join(segments, "/") + "/", nil
+	return baseURL + "/" + strings.Join(segments, "/") + "/", nil
 }
 
 func (a *API) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
