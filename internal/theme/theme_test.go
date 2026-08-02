@@ -64,10 +64,13 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js"} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}
+	}
+	if strings.Contains(out, `href="/trips/"`) {
+		t.Error("global navigation included gallery links")
 	}
 	if strings.Contains(out, "<no value>") {
 		t.Errorf("template produced <no value>:\n%s", out)
