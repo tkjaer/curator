@@ -145,8 +145,8 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	xmpPage := filepath.Join(cfg.OutputDir, "_curator", "browse", "lens", "voigtlander-15mm", "index.html")
-	mappedPage := filepath.Join(cfg.OutputDir, "_curator", "browse", "lens", "mapped-15mm", "index.html")
+	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
+	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
 
 	build()
 	mustNotExist(t, xmpPage)

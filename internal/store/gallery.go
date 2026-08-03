@@ -34,7 +34,7 @@ func validateGalleryRootSlug(parentID *int64, gallerySlug string) error {
 	if parentID != nil {
 		return nil
 	}
-	for _, reserved := range []string{"_curator", "feed.xml"} {
+	for _, reserved := range []string{"_curator", "browse", "feed.xml"} {
 		if strings.EqualFold(gallerySlug, reserved) {
 			return fmt.Errorf("gallery slug %q is reserved at the site root", gallerySlug)
 		}

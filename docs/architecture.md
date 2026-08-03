@@ -57,8 +57,8 @@ content-root/            # source of truth — back this up / rsync this
 output/                  # generated, disposable, fully rebuildable
 ├── index.html
 ├── 2026/…               # galleries live directly below the site root
+├── browse/…             # facet pages (browse by camera, lens, …)
 ├── _curator/
-│   ├── browse/…         # facet pages (browse by camera, lens, …)
 │   ├── img/…            # image derivatives
 │   └── assets/…         # theme css/js, self-hosted
 ├── feed.xml
@@ -68,7 +68,7 @@ output/                  # generated, disposable, fully rebuildable
 Originals are never written into `output/`. Derivatives are a pure function of
 (original bytes + preset) and can always be regenerated.
 
-The root gallery slugs `_curator` and `feed.xml` are reserved for generated
+The root gallery slugs `_curator`, `browse`, and `feed.xml` are reserved for generated
 site files. Those names remain available to galleries nested below a parent.
 
 ## Technology
@@ -230,7 +230,7 @@ build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
-`/_curator/browse/camera/` and `/_curator/browse/camera/x-t5/`. Facets are
+`/browse/camera/` and `/browse/camera/x-t5/`. Facets are
 implemented as tags in a dedicated namespace, so manual tags and EXIF facets
 share one browse/render path. Photos on value pages are ordered newest first,
 with undated photos last.

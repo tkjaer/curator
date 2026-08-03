@@ -31,7 +31,7 @@ func TestReservedRootGallerySlugs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, gallerySlug := range []string{"_curator", "feed.xml"} {
+	for _, gallerySlug := range []string{"_curator", "browse", "feed.xml"} {
 		if _, err := st.CreateGallery(ctx, model.Gallery{Slug: gallerySlug, Title: gallerySlug}); err == nil || !strings.Contains(err.Error(), "reserved") {
 			t.Errorf("CreateGallery(%q) error = %v, want reserved slug error", gallerySlug, err)
 		}

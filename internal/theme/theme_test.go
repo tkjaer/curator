@@ -23,7 +23,7 @@ func sampleSite() render.SiteView {
 		Title:   "My Photos",
 		BaseURL: "",
 		Nav:     []render.NavNode{{Title: "Trips", Href: "/trips/"}},
-		Facets:  []render.FacetLink{{Label: "Cameras", Href: "/_curator/browse/camera/"}},
+		Facets:  []render.FacetLink{{Label: "Cameras", Href: "/browse/camera/"}},
 	}
 }
 
@@ -64,7 +64,7 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/_curator/browse/camera/"`} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}
@@ -269,7 +269,7 @@ func TestThemesRenderFacetCards(t *testing.T) {
 				Title: "Camera",
 				Items: []render.FacetItem{{
 					Title: "Example Camera",
-					Href:  "/_curator/browse/camera/example-camera/",
+					Href:  "/browse/camera/example-camera/",
 					Cover: render.Source{URL: "/_curator/img/camera.jpg", Width: 800, Height: 533},
 					Count: 3,
 				}},

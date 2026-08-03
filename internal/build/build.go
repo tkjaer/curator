@@ -26,7 +26,10 @@ import (
 
 const contentWidth = 1200
 
-const generatedRoot = "_curator"
+const (
+	generatedRoot = "_curator"
+	browseRoot    = "browse"
+)
 
 // Progress reports how far along a build is. Total is 0 for stages without a
 // known count.
@@ -335,7 +338,7 @@ func (b *Builder) outputPath(id int64) string {
 }
 
 func (b *Builder) browseURL(namespace string) string {
-	return b.site.BaseURL + "/" + generatedRoot + "/browse/" + namespace + "/"
+	return b.site.BaseURL + "/" + browseRoot + "/" + namespace + "/"
 }
 
 func (b *Builder) browseValueURL(namespace, value string) string {
@@ -350,18 +353,18 @@ func (b *Builder) browseValuePageURL(namespace, value string, page int) string {
 }
 
 func (b *Builder) browseIndexOutput(namespace string) string {
-	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, "index.html")
+	return filepath.Join(b.Cfg.OutputDir, browseRoot, namespace, "index.html")
 }
 
 func (b *Builder) browseValueOutput(namespace, value string) string {
-	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, slug.Make(value), "index.html")
+	return filepath.Join(b.Cfg.OutputDir, browseRoot, namespace, slug.Make(value), "index.html")
 }
 
 func (b *Builder) browseValuePageOutput(namespace, value string, page int) string {
 	if page <= 1 {
 		return b.browseValueOutput(namespace, value)
 	}
-	return filepath.Join(b.Cfg.OutputDir, generatedRoot, "browse", namespace, slug.Make(value), "page", strconv.Itoa(page), "index.html")
+	return filepath.Join(b.Cfg.OutputDir, browseRoot, namespace, slug.Make(value), "page", strconv.Itoa(page), "index.html")
 }
 
 func (b *Builder) writeHTML(path, tmpl string, data any) error {
