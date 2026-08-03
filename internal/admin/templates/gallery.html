@@ -138,7 +138,7 @@
 <div class="thumbs">
   {{range .Items}}
   <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}">
-    <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" loading="lazy">
+    <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" width="{{.Width}}" height="{{.Height}}" loading="lazy">
     <figcaption>
       <div class="item-title"><span class="fn">{{.Filename}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span></div>
       <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
