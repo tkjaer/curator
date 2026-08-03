@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -83,6 +84,34 @@ func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("dashboard missing %q", want)
+		}
+	}
+}
+
+func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	parentID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "2026", Title: "2026"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childID, err := srv.store.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "summer", Title: "Summer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(childID, 10), nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`<nav class="breadcrumbs" aria-label="Gallery hierarchy">`,
+		`<a href="/galleries/1">2026</a>`,
+		`<span aria-current="page">Summer</span>`,
+		`<details class="gallery-options">`,
+		`<summary>Edit gallery settings</summary>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gallery missing %q", want)
 		}
 	}
 }
@@ -409,7 +438,7 @@ func TestGalleryCustomOrderCanBeReset(t *testing.T) {
 		t.Fatal("gallery did not show custom ordering")
 	}
 
-	form := url.Values{"mode": {"date"}}
+	form := url.Values{"mode": {"date"}, "direction": {"desc"}}
 	req := httptest.NewRequest("POST", "/galleries/1/order", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("X-Curator-Async", "true")
@@ -425,20 +454,31 @@ func TestGalleryCustomOrderCanBeReset(t *testing.T) {
 	if item.SortOrder != 0 {
 		t.Fatalf("sort order = %d, want 0", item.SortOrder)
 	}
+	gallery, err := srv.store.Gallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.SortMode != model.SortByDate || gallery.SortDirection != model.SortDescending {
+		t.Fatalf("gallery ordering = %q %q, want date desc", gallery.SortMode, gallery.SortDirection)
+	}
 
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
 	if !strings.Contains(rec.Body.String(), `data-custom="false"`) ||
-		!strings.Contains(rec.Body.String(), `<option value="date" selected>Date taken</option>`) {
+		!strings.Contains(rec.Body.String(), `<option value="date" selected>Date taken</option>`) ||
+		!strings.Contains(rec.Body.String(), `<option value="desc" selected>Descending</option>`) {
 		t.Fatal("gallery did not return to automatic ordering")
 	}
 }
 
-func TestDefaultGalleryOrderAppliesToNewGalleries(t *testing.T) {
+func TestDefaultGalleryOrderingAppliesToNewGalleries(t *testing.T) {
 	srv, _ := newTestServer(t)
 	h := srv.Handler()
 
-	settings := url.Values{"default_gallery_order": {"filename"}}
+	settings := url.Values{
+		"default_gallery_order":          {"filename"},
+		"default_gallery_sort_direction": {"desc"},
+	}
 	req := httptest.NewRequest("POST", "/settings", strings.NewReader(settings.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
@@ -481,7 +521,7 @@ func TestDefaultGalleryOrderAppliesToNewGalleries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if items[0].ID != secondID || items[1].ID != firstID {
+	if items[0].ID != firstID || items[1].ID != secondID {
 		t.Fatalf("inherited alphabetical order = %d, %d", items[0].ID, items[1].ID)
 	}
 	if err := srv.store.SetSetting(context.Background(), "site.default_gallery_order", "date"); err != nil {
@@ -491,14 +531,46 @@ func TestDefaultGalleryOrderAppliesToNewGalleries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if items[0].ID != firstID || items[1].ID != secondID {
+	if items[0].ID != secondID || items[1].ID != firstID {
 		t.Fatalf("inherited date order = %d, %d", items[0].ID, items[1].ID)
 	}
 
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
-	if !strings.Contains(rec.Body.String(), `<option value="default" selected>System default (Date taken)</option>`) {
+	if !strings.Contains(rec.Body.String(), `<option value="default" selected>Default: Date taken</option>`) ||
+		!strings.Contains(rec.Body.String(), `<option value="default" selected>Default: Descending</option>`) {
 		t.Fatal("gallery did not show inherited system ordering")
+	}
+}
+
+func TestDateAddedCanBeTheDefaultGalleryOrder(t *testing.T) {
+	srv, _ := newTestServer(t)
+	h := srv.Handler()
+	form := url.Values{
+		"default_gallery_order":          {"date_added"},
+		"default_gallery_sort_direction": {"desc"},
+	}
+	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["site.default_gallery_order"] != "date_added" {
+		t.Fatalf("default gallery order = %q, want date_added", settings["site.default_gallery_order"])
+	}
+	if _, err := srv.store.CreateGallery(context.Background(), model.Gallery{
+		Slug: "recent", Title: "Recent", Type: model.GalleryGrid, Status: model.GalleryDraft,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
+	if !strings.Contains(rec.Body.String(), `Default: Date added`) {
+		t.Fatal("gallery did not show inherited date-added ordering")
 	}
 }
 

@@ -248,23 +248,25 @@ func (s *Server) handleDeleteGallery(w http.ResponseWriter, r *http.Request) {
 }
 
 type galleryData struct {
-	Gallery         model.Gallery
-	Items           []model.Item
-	Statuses        []string
-	ItemStatuses    []string
-	CoverID         int64
-	Protected       bool
-	PublicURL       string
-	AccessUsers     []accessUserGrant
-	Children        []galleryRow
-	MoveTargets     []parentOption
-	CurrentParentID int64
-	IsStory         bool
-	Blocks          []blockRow
-	BlockTypes      []string
-	ItemChoices     []itemChoice
-	CustomOrder     bool
-	AutomaticOrder  string
+	Gallery            model.Gallery
+	Breadcrumbs        []galleryRow
+	Items              []model.Item
+	Statuses           []string
+	ItemStatuses       []string
+	CoverID            int64
+	Protected          bool
+	PublicURL          string
+	AccessUsers        []accessUserGrant
+	Children           []galleryRow
+	MoveTargets        []parentOption
+	CurrentParentID    int64
+	IsStory            bool
+	Blocks             []blockRow
+	BlockTypes         []string
+	ItemChoices        []itemChoice
+	CustomOrder        bool
+	AutomaticOrder     string
+	AutomaticDirection string
 }
 
 type blockRow struct {
@@ -308,21 +310,32 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := galleryData{
-		Gallery:        g,
-		Items:          items,
-		Statuses:       []string{"draft", "unlisted", "published", "protected"},
-		ItemStatuses:   []string{"draft", "unlisted", "published"},
-		CoverID:        cover,
-		Protected:      g.Status == model.GalleryProtected,
-		AutomaticOrder: "Date taken",
+		Gallery:            g,
+		Items:              items,
+		Statuses:           []string{"draft", "unlisted", "published", "protected"},
+		ItemStatuses:       []string{"draft", "unlisted", "published"},
+		CoverID:            cover,
+		Protected:          g.Status == model.GalleryProtected,
+		AutomaticOrder:     "Date taken",
+		AutomaticDirection: "Ascending",
 	}
 	effectiveSortMode, err := s.store.EffectiveGallerySortMode(ctx, g.SortMode)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if effectiveSortMode == model.SortByFilename {
+	if effectiveSortMode == model.SortByDateAdded {
+		data.AutomaticOrder = "Date added"
+	} else if effectiveSortMode == model.SortByFilename {
 		data.AutomaticOrder = "Alphabetical"
+	}
+	effectiveDirection, err := s.store.EffectiveGallerySortDirection(ctx, g.SortDirection)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if effectiveDirection == model.SortDescending {
+		data.AutomaticDirection = "Descending"
 	}
 	for _, item := range items {
 		if item.SortOrder != 0 {
@@ -356,6 +369,21 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+	byID := make(map[int64]model.Gallery, len(all))
+	for _, gallery := range all {
+		byID[gallery.ID] = gallery
+	}
+	for parentID := g.ParentID; parentID != nil; {
+		parent, ok := byID[*parentID]
+		if !ok {
+			break
+		}
+		data.Breadcrumbs = append([]galleryRow{{
+			ID: parent.ID, Title: parent.Title,
+			URL: s.link("galleries", strconv.FormatInt(parent.ID, 10)),
+		}}, data.Breadcrumbs...)
+		parentID = parent.ParentID
 	}
 	for _, child := range all {
 		if child.ParentID != nil && *child.ParentID == id {
@@ -525,6 +553,7 @@ type settingsData struct {
 	Theme            string
 	Themes           []string
 	DefaultOrder     string
+	DefaultDirection string
 	DefaultPublished bool
 	DefaultShowEXIF  bool
 }
@@ -602,10 +631,17 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		DefaultPublished: settings["site.default_gallery_published"] == "true",
 		DefaultShowEXIF:  settings["site.default_gallery_show_exif"] == "true",
 		DefaultOrder: func() string {
-			if settings["site.default_gallery_order"] == string(model.SortByFilename) {
-				return string(model.SortByFilename)
+			mode := model.SortMode(settings["site.default_gallery_order"])
+			if mode == model.SortByDateAdded || mode == model.SortByFilename {
+				return string(mode)
 			}
 			return string(model.SortByDate)
+		}(),
+		DefaultDirection: func() string {
+			if settings["site.default_gallery_sort_direction"] == string(model.SortDescending) {
+				return string(model.SortDescending)
+			}
+			return string(model.SortAscending)
 		}(),
 	})
 }
@@ -668,7 +704,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	defaultOrder := model.SortMode(r.FormValue("default_gallery_order"))
-	if defaultOrder != model.SortByFilename {
+	if defaultOrder != model.SortByDateAdded && defaultOrder != model.SortByFilename {
 		defaultOrder = model.SortByDate
 	}
 	defaultOrderChanged := settings["site.default_gallery_order"] != string(defaultOrder)
@@ -676,6 +712,17 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		buildNeeded = true
 	}
 	if err := s.store.SetSetting(ctx, "site.default_gallery_order", string(defaultOrder)); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	defaultDirection := model.SortDirection(r.FormValue("default_gallery_sort_direction"))
+	if defaultDirection != model.SortDescending {
+		defaultDirection = model.SortAscending
+	}
+	if settings["site.default_gallery_sort_direction"] != string(defaultDirection) {
+		buildNeeded = true
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_sort_direction", string(defaultDirection)); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}

@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/tkjaer/curator/internal/model"
@@ -80,7 +81,7 @@ func TestSetGalleryItemOrderAlphabetically(t *testing.T) {
 	if err := st.MoveItem(ctx, gid, ids[2], true); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByFilename); err != nil {
+	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByFilename, model.SortAscending); err != nil {
 		t.Fatal(err)
 	}
 
@@ -96,6 +97,45 @@ func TestSetGalleryItemOrderAlphabetically(t *testing.T) {
 	}
 	if g.SortMode != model.SortByFilename {
 		t.Fatalf("sort mode = %q, want filename", g.SortMode)
+	}
+}
+
+func TestSetGalleryItemOrderDescending(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, ids := makeGalleryWithItems(t, st, 3)
+
+	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByFilename, model.SortDescending); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := orderIDs(t, st, gid), []int64{ids[2], ids[1], ids[0]}; !slices.Equal(got, want) {
+		t.Fatalf("descending filename order = %v, want %v", got, want)
+	}
+
+	if _, err := st.DB.ExecContext(ctx, `UPDATE items SET taken_at = CASE id WHEN ? THEN '2024-01-01' WHEN ? THEN NULL WHEN ? THEN '2025-01-01' END WHERE gallery_id = ?`, ids[0], ids[1], ids[2], gid); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByDate, model.SortDescending); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := orderIDs(t, st, gid), []int64{ids[2], ids[0], ids[1]}; !slices.Equal(got, want) {
+		t.Fatalf("descending date order = %v, want %v", got, want)
+	}
+}
+
+func TestSetGalleryItemOrderByDateAddedDescending(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, ids := makeGalleryWithItems(t, st, 3)
+
+	if _, err := st.DB.ExecContext(ctx, `UPDATE items SET created_at = CASE id WHEN ? THEN '2025-01-01' WHEN ? THEN '2026-01-01' WHEN ? THEN '2024-01-01' END WHERE gallery_id = ?`, ids[0], ids[1], ids[2], gid); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetGalleryItemOrder(ctx, gid, model.SortByDateAdded, model.SortDescending); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := orderIDs(t, st, gid), []int64{ids[1], ids[0], ids[2]}; !slices.Equal(got, want) {
+		t.Fatalf("descending date-added order = %v, want %v", got, want)
 	}
 }
 

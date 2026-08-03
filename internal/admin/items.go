@@ -56,11 +56,19 @@ func (s *Server) handleGalleryItemOrder(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	mode := model.SortMode(r.FormValue("mode"))
-	if mode != model.SortDefault && mode != model.SortByDate && mode != model.SortByFilename {
+	if mode != model.SortDefault && mode != model.SortByDate && mode != model.SortByDateAdded && mode != model.SortByFilename {
 		s.redirect(w, r, s.galleryLink(id), "Unknown ordering")
 		return
 	}
-	if err := s.store.SetGalleryItemOrder(r.Context(), id, mode); err != nil {
+	direction := model.SortDirection(r.FormValue("direction"))
+	if direction == "" {
+		direction = model.SortDirectionDefault
+	}
+	if direction != model.SortDirectionDefault && direction != model.SortAscending && direction != model.SortDescending {
+		s.redirect(w, r, s.galleryLink(id), "Unknown ordering direction")
+		return
+	}
+	if err := s.store.SetGalleryItemOrder(r.Context(), id, mode, direction); err != nil {
 		s.redirect(w, r, s.galleryLink(id), "Could not update ordering")
 		return
 	}

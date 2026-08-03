@@ -1,6 +1,10 @@
 {{define "gallery"}}{{template "head" .}}
 {{with .Data}}
-<a class="back-link" href="{{$.BasePath}}/">&larr; All galleries</a>
+<nav class="breadcrumbs" aria-label="Gallery hierarchy">
+  <a href="{{$.BasePath}}/">Galleries</a>
+  {{range .Breadcrumbs}}<span aria-hidden="true">/</span><a href="{{.URL}}">{{.Title}}</a>{{end}}
+  <span aria-hidden="true">/</span><span aria-current="page">{{.Gallery.Title}}</span>
+</nav>
 <div class="page-head gallery-page-head">
   <h1>{{.Gallery.Title}}</h1>
 </div>
@@ -17,7 +21,7 @@
     </div>
   </div>
   <div class="settings-row">
-  <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
+  <form class="setting-control listing-setting" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <label><span>Listing</span>
       <select name="status">
@@ -25,35 +29,49 @@
       </select>
     </label>
   </form>
-  <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label><span>Placement</span>
-      <select name="parent">
-        <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
-        {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
-      </select>
-    </label>
-  </form>
-  <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
-    <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <label><span>Ordering</span>
-        <select name="mode">
-          {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
-          <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>System default ({{.AutomaticOrder}})</option>
-          <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
-          <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
-        </select>
-      </label>
-    </form>
-  </div>
-  <div class="setting-control exif-setting">
-    <span>Metadata</span>
-    <form class="toggle-form" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF in lightbox</label>
-    </form>
-  </div>
+  <details class="gallery-options">
+    <summary>Edit gallery settings</summary>
+    <div class="gallery-options-panel">
+      <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
+        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <label><span>Placement</span>
+          <select name="parent">
+            <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
+            {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
+          </select>
+        </label>
+      </form>
+      <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
+        <span>Photo order</span>
+        <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <label><span>Ordering</span>
+            <select name="mode">
+              {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
+              <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>Default: {{.AutomaticOrder}}</option>
+              <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
+              <option value="date_added"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date_added")}} selected{{end}}>Date added</option>
+              <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
+            </select>
+          </label>
+          <label><span>Direction</span>
+            <select name="direction"{{if .CustomOrder}} disabled{{end}}>
+              <option value="default"{{if eq (printf "%s" .Gallery.SortDirection) "default"}} selected{{end}}>Default: {{.AutomaticDirection}}</option>
+              <option value="asc"{{if eq (printf "%s" .Gallery.SortDirection) "asc"}} selected{{end}}>Ascending</option>
+              <option value="desc"{{if eq (printf "%s" .Gallery.SortDirection) "desc"}} selected{{end}}>Descending</option>
+            </select>
+          </label>
+        </form>
+      </div>
+      <div class="setting-control exif-setting">
+        <span>Metadata</span>
+        <form class="toggle-form" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF in lightbox</label>
+        </form>
+      </div>
+    </div>
+  </details>
   <details class="settings-menu">
     <summary aria-label="More gallery actions" title="More gallery actions">&hellip;</summary>
     <form method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" onsubmit="return confirm('Delete this gallery and everything inside it?')">

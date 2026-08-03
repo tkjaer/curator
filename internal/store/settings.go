@@ -39,7 +39,8 @@ func (s *Store) DefaultGallerySortMode(ctx context.Context) (model.SortMode, err
 	if err != nil {
 		return "", err
 	}
-	if mode := model.SortMode(decodeSetting(raw)); mode == model.SortByFilename {
+	mode := model.SortMode(decodeSetting(raw))
+	if mode == model.SortByDateAdded || mode == model.SortByFilename {
 		return mode, nil
 	}
 	return model.SortByDate, nil
@@ -51,6 +52,34 @@ func (s *Store) EffectiveGallerySortMode(ctx context.Context, mode model.SortMod
 		return s.DefaultGallerySortMode(ctx)
 	}
 	return mode, nil
+}
+
+// DefaultGallerySortDirection returns the direction inherited by galleries.
+func (s *Store) DefaultGallerySortDirection(ctx context.Context) (model.SortDirection, error) {
+	var raw string
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT value FROM settings WHERE key = 'site.default_gallery_sort_direction'`).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return model.SortAscending, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	if direction := model.SortDirection(decodeSetting(raw)); direction == model.SortDescending {
+		return direction, nil
+	}
+	return model.SortAscending, nil
+}
+
+// EffectiveGallerySortDirection resolves a gallery's inherited direction.
+func (s *Store) EffectiveGallerySortDirection(ctx context.Context, direction model.SortDirection) (model.SortDirection, error) {
+	if direction == model.SortDirectionDefault || direction == "" {
+		return s.DefaultGallerySortDirection(ctx)
+	}
+	if direction == model.SortDescending {
+		return direction, nil
+	}
+	return model.SortAscending, nil
 }
 
 // GalleryDefaults returns the initial visibility and EXIF presentation for new

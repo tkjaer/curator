@@ -26,7 +26,14 @@
   <label class="field"><span>Default ordering for new galleries</span>
     <select name="default_gallery_order">
       <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
+      <option value="date_added"{{if eq .DefaultOrder "date_added"}} selected{{end}}>Date added</option>
       <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
+    </select>
+  </label>
+  <label class="field"><span>Default ordering direction</span>
+    <select name="default_gallery_sort_direction">
+      <option value="asc"{{if eq .DefaultDirection "asc"}} selected{{end}}>Ascending (oldest / A-Z)</option>
+      <option value="desc"{{if eq .DefaultDirection "desc"}} selected{{end}}>Descending (newest / Z-A)</option>
     </select>
   </label>
   <label><input type="checkbox" name="default_gallery_published"{{if .DefaultPublished}} checked{{end}}> Publish new galleries immediately</label>

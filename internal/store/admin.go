@@ -18,10 +18,10 @@ func (s *Store) Gallery(ctx context.Context, id int64) (model.Gallery, error) {
 	)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
-		        cover_item_id, sort_mode, sort_order, theme, show_exif
+		        cover_item_id, sort_mode, sort_direction, sort_order, theme, show_exif
 		   FROM galleries WHERE id = ?`, id).
 		Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description, &g.Type, &g.Status,
-			&cover, &g.SortMode, &g.SortOrder, &g.Theme, &g.ShowEXIF)
+			&cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme, &g.ShowEXIF)
 	if err != nil {
 		return model.Gallery{}, err
 	}
@@ -234,7 +234,7 @@ func (s *Store) MoveItem(ctx context.Context, galleryID, itemID int64, up bool) 
 
 // SetGalleryItemOrder selects the gallery's automatic ordering and clears any
 // manual photo positions.
-func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode model.SortMode) error {
+func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode model.SortMode, direction model.SortDirection) error {
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -242,8 +242,8 @@ func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode m
 	defer tx.Rollback()
 
 	if _, err := tx.ExecContext(ctx,
-		`UPDATE galleries SET sort_mode = ?, updated_at = datetime('now') WHERE id = ?`,
-		mode, galleryID); err != nil {
+		`UPDATE galleries SET sort_mode = ?, sort_direction = ?, updated_at = datetime('now') WHERE id = ?`,
+		mode, direction, galleryID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx,

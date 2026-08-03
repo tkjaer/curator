@@ -55,17 +55,33 @@ func (s *Store) ReplaceItemMedia(ctx context.Context, it model.Item) error {
 // first, then date taken, then filename.
 func (s *Store) ItemsByGallery(ctx context.Context, galleryID int64) ([]model.Item, error) {
 	var sortMode model.SortMode
+	var sortDirection model.SortDirection
 	if err := s.DB.QueryRowContext(ctx,
-		`SELECT sort_mode FROM galleries WHERE id = ?`, galleryID).Scan(&sortMode); err != nil {
+		`SELECT sort_mode, sort_direction FROM galleries WHERE id = ?`, galleryID).Scan(&sortMode, &sortDirection); err != nil {
 		return nil, err
 	}
 	sortMode, err := s.EffectiveGallerySortMode(ctx, sortMode)
 	if err != nil {
 		return nil, err
 	}
+	sortDirection, err = s.EffectiveGallerySortDirection(ctx, sortDirection)
+	if err != nil {
+		return nil, err
+	}
 	orderBy := `sort_order, taken_at IS NULL, taken_at, filename`
-	if sortMode == model.SortByFilename {
+	if sortMode == model.SortByDateAdded {
+		orderBy = `sort_order, created_at, id`
+	} else if sortMode == model.SortByFilename {
 		orderBy = `sort_order, filename`
+	}
+	if sortDirection == model.SortDescending {
+		if sortMode == model.SortByDateAdded {
+			orderBy = `sort_order, created_at DESC, id DESC`
+		} else if sortMode == model.SortByFilename {
+			orderBy = `sort_order, filename DESC`
+		} else {
+			orderBy = `sort_order, taken_at IS NULL, taken_at DESC, filename DESC`
+		}
 	}
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,

@@ -37,10 +37,20 @@ const (
 type SortMode string
 
 const (
-	SortDefault    SortMode = "default"
-	SortByDate     SortMode = "date"
-	SortByFilename SortMode = "filename"
-	SortManual     SortMode = "manual"
+	SortDefault     SortMode = "default"
+	SortByDate      SortMode = "date"
+	SortByDateAdded SortMode = "date_added"
+	SortByFilename  SortMode = "filename"
+	SortManual      SortMode = "manual"
+)
+
+// SortDirection controls automatic ordering. Default inherits the site setting.
+type SortDirection string
+
+const (
+	SortDirectionDefault SortDirection = "default"
+	SortAscending        SortDirection = "asc"
+	SortDescending       SortDirection = "desc"
 )
 
 // Aspect classifies an item's shape. Layout uses each item's real pixel
@@ -90,19 +100,20 @@ const (
 
 // Gallery is a node in the gallery tree.
 type Gallery struct {
-	ID          int64
-	ParentID    *int64
-	Slug        string
-	Title       string
-	Description string
-	Type        GalleryType
-	Status      GalleryStatus
-	CoverItemID *int64
-	SortMode    SortMode
-	SortOrder   int
-	Theme       string
-	ShowEXIF    bool
-	PublishedAt *time.Time
+	ID            int64
+	ParentID      *int64
+	Slug          string
+	Title         string
+	Description   string
+	Type          GalleryType
+	Status        GalleryStatus
+	CoverItemID   *int64
+	SortMode      SortMode
+	SortDirection SortDirection
+	SortOrder     int
+	Theme         string
+	ShowEXIF      bool
+	PublishedAt   *time.Time
 }
 
 // Item is a single photo. The original file is immutable; derivatives are a
