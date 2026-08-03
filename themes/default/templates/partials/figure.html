@@ -1,4 +1,4 @@
-{{define "figure"}}<figure class="photo{{if .Highlighted}} highlighted{{end}}" style="flex-basis:{{printf "%.4f" .FlexBasis}}%;height:{{.RowHeight}}px">
+{{define "figure"}}<figure class="photo{{if .Highlighted}} highlighted{{end}}" style="flex-basis:{{printf "%.4f" .FlexBasis}}%;height:{{.RowHeight}}px;aspect-ratio:{{.Width}}/{{.Height}}">
   <a href="{{.Display.URL}}" data-lightbox data-id="{{.Slug}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
     <img src="{{.Thumb.URL}}"
          srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"

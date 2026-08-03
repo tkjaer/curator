@@ -2,6 +2,7 @@ package theme
 
 import (
 	"bytes"
+	"io/fs"
 	"os"
 	"strings"
 	"testing"
@@ -141,6 +142,38 @@ func TestFolioTheme(t *testing.T) {
 		if strings.Contains(buf.String(), "<no value>") {
 			t.Errorf("%s produced <no value>", test.name)
 		}
+	}
+}
+
+func TestThemesPreservePhotoAspectOnMobile(t *testing.T) {
+	for _, name := range []string{"default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			assets, err := th.Assets()
+			if err != nil {
+				t.Fatal(err)
+			}
+			css, err := fs.ReadFile(assets, "theme.css")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, rule := range []string{
+				"(orientation: landscape) and (max-height: 500px)",
+				".row { display: flex; align-items: flex-start;",
+				".photo a { display: block; height: auto;",
+				".photo img {",
+				"height: auto;",
+				"object-fit: contain;",
+				"max-height: calc(100dvh - 1rem);",
+			} {
+				if !strings.Contains(string(css), rule) {
+					t.Errorf("mobile gallery CSS missing %q", rule)
+				}
+			}
+		})
 	}
 }
 
