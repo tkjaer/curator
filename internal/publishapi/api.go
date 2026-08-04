@@ -431,7 +431,7 @@ func (a *API) handleUpsertPhoto(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "photo synchronized but lens settings are invalid")
 		return
 	}
-	effectiveLens := lensPolicy.Resolve(item.Camera, item.EmbeddedLens, lightroomLens, item.SidecarLens, item.XMPLens)
+	effectiveLens := lensPolicy.Resolve(item.Camera, item.EmbeddedLens, lightroomLens, item.SidecarLens, item.XMPLens, item.ManualLens)
 	if err := a.store.SetItemLightroomLens(r.Context(), itemID, lightroomLens, effectiveLens); err != nil {
 		writeError(w, http.StatusInternalServerError, "photo synchronized but lens metadata could not be saved")
 		return

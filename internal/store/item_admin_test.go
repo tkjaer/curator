@@ -188,7 +188,7 @@ func TestItemTextMetadataPreservesEdits(t *testing.T) {
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Imported title", "Imported description"); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Replacement title", "Replacement description"); err != nil {
@@ -199,7 +199,7 @@ func TestItemTextMetadataPreservesEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.Title != "Edited title" || it.Description != "Edited description" || it.Caption != "Caption" {
+	if it.Title != "Edited title" || it.Description != "Edited description" || it.Caption != "Caption" || it.ManualLens != "Manual lens" || it.Lens != "Manual lens" {
 		t.Fatalf("presentation metadata was overwritten: %+v", it)
 	}
 }

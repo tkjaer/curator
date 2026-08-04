@@ -92,7 +92,7 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 		it.EmbeddedLens = meta.Lens
 		it.SidecarLens = meta.SidecarLens
 		it.XMPLens = meta.XMPLens
-		it.Lens = policy.Resolve(meta.Camera, meta.Lens, it.LightroomLens, meta.SidecarLens, meta.XMPLens)
+		it.Lens = policy.Resolve(meta.Camera, meta.Lens, it.LightroomLens, meta.SidecarLens, meta.XMPLens, it.ManualLens)
 		it.Aperture = meta.Aperture
 		it.Shutter = meta.Shutter
 		it.ISO = meta.ISO
@@ -156,6 +156,7 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	}
 	item.ID = itemID
 	item.LightroomLens = oldItem.LightroomLens
+	item.ManualLens = oldItem.ManualLens
 	settings, err := st.Settings(ctx)
 	if err != nil {
 		return err
@@ -164,7 +165,7 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	if err != nil {
 		return err
 	}
-	item.Lens = policy.Resolve(item.Camera, item.EmbeddedLens, item.LightroomLens, item.SidecarLens, item.XMPLens)
+	item.Lens = policy.Resolve(item.Camera, item.EmbeddedLens, item.LightroomLens, item.SidecarLens, item.XMPLens, item.ManualLens)
 	if err := st.ReplaceItemMedia(ctx, item); err != nil {
 		return err
 	}
@@ -282,11 +283,14 @@ func ParseLensMappings(value string) (map[string]string, error) {
 
 // Lens resolves a stored lens using EXIF, configured mappings, then Lightroom.
 func (p LensPolicy) Lens(meta exif.Data) string {
-	return p.Resolve(meta.Camera, meta.Lens, "", meta.SidecarLens, meta.XMPLens)
+	return p.Resolve(meta.Camera, meta.Lens, "", meta.SidecarLens, meta.XMPLens, "")
 }
 
 // Resolve chooses a lens from stored source values without rereading a photo.
-func (p LensPolicy) Resolve(camera, embeddedLens, lightroomLens, sidecarLens, xmpLens string) string {
+func (p LensPolicy) Resolve(camera, embeddedLens, lightroomLens, sidecarLens, xmpLens, manualLens string) string {
+	if manualLens != "" {
+		return manualLens
+	}
 	if lightroomLens != "" {
 		return lightroomLens
 	}

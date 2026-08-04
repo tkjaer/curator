@@ -176,6 +176,7 @@ type Item struct {
 	Lens          string
 	EmbeddedLens  string
 	LightroomLens string
+	ManualLens    string
 	SidecarLens   string
 	XMPLens       string
 	Aperture      string

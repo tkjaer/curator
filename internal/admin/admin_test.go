@@ -125,7 +125,7 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 	itemID, err := srv.store.CreateItem(ctx, model.Item{
 		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
-		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", Status: model.ItemPublished,
+		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", ManualLens: `A "manual" <lens>`, Status: model.ItemPublished,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -142,10 +142,12 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`data-item-id="` + strconv.FormatInt(itemID, 10) + `"`,
 		`data-title="A &#34;title&#34; &lt;unsafe&gt;"`,
 		`data-description="&lt;b&gt;Description&lt;/b&gt;"`,
+		`data-manual-lens="A &#34;manual&#34; &lt;lens&gt;"`,
 		`data-update-action="/items/` + strconv.FormatInt(itemID, 10) + `/update"`,
 		`<dialog class="photo-editor-dialog" id="photo-editor">`,
 		`role="tablist" aria-label="Photo editor sections"`,
 		`data-photo-editor-panel="metadata" hidden`,
+		`name="manual_lens"`,
 		`.cover-label[hidden] { display: none; }`,
 	} {
 		if !strings.Contains(body, want) {
@@ -154,6 +156,57 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 	if strings.Count(body, `<dialog class="photo-editor-dialog"`) != 1 {
 		t.Error("gallery should render one shared photo editor dialog")
+	}
+}
+
+func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "photos", Title: "Photos"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
+		Status: model.ItemPublished, EmbeddedLens: "Detected lens", Lens: "Detected lens",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	update := func(manualLens string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"status": {string(model.ItemPublished)}, "manual_lens": {manualLens}}
+		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/update", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-Curator-Async", "true")
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+
+	rec := update("  Manual lens  ")
+	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Manual lens"`) {
+		t.Fatalf("manual update response = %q", body)
+	}
+	it, err := srv.store.Item(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.ManualLens != "Manual lens" || it.Lens != "Manual lens" {
+		t.Fatalf("manual update stored %+v", it)
+	}
+
+	rec = update("")
+	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Detected lens"`) {
+		t.Fatalf("clear response = %q", body)
+	}
+	it, err = srv.store.Item(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.ManualLens != "" || it.Lens != "Detected lens" {
+		t.Fatalf("cleared manual update stored %+v", it)
 	}
 }
 

@@ -28,17 +28,19 @@ func TestLensPolicy(t *testing.T) {
 		name          string
 		meta          exif.Data
 		lightroomLens string
+		manualLens    string
 		want          string
 	}{
-		{"Lightroom tag overrides EXIF", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Tagged lens", "Tagged lens"},
-		{"EXIF before sidecar", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens"}, "", "Embedded"},
-		{"Lightroom tag before sidecar", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "Tagged lens"},
-		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Manual 18mm", XMPLens: "Profile"}, "", "Manual 18mm"},
-		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "", "FUJINON 18.5mm F2.8"},
-		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "", "Voigtlander 15mm"},
+		{"Manual override wins", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "Curator override", "Curator override"},
+		{"Lightroom tag overrides EXIF", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Tagged lens", "", "Tagged lens"},
+		{"EXIF before sidecar", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens"}, "", "", "Embedded"},
+		{"Lightroom tag before sidecar", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "", "Tagged lens"},
+		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Manual 18mm", XMPLens: "Profile"}, "", "", "Manual 18mm"},
+		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "", "", "FUJINON 18.5mm F2.8"},
+		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "", "", "Voigtlander 15mm"},
 	}
 	for _, test := range tests {
-		if got := policy.Resolve(test.meta.Camera, test.meta.Lens, test.lightroomLens, test.meta.SidecarLens, test.meta.XMPLens); got != test.want {
+		if got := policy.Resolve(test.meta.Camera, test.meta.Lens, test.lightroomLens, test.meta.SidecarLens, test.meta.XMPLens, test.manualLens); got != test.want {
 			t.Errorf("%s: lens = %q, want %q", test.name, got, test.want)
 		}
 	}
@@ -84,6 +86,36 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	}
 	if string(storedSidecar) != sidecar {
 		t.Fatal("stored sidecar was modified during import")
+	}
+
+	it := items[0]
+	if err := st.UpdateItemPresentation(ctx, it.ID, it.Title, it.Description, it.Caption, it.Status, it.Highlighted, "Manual override", "Manual override"); err != nil {
+		t.Fatal(err)
+	}
+	if updated, skipped, err := Rescan(ctx, st, cfg); err != nil || updated != 1 || skipped != 0 {
+		t.Fatalf("rescan = %d updated, %d skipped, %v", updated, skipped, err)
+	}
+	it, err = st.Item(ctx, it.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.ManualLens != "Manual override" || it.Lens != "Manual override" {
+		t.Fatalf("rescan lost manual lens: %+v", it)
+	}
+
+	var replacement bytes.Buffer
+	if err := jpeg.Encode(&replacement, image.NewRGBA(image.Rect(0, 0, 12, 12)), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := ReplaceUploadWithSidecar(ctx, st, cfg, it.ID, galleryID, "manual", "photo.jpg", &replacement, nil); err != nil {
+		t.Fatal(err)
+	}
+	it, err = st.Item(ctx, it.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.ManualLens != "Manual override" || it.Lens != "Manual override" {
+		t.Fatalf("replacement lost manual lens: %+v", it)
 	}
 }
 

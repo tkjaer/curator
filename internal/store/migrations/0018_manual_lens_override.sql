@@ -1,0 +1,1 @@
+ALTER TABLE items ADD COLUMN manual_lens TEXT NOT NULL DEFAULT '';

@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
+	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 )
 
@@ -18,9 +21,28 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	caption := r.FormValue("caption")
 	status := model.ItemStatus(r.FormValue("status"))
 	highlighted := r.FormValue("highlight") == "on"
+	manualLens := strings.TrimSpace(r.FormValue("manual_lens"))
 
-	if err := s.store.UpdateItemPresentation(r.Context(), it.ID, title, description, caption, status, highlighted); err != nil {
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	policy, err := ingest.LensPolicyFromSettings(settings)
+	if err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	effectiveLens := policy.Resolve(it.Camera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens, manualLens)
+	if err := s.store.UpdateItemPresentation(r.Context(), it.ID, title, description, caption, status, highlighted, manualLens, effectiveLens); err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	if r.Header.Get("X-Curator-Async") == "true" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"message": "Photo updated", "redirect": s.galleryLink(it.GalleryID), "resolvedLens": effectiveLens,
+		})
 		return
 	}
 	s.redirect(w, r, s.galleryLink(it.GalleryID), "Photo updated")
