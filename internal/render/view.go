@@ -52,6 +52,8 @@ func (e ExifView) Line() string {
 // as a percentage of its justified row; RowHeight is that row's height in px.
 type PhotoView struct {
 	Slug        string
+	Title       string
+	Description string
 	Caption     string
 	Alt         string
 	Width       int

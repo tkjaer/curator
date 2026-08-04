@@ -15,12 +15,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/rwcarlsen/goexif/exif"
 )
 
 // Data is the normalized metadata Curator stores and displays.
 type Data struct {
+	Title       string
+	Description string
 	TakenAt     *time.Time
 	Camera      string
 	Lens        string
@@ -33,10 +36,18 @@ type Data struct {
 	Raw         string // JSON of all EXIF tags
 }
 
+// Text metadata preferences are ordered from most to least preferred.
+var (
+	TitlePreference       = []string{"sidecar XMP dc:title", "embedded XMP dc:title", "IPTC ObjectName", "IPTC Headline", "EXIF XPTitle"}
+	DescriptionPreference = []string{"sidecar XMP dc:description", "embedded XMP dc:description", "IPTC Caption-Abstract", "EXIF ImageDescription", "EXIF XPComment"}
+)
+
 // Extract reads metadata from the image at path. A file without EXIF yields an
 // empty Data and no error.
 func Extract(path string) (Data, error) {
 	sidecarLens, sidecarProfile := sidecarXMP(path)
+	sidecarText := sidecarXMPText(path)
+	embeddedText, iptcText := embeddedTextMetadata(path)
 	f, err := os.Open(path)
 	if err != nil {
 		return Data{}, err
@@ -48,10 +59,17 @@ func Extract(path string) (Data, error) {
 		if sidecarProfile == "" {
 			sidecarProfile = xmpLens(path)
 		}
-		return Data{SidecarLens: sidecarLens, XMPLens: sidecarProfile}, nil
+		return Data{
+			Title:       firstText(sidecarText.Title, embeddedText.Title, iptcText.ObjectName, iptcText.Headline),
+			Description: firstText(sidecarText.Description, embeddedText.Description, iptcText.Caption),
+			SidecarLens: sidecarLens,
+			XMPLens:     sidecarProfile,
+		}, nil
 	}
 
 	d := Data{
+		Title:       firstText(sidecarText.Title, embeddedText.Title, iptcText.ObjectName, iptcText.Headline, exifText(x, exif.XPTitle)),
+		Description: firstText(sidecarText.Description, embeddedText.Description, iptcText.Caption, str(x, exif.ImageDescription), exifText(x, exif.XPComment)),
 		Camera:      camera(str(x, exif.Make), str(x, exif.Model)),
 		Lens:        str(x, exif.LensModel),
 		SidecarLens: sidecarLens,
@@ -138,6 +156,222 @@ func parseXMPLens(data []byte) string {
 	return profile
 }
 
+type textMetadata struct {
+	Title       string
+	Description string
+}
+
+type iptcMetadata struct {
+	ObjectName string
+	Headline   string
+	Caption    string
+}
+
+func parseXMPText(data []byte) textMetadata {
+	type candidate struct {
+		value string
+		lang  string
+	}
+	var title, description []candidate
+	var field string
+	var lang string
+	decoder := xml.NewDecoder(bytes.NewReader(data))
+	for {
+		token, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		switch value := token.(type) {
+		case xml.StartElement:
+			switch value.Name.Local {
+			case "title", "description":
+				field = value.Name.Local
+			}
+			for _, attr := range value.Attr {
+				switch attr.Name.Local {
+				case "lang":
+					lang = attr.Value
+				case "title":
+					title = append(title, candidate{value: attr.Value})
+				case "description":
+					description = append(description, candidate{value: attr.Value})
+				}
+			}
+		case xml.CharData:
+			text := normalizeText(string(value))
+			if text == "" || field == "" {
+				continue
+			}
+			if field == "title" {
+				title = append(title, candidate{value: text, lang: lang})
+			} else {
+				description = append(description, candidate{value: text, lang: lang})
+			}
+		case xml.EndElement:
+			if value.Name.Local == "li" {
+				lang = ""
+			}
+			if value.Name.Local == field {
+				field = ""
+			}
+		}
+	}
+	pick := func(values []candidate) string {
+		for _, value := range values {
+			if value.lang == "x-default" && normalizeText(value.value) != "" {
+				return normalizeText(value.value)
+			}
+		}
+		for _, value := range values {
+			if text := normalizeText(value.value); text != "" {
+				return text
+			}
+		}
+		return ""
+	}
+	return textMetadata{Title: pick(title), Description: pick(description)}
+}
+
+func embeddedTextMetadata(path string) (textMetadata, iptcMetadata) {
+	f, err := os.Open(path)
+	if err != nil {
+		return textMetadata{}, iptcMetadata{}
+	}
+	defer f.Close()
+	var soi [2]byte
+	if _, err := io.ReadFull(f, soi[:]); err != nil || soi != [2]byte{0xff, 0xd8} {
+		return textMetadata{}, iptcMetadata{}
+	}
+	var xmp textMetadata
+	var iptc iptcMetadata
+	for {
+		marker, err := nextJPEGMarker(f)
+		if err != nil || marker == 0xda || marker == 0xd9 {
+			return xmp, iptc
+		}
+		if marker == 0x01 || marker >= 0xd0 && marker <= 0xd8 {
+			continue
+		}
+		var size uint16
+		if err := binary.Read(f, binary.BigEndian, &size); err != nil || size < 2 {
+			return xmp, iptc
+		}
+		payload := make([]byte, int(size)-2)
+		if _, err := io.ReadFull(f, payload); err != nil {
+			return xmp, iptc
+		}
+		if marker == 0xe1 && bytes.HasPrefix(payload, xmpHeader) {
+			xmp = parseXMPText(payload[len(xmpHeader):])
+		} else if marker == 0xed {
+			iptc = parseIPTC(payload)
+		}
+	}
+}
+
+func parseIPTC(data []byte) iptcMetadata {
+	const photoshopHeader = "Photoshop 3.0\x00"
+	if bytes.HasPrefix(data, []byte(photoshopHeader)) {
+		data = data[len(photoshopHeader):]
+		for len(data) >= 12 {
+			if string(data[:4]) != "8BIM" {
+				break
+			}
+			resourceID := binary.BigEndian.Uint16(data[4:6])
+			nameSize := int(data[6])
+			nameEnd := 7 + nameSize
+			if nameEnd > len(data) {
+				break
+			}
+			if nameEnd%2 != 0 {
+				nameEnd++
+			}
+			if nameEnd+4 > len(data) {
+				break
+			}
+			size := int(binary.BigEndian.Uint32(data[nameEnd : nameEnd+4]))
+			start := nameEnd + 4
+			if size < 0 || start+size > len(data) {
+				break
+			}
+			if resourceID == 0x0404 {
+				return parseIPTCDatasets(data[start : start+size])
+			}
+			end := start + size
+			if end%2 != 0 {
+				end++
+			}
+			data = data[end:]
+		}
+	}
+	return parseIPTCDatasets(data)
+}
+
+func parseIPTCDatasets(data []byte) iptcMetadata {
+	var metadata iptcMetadata
+	for len(data) >= 5 {
+		if data[0] != 0x1c {
+			data = data[1:]
+			continue
+		}
+		record, dataset := data[1], data[2]
+		size := int(binary.BigEndian.Uint16(data[3:5]))
+		if size&0x8000 != 0 || 5+size > len(data) {
+			break
+		}
+		value := normalizeText(string(data[5 : 5+size]))
+		if record == 2 {
+			switch dataset {
+			case 5:
+				metadata.ObjectName = firstText(metadata.ObjectName, value)
+			case 105:
+				metadata.Headline = firstText(metadata.Headline, value)
+			case 120:
+				metadata.Caption = firstText(metadata.Caption, value)
+			}
+		}
+		data = data[5+size:]
+	}
+	return metadata
+}
+
+func firstText(values ...string) string {
+	for _, value := range values {
+		if text := normalizeText(value); text != "" {
+			return text
+		}
+	}
+	return ""
+}
+
+func normalizeText(value string) string {
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	value = strings.ReplaceAll(value, "\r", "\n")
+	return strings.TrimSpace(strings.Trim(value, "\x00"))
+}
+
+func exifText(x *exif.Exif, field exif.FieldName) string {
+	tag, err := x.Get(field)
+	if err != nil {
+		return ""
+	}
+	if value, err := tag.StringVal(); err == nil {
+		if text := normalizeText(value); text != "" {
+			return text
+		}
+	}
+	raw := strings.Trim(tag.String(), "\"[] ")
+	parts := strings.Fields(raw)
+	units := make([]uint16, 0, len(parts))
+	for _, part := range parts {
+		value, err := strconv.ParseUint(strings.TrimSuffix(part, ","), 10, 16)
+		if err != nil || value == 0 {
+			continue
+		}
+		units = append(units, uint16(value))
+	}
+	return normalizeText(string(utf16.Decode(units)))
+}
+
 func parseXMP(data []byte) (lens, profile string) {
 	var field string
 	decoder := xml.NewDecoder(bytes.NewReader(data))
@@ -209,6 +443,18 @@ func sidecarXMP(imagePath string) (lens, profile string) {
 		return "", ""
 	}
 	return parseXMP(data)
+}
+
+func sidecarXMPText(imagePath string) textMetadata {
+	path := SidecarPath(imagePath)
+	if path == "" {
+		return textMetadata{}
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return textMetadata{}
+	}
+	return parseXMPText(data)
 }
 
 func str(x *exif.Exif, field exif.FieldName) string {

@@ -161,7 +161,7 @@ ITEM
   id, gallery_id, original_path, filename,
   width, height, aspect (landscape | portrait | square | pano),
   highlighted, sort_order, status,
-  caption (markdown), exif (json), camera,
+  title, description, caption, exif (json), camera,
   embedded_lens, lightroom_lens, sidecar_lens, xmp_lens,
   lens (effective cache), taken_at
 
@@ -219,6 +219,28 @@ responsive widths from the original. Derivative filenames come from
 EXIF and Lightroom XMP are extracted when an image is ingested or source
 metadata is explicitly refreshed. Curator stores the raw EXIF JSON and keeps
 embedded and XMP lens values as separate source facts.
+
+Text metadata is normalized into separate item title and description fields.
+Values are trimmed, NUL padding and line endings are normalized, and XMP
+language alternatives prefer `x-default`. Title sources are considered in
+this order:
+
+1. Sidecar XMP `dc:title`
+2. Embedded XMP `dc:title`
+3. IPTC `ObjectName`
+4. IPTC `Headline`
+5. EXIF `XPTitle`
+
+Description sources are considered in this order:
+
+1. Sidecar XMP `dc:description`
+2. Embedded XMP `dc:description`
+3. IPTC `Caption-Abstract`
+4. EXIF `ImageDescription`
+5. EXIF `XPComment`
+
+Imports initialize both fields. Metadata refreshes and media replacements fill
+only empty fields, so values edited in Curator are never overwritten.
 
 Each build resolves the effective lens from the current metadata policy:
 a direct child of Lightroom's `Curator Lens` keyword first, then embedded EXIF,

@@ -101,6 +101,9 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 		if err := st.UpdateItemEXIF(ctx, it); err != nil {
 			return updated, skipped, err
 		}
+		if err := st.FillItemTextMetadata(ctx, it.ID, meta.Title, meta.Description); err != nil {
+			return updated, skipped, err
+		}
 		updated++
 	}
 	return updated, skipped, nil
@@ -165,6 +168,9 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	if err := st.ReplaceItemMedia(ctx, item); err != nil {
 		return err
 	}
+	if err := st.FillItemTextMetadata(ctx, item.ID, item.Title, item.Description); err != nil {
+		return err
+	}
 	if oldItem.OriginalPath != item.OriginalPath {
 		oldPath := filepath.Join(cfg.OriginalsDir(), filepath.FromSlash(oldItem.OriginalPath))
 		_ = os.Remove(oldPath)
@@ -222,6 +228,8 @@ func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, g
 		Height:       h,
 		Aspect:       model.ClassifyAspect(w, h),
 		Status:       model.ItemPublished,
+		Title:        meta.Title,
+		Description:  meta.Description,
 		EXIF:         meta.Raw,
 		Camera:       meta.Camera,
 		Lens:         policy.Lens(meta),
