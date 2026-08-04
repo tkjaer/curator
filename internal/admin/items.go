@@ -54,9 +54,22 @@ func (s *Server) handleItemCover(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	g, err := s.store.Gallery(r.Context(), it.GalleryID)
+	if err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update cover")
+		return
+	}
+	if g.CoverItemID != nil && *g.CoverItemID == it.ID {
+		if err := s.store.SetGalleryCover(r.Context(), it.GalleryID, nil); err != nil {
+			s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update cover")
+			return
+		}
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Cover removed")
+		return
+	}
 	id := it.ID
 	if err := s.store.SetGalleryCover(r.Context(), it.GalleryID, &id); err != nil {
-		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not set cover")
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update cover")
 		return
 	}
 	s.redirect(w, r, s.galleryLink(it.GalleryID), "Cover set")

@@ -363,12 +363,15 @@
       element.remove();
     }
     if (action === "cover") {
+      var removeCover = element.classList.contains("is-cover");
       document.querySelectorAll(".item.is-cover").forEach(function (item) {
         item.classList.remove("is-cover");
         item.querySelector(".cover-label").hidden = true;
       });
-      element.classList.add("is-cover");
-      element.querySelector(".cover-label").hidden = false;
+      if (!removeCover) {
+        element.classList.add("is-cover");
+        element.querySelector(".cover-label").hidden = false;
+      }
     }
     if (photoEditor && photoEditor.open && activePhotoItem) updatePhotoEditorState(activePhotoItem);
   }
@@ -498,10 +501,12 @@
   function updatePhotoEditorState(item) {
     if (!photoEditor || !item) return;
     var items = photoItems();
+    var isCover = item.classList.contains("is-cover");
     photoEditor.querySelector("[data-photo-editor-position]").textContent = (items.indexOf(item) + 1) + " of " + items.length;
     photoEditor.querySelector("[data-photo-editor-status]").textContent = item.dataset.status;
-    photoEditor.querySelector("[data-photo-editor-cover]").hidden = !item.classList.contains("is-cover");
+    photoEditor.querySelector("[data-photo-editor-cover]").hidden = !isCover;
     photoEditor.querySelector("[data-photo-editor-highlight]").hidden = item.dataset.highlighted !== "true";
+    photoEditor.querySelector('[data-action="cover"] button').textContent = isCover ? "Remove cover" : "Set as cover";
   }
 
   function setPhotoEditorTab(name, focus) {
