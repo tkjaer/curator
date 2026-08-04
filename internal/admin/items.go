@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/tkjaer/curator/internal/ingest"
@@ -97,6 +98,31 @@ func (s *Server) handleGalleryItemOrder(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	s.redirect(w, r, s.galleryLink(id), "Ordering updated")
+}
+
+func (s *Server) handleGalleryItemReorder(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Invalid photo order")
+		return
+	}
+	itemIDs := make([]int64, 0, len(r.Form["item_id"]))
+	for _, value := range r.Form["item_id"] {
+		itemID, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			s.redirect(w, r, s.galleryLink(id), "Invalid photo order")
+			return
+		}
+		itemIDs = append(itemIDs, itemID)
+	}
+	if err := s.store.SetItemOrder(r.Context(), id, itemIDs); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not reorder photos")
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Order updated")
 }
 
 func (s *Server) handleItemDelete(w http.ResponseWriter, r *http.Request) {

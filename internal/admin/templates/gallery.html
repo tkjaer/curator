@@ -25,7 +25,7 @@
     </label>
   </form>
   <details class="gallery-options">
-    <summary>Settings</summary>
+    <summary>Gallery options</summary>
     <div class="gallery-options-panel">
       <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -142,29 +142,37 @@
 <section class="media-section">
 <div class="section-heading">
   <h2>{{if .IsStory}}Media library{{else}}Photos{{end}} <span>{{len .Items}}</span></h2>
+  <div class="media-actions">
+  {{if .Items}}<div class="arrange-control">
+    <form data-photo-order data-async method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/reorder">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <span class="save-state" aria-live="polite"></span>
+      <button class="secondary-button" type="button" data-toggle-arrange aria-pressed="false">Arrange</button>
+    </form>
+    <form data-order-reset data-async method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order"{{if not .CustomOrder}} hidden{{end}}>
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <input type="hidden" name="mode" value="default">
+      <input type="hidden" name="direction" value="default">
+      <button class="secondary-button" title="Return to the site's default photo order">Reset order</button>
+    </form>
+  </div>{{end}}
   <form class="upload-form" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <input type="file" name="images" multiple accept="image/jpeg,image/png,.xmp" aria-label="Images and matching XMP sidecars" title="Select images and optional matching XMP sidecars">
   <button>Upload</button>
-</form></div>
+</form></div></div>
 
 {{if .Items}}
-<div id="photo-list">
+<div id="photo-list" aria-label="Gallery photos">
 <div class="thumbs">
   {{range .Items}}
-  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-filename="{{.Filename}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-move-action="{{$.BasePath}}/items/{{.ID}}/move" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
     <button class="item-preview" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}">
       <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" width="{{.Width}}" height="{{.Height}}" loading="lazy">
+      <span class="item-badges"><span class="item-marker status-label"{{if eq (printf "%s" .Status) "published"}} hidden{{end}}>{{.Status}}</span><span class="item-marker cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>&#9733; Cover</span>{{if .Highlighted}}<span class="item-marker highlight-label">Highlight</span>{{end}}</span>
+      {{if .Title}}<span class="item-hover-title">{{.Title}}</span>{{end}}
+      <span class="drag-handle" aria-hidden="true">&#10247;</span>
     </button>
-    <figcaption>
-      <div class="item-title"><span class="fn">{{if .Title}}{{.Title}}{{else}}{{.Filename}}{{end}}</span><span class="item-filename"{{if or (not .Title) (eq .Title .Filename)}} hidden{{end}}>{{.Filename}}</span></div>
-      <div class="item-badges"><span class="badge">{{.Status}}</span><span class="badge cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>&#9733; Cover</span>{{if .Highlighted}}<span class="badge highlight-label">Highlight</span>{{end}}</div>
-      <div class="item-card-actions">
-        <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move photo up" title="Move up">&uarr;</button></form>
-        <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move photo down" title="Move down">&darr;</button></form>
-        <button class="icon-button" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}" title="Edit photo">&#9998;</button>
-      </div>
-    </figcaption>
   </figure>
   {{end}}
 </div>
@@ -177,7 +185,7 @@
     </div>
     <div class="photo-editor-panel">
       <div class="photo-editor-heading">
-        <div><strong data-photo-editor-filename></strong><small data-photo-editor-dimensions></small></div>
+        <div><strong data-photo-editor-filename></strong><small><span data-photo-editor-dimensions></span> &middot; <span data-photo-editor-position></span></small><span class="photo-editor-state"><span class="editor-label" data-photo-editor-status></span><span class="editor-label" data-photo-editor-cover hidden>Cover</span><span class="editor-label" data-photo-editor-highlight hidden>Highlight</span></span></div>
         <button class="icon-button" type="button" data-close-photo-editor aria-label="Close photo editor">&times;</button>
       </div>
       <div class="photo-editor-tabs" role="tablist" aria-label="Photo editor sections">
@@ -216,6 +224,10 @@
       </div>
       <div class="photo-editor-footer">
         <span class="save-state" aria-live="polite"></span>
+        <div class="photo-editor-order" data-photo-editor-order hidden>
+          <form data-async data-action="move-up" method="post"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="secondary-button" aria-label="Move photo earlier">&uarr; Earlier</button></form>
+          <form data-async data-action="move-down" method="post"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="secondary-button" aria-label="Move photo later">&darr; Later</button></form>
+        </div>
         <form data-async data-action="cover" method="post"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="secondary-button">Set as cover</button></form>
         <form data-async data-action="delete" method="post" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
         <button type="button" data-close-photo-editor>Done</button>
@@ -283,6 +295,11 @@
   var busy = new WeakSet();
   var photoEditor = document.getElementById("photo-editor");
   var activePhotoItem = null;
+  var draggedPhoto = null;
+  var dragStartOrder = "";
+  var suppressPhotoClick = false;
+  var orderSaveInFlight = false;
+  var orderSavePending = false;
 
   function stateFor(form) {
     var container = form.closest(".item, .story-block");
@@ -324,6 +341,8 @@
       select.prepend(custom);
     }
     select.value = "custom";
+    var reset = document.querySelector("[data-order-reset]");
+    if (reset) reset.hidden = false;
   }
 
   function elementForForm(form) {
@@ -351,6 +370,7 @@
       element.classList.add("is-cover");
       element.querySelector(".cover-label").hidden = false;
     }
+    if (photoEditor && photoEditor.open && activePhotoItem) updatePhotoEditorState(activePhotoItem);
   }
 
   function applyItemPresentation(form, item, values, resolvedLens) {
@@ -360,15 +380,23 @@
     var caption = values.get("caption") || "";
     var status = values.get("status") || "";
     var highlighted = values.has("highlight");
-    var filename = item.querySelector(".item-filename");
-    var summary = item.querySelector(".item-title .fn");
-    summary.textContent = title || filename.textContent;
-    filename.hidden = !title || title === filename.textContent;
-    item.querySelector(".item-badges .badge").textContent = status;
+    var hoverTitle = item.querySelector(".item-hover-title");
+    if (title && !hoverTitle) {
+      hoverTitle = document.createElement("span");
+      hoverTitle.className = "item-hover-title";
+      item.querySelector(".item-preview").appendChild(hoverTitle);
+    }
+    if (hoverTitle) {
+      hoverTitle.textContent = title;
+      if (!title) hoverTitle.remove();
+    }
+    var statusLabel = item.querySelector(".status-label");
+    statusLabel.textContent = status;
+    statusLabel.hidden = status === "published";
     var highlight = item.querySelector(".highlight-label");
     if (highlighted && !highlight) {
       highlight = document.createElement("span");
-      highlight.className = "badge highlight-label";
+      highlight.className = "item-marker highlight-label";
       highlight.textContent = "Highlight";
       item.querySelector(".item-badges").appendChild(highlight);
     } else if (!highlighted && highlight) {
@@ -383,6 +411,7 @@
     item.dataset.lens = resolvedLens || "";
     if (item === activePhotoItem) {
       photoEditor.querySelector("[data-photo-editor-lens]").textContent = resolvedLens || "Not detected";
+      updatePhotoEditorState(item);
     }
   }
 
@@ -435,7 +464,7 @@
           await refreshFromServer([".public-url-row", "#access-settings"]);
         }
         if (form.action.endsWith("/order")) {
-          await refreshFromServer([".order-setting", "#photo-list"]);
+          await refreshFromServer([".order-setting", "#photo-list", ".arrange-control"]);
         }
       }
     } catch (error) {
@@ -466,6 +495,15 @@
     return Array.from(document.querySelectorAll("#photo-list .item"));
   }
 
+  function updatePhotoEditorState(item) {
+    if (!photoEditor || !item) return;
+    var items = photoItems();
+    photoEditor.querySelector("[data-photo-editor-position]").textContent = (items.indexOf(item) + 1) + " of " + items.length;
+    photoEditor.querySelector("[data-photo-editor-status]").textContent = item.dataset.status;
+    photoEditor.querySelector("[data-photo-editor-cover]").hidden = !item.classList.contains("is-cover");
+    photoEditor.querySelector("[data-photo-editor-highlight]").hidden = item.dataset.highlighted !== "true";
+  }
+
   function setPhotoEditorTab(name, focus) {
     photoEditor.querySelectorAll("[data-photo-editor-tab]").forEach(function (tab) {
       var selected = tab.dataset.photoEditorTab === name;
@@ -476,13 +514,14 @@
     photoEditor.querySelectorAll("[data-photo-editor-panel]").forEach(function (panel) {
       panel.hidden = panel.dataset.photoEditorPanel !== name;
     });
+    photoEditor.querySelector("[data-photo-editor-order]").hidden = name !== "publishing";
     photoEditor.querySelector(".photo-editor-body").scrollTop = 0;
   }
 
   function loadPhotoEditor(item, resetTab) {
     activePhotoItem = item;
     var cardImage = item.querySelector(".item-preview img");
-    var filename = item.querySelector(".item-filename").textContent;
+    var filename = item.dataset.filename;
     var preview = photoEditor.querySelector(".photo-editor-preview img");
     var sourceWidth = cardImage.getAttribute("width");
     var sourceHeight = cardImage.getAttribute("height");
@@ -492,6 +531,7 @@
     preview.height = sourceHeight;
     photoEditor.querySelector("[data-photo-editor-filename]").textContent = filename;
     photoEditor.querySelector("[data-photo-editor-dimensions]").textContent = sourceWidth + " × " + sourceHeight;
+    updatePhotoEditorState(item);
     photoEditor.querySelector("[data-photo-editor-camera]").textContent = item.dataset.camera || "Not detected";
     photoEditor.querySelector("[data-photo-editor-lens]").textContent = item.dataset.lens || "Not detected";
 
@@ -505,6 +545,9 @@
     form.elements.highlight.checked = item.dataset.highlighted === "true";
     photoEditor.querySelector('[data-action="cover"]').action = item.dataset.coverAction;
     photoEditor.querySelector('[data-action="delete"]').action = item.dataset.deleteAction;
+    photoEditor.querySelectorAll('[data-action="move-up"], [data-action="move-down"]').forEach(function (form) {
+      form.action = item.dataset.moveAction;
+    });
     photoEditor.querySelectorAll("[data-photo-editor-nav]").forEach(function (button) {
       button.disabled = photoItems().length < 2;
     });
@@ -517,9 +560,115 @@
     if (!photoEditor.open) photoEditor.showModal();
   }
 
+  function setArrangeMode(enabled) {
+    var photoList = document.getElementById("photo-list");
+    var toggle = document.querySelector("[data-toggle-arrange]");
+    if (!photoList || !toggle) return;
+    photoList.classList.toggle("is-arranging", enabled);
+    toggle.closest(".arrange-control").classList.toggle("is-arranging", enabled);
+    toggle.setAttribute("aria-pressed", String(enabled));
+    toggle.textContent = enabled ? "Done arranging" : "Arrange";
+  }
+
+  async function savePhotoOrder() {
+    var form = document.querySelector("[data-photo-order]");
+    if (!form) return;
+    if (orderSaveInFlight) {
+      orderSavePending = true;
+      return;
+    }
+    orderSaveInFlight = true;
+    var body = new URLSearchParams();
+    body.append("_csrf", form.elements._csrf.value);
+    photoItems().forEach(function (item) { body.append("item_id", item.dataset.itemId); });
+    showState(form, "Saving...", false);
+    try {
+      var response = await fetch(form.action, {
+        method: "POST",
+        body: body,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "X-Curator-Async": "true"
+        }
+      });
+      if (!response.ok) throw new Error("request failed");
+      var result = await response.json();
+      if (/^(Could not|Invalid|Unknown)/.test(result.message || "")) throw new Error("reorder failed");
+      markCustomOrder();
+      showState(form, "Saved", false);
+      if (photoEditor && photoEditor.open && activePhotoItem) updatePhotoEditorState(activePhotoItem);
+    } catch (error) {
+      orderSavePending = false;
+      showState(form, "Could not save", true);
+      await refreshFromServer([".order-setting", "#photo-list"]);
+    } finally {
+      orderSaveInFlight = false;
+      if (orderSavePending) {
+        orderSavePending = false;
+        savePhotoOrder();
+      }
+    }
+  }
+
+  function finishPhotoDrag(pointerID) {
+    if (!draggedPhoto) return;
+    var preview = draggedPhoto.querySelector(".item-preview");
+    if (preview.hasPointerCapture(pointerID)) preview.releasePointerCapture(pointerID);
+    draggedPhoto.classList.remove("is-dragging");
+    draggedPhoto = null;
+    suppressPhotoClick = true;
+    var currentOrder = photoItems().map(function (item) { return item.dataset.itemId; }).join(",");
+    if (currentOrder !== dragStartOrder) savePhotoOrder();
+    dragStartOrder = "";
+  }
+
+  document.addEventListener("pointerdown", function (event) {
+    var preview = event.target.closest("#photo-list.is-arranging .item-preview");
+    if (!preview || event.button !== 0) return;
+    draggedPhoto = preview.closest(".item");
+    dragStartOrder = photoItems().map(function (item) { return item.dataset.itemId; }).join(",");
+    draggedPhoto.classList.add("is-dragging");
+    preview.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+
+  document.addEventListener("pointermove", function (event) {
+    if (!draggedPhoto) return;
+    var target = document.elementFromPoint(event.clientX, event.clientY);
+    var targetItem = target && target.closest("#photo-list .item");
+    if (!targetItem || targetItem === draggedPhoto) return;
+    var items = photoItems();
+    if (items.indexOf(draggedPhoto) < items.indexOf(targetItem)) {
+      targetItem.parentNode.insertBefore(draggedPhoto, targetItem.nextSibling);
+    } else {
+      targetItem.parentNode.insertBefore(draggedPhoto, targetItem);
+    }
+  });
+
+  document.addEventListener("pointerup", function (event) { finishPhotoDrag(event.pointerId); });
+  document.addEventListener("pointercancel", function (event) { finishPhotoDrag(event.pointerId); });
+
   document.addEventListener("click", function (event) {
+    var galleryOptions = document.querySelector(".gallery-options");
+    if (galleryOptions && galleryOptions.open && !galleryOptions.contains(event.target)) {
+      galleryOptions.open = false;
+    }
+    if (photoEditor && photoEditor.open && event.target === photoEditor) {
+      photoEditor.close();
+      return;
+    }
+    var arrangeToggle = event.target.closest("[data-toggle-arrange]");
+    if (arrangeToggle) {
+      setArrangeMode(arrangeToggle.getAttribute("aria-pressed") !== "true");
+      return;
+    }
     var opener = event.target.closest("[data-open-photo-editor]");
     if (opener) {
+      if (suppressPhotoClick) {
+        suppressPhotoClick = false;
+        return;
+      }
+      if (opener.closest("#photo-list.is-arranging")) return;
       openPhotoEditor(opener.closest(".item"));
       return;
     }
