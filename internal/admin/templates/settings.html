@@ -1,70 +1,83 @@
 {{define "settings"}}{{template "head" .}}
 {{with .Data}}
 <div class="page-head">
-  <div><h1>Settings</h1><p>Configure the site's identity, appearance, and gallery defaults.</p></div>
+  <div><h1>Settings</h1><p>Shape the public site and choose how new galleries behave.</p></div>
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
   <a href="{{$.BasePath}}/settings" aria-current="page">Site</a>
   <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
   <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
-<form class="card settings-card" method="post" action="{{$.BasePath}}/settings" data-dirty-form>
+<form class="settings-form" method="post" action="{{$.BasePath}}/settings" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <div class="settings-save-row" data-dirty="false">
     <button data-save-button disabled>Save settings</button>
     <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
-  <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
-  <label class="field"><span>Base URL (e.g. https://photos.example.com)</span><input id="base_url" name="base_url" value="{{.BaseURL}}"></label>
+  <div class="settings-grid">
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-panel-heading"><h2>Identity and appearance</h2><p>The name, address, and theme visitors see.</p></div>
+      <div class="settings-field-grid">
+        <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
+        {{$cur := .Theme}}
+        <label class="field"><span>Site theme</span>
+          <select name="theme">
+            {{range .Themes}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
+          </select>
+        </label>
+      </div>
+      <label class="field"><span>Base URL</span><input id="base_url" name="base_url" value="{{.BaseURL}}" placeholder="https://photos.example.com"></label>
+      <p class="field-help">Used for canonical links, feeds, and public gallery addresses.</p>
+    </section>
 
-  <h2>Copyright</h2>
-  <label class="field"><span>Copyright holder</span><input name="copyright_holder" value="{{.CopyrightHolder}}" placeholder="Name or organization"></label>
-  <label class="field"><span>Start year</span><input type="number" name="copyright_start_year" value="{{.CopyrightYear}}" min="1" max="{{.CurrentYear}}" inputmode="numeric" placeholder="{{.CurrentYear}}"></label>
-  <p><span>The footer updates the ending year automatically when the site is rebuilt.</span></p>
+    <section class="settings-panel">
+      <div class="settings-panel-heading"><h2>New galleries</h2><p>Starting behavior for galleries created in Curator or Lightroom.</p></div>
+      <label class="field"><span>Photo ordering</span>
+        <select name="default_gallery_order">
+          <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
+          <option value="date_added"{{if eq .DefaultOrder "date_added"}} selected{{end}}>Date added</option>
+          <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
+        </select>
+      </label>
+      <label class="field"><span>Direction</span>
+        <select name="default_gallery_sort_direction">
+          <option value="asc"{{if eq .DefaultDirection "asc"}} selected{{end}}>Ascending (oldest / A-Z)</option>
+          <option value="desc"{{if eq .DefaultDirection "desc"}} selected{{end}}>Descending (newest / Z-A)</option>
+        </select>
+      </label>
+      <label class="choice-row"><input type="checkbox" name="default_gallery_published"{{if .DefaultPublished}} checked{{end}}> <span><strong>Publish immediately</strong><small>Otherwise new galleries begin as drafts.</small></span></label>
+    </section>
 
-  <h2>Gallery defaults</h2>
-  <label class="field"><span>Default ordering for new galleries</span>
-    <select name="default_gallery_order">
-      <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
-      <option value="date_added"{{if eq .DefaultOrder "date_added"}} selected{{end}}>Date added</option>
-      <option value="filename"{{if eq .DefaultOrder "filename"}} selected{{end}}>Alphabetical</option>
-    </select>
-  </label>
-  <label class="field"><span>Default ordering direction</span>
-    <select name="default_gallery_sort_direction">
-      <option value="asc"{{if eq .DefaultDirection "asc"}} selected{{end}}>Ascending (oldest / A-Z)</option>
-      <option value="desc"{{if eq .DefaultDirection "desc"}} selected{{end}}>Descending (newest / Z-A)</option>
-    </select>
-  </label>
-  <label><input type="checkbox" name="default_gallery_published"{{if .DefaultPublished}} checked{{end}}> Publish new galleries immediately</label>
-  <label><input type="checkbox" name="default_gallery_show_title"{{if .DefaultShowTitle}} checked{{end}}> Show photo titles</label>
-  <label><input type="checkbox" name="default_gallery_show_description"{{if .DefaultShowDescription}} checked{{end}}> Show photo descriptions</label>
-  <label><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> Show EXIF in lightboxes</label>
+    <section class="settings-panel">
+      <div class="settings-panel-heading"><h2>Photo details</h2><p>What inherited gallery presentation shows by default.</p></div>
+      <div class="choice-list">
+        <label class="choice-row"><input type="checkbox" name="default_gallery_show_title"{{if .DefaultShowTitle}} checked{{end}}> <span><strong>Titles</strong><small>Show imported or edited photo titles.</small></span></label>
+        <label class="choice-row"><input type="checkbox" name="default_gallery_show_description"{{if .DefaultShowDescription}} checked{{end}}> <span><strong>Descriptions</strong><small>Show longer descriptive text.</small></span></label>
+        <label class="choice-row"><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> <span><strong>EXIF</strong><small>Show camera details in lightboxes.</small></span></label>
+      </div>
+      <p class="field-help">Individual galleries can inherit or override each choice.</p>
+    </section>
 
-  <h2>Theme</h2>
-  {{$cur := .Theme}}
-  <label class="field"><span>Site theme</span>
-    <select name="theme">
-      {{range .Themes}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
-    </select>
-  </label>
-
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-panel-heading"><h2>Copyright</h2><p>Optional attribution added to the generated site footer.</p></div>
+      <div class="settings-field-grid settings-field-grid-copyright">
+        <label class="field"><span>Copyright holder</span><input name="copyright_holder" value="{{.CopyrightHolder}}" placeholder="Name or organization"></label>
+        <label class="field"><span>Start year</span><input type="number" name="copyright_start_year" value="{{.CopyrightYear}}" min="1" max="{{.CurrentYear}}" inputmode="numeric" placeholder="{{.CurrentYear}}"></label>
+      </div>
+      <p class="field-help">The ending year updates automatically when the site is rebuilt.</p>
+    </section>
+  </div>
 </form>
 
-<h2>Gallery overrides</h2>
-<form class="card" method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset" onsubmit="return confirm('Reset metadata display overrides for every gallery?')">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <p>Existing galleries can override the photo detail defaults above.</p>
-  <button type="submit">Reset all galleries to defaults</button>
-</form>
-
-<h2>Admin password</h2>
-<form class="card" method="post" action="{{$.BasePath}}/settings/password">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  {{if $.AuthEnabled}}<label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"></label>{{else}}<p><span>No admin password is set &mdash; the admin UI is currently open. Setting one requires sign-in from then on.</span></p>{{end}}
-  <label class="field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password" required></label>
-  <label class="field"><span>Confirm new password</span><input type="password" name="confirm_password" autocomplete="new-password" required></label>
-  <button>{{if $.AuthEnabled}}Change password{{else}}Set password{{end}}</button>
-</form>
+<section class="card settings-action-card settings-wide-card">
+  <div><h2>Gallery overrides</h2><p>Return gallery-specific choices to the photo detail defaults above.</p></div>
+  <form class="override-reset-list" method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <div class="override-reset-row"><span><strong>Titles</strong><small>Reset title visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="title">Reset titles</button></div>
+    <div class="override-reset-row"><span><strong>Descriptions</strong><small>Reset description visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="description">Reset descriptions</button></div>
+    <div class="override-reset-row"><span><strong>EXIF</strong><small>Reset EXIF visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="exif">Reset EXIF</button></div>
+    <div class="override-reset-all"><span>Reset all three visibility choices at once.</span><button class="secondary-button" type="submit" name="field" value="all" onclick="return confirm('Reset all photo detail overrides for every gallery?')">Reset all overrides</button></div>
+  </form>
+</section>
 {{end}}
 {{template "foot" .}}{{end}}

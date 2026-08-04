@@ -770,11 +770,16 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleResetGalleryPresentation(w http.ResponseWriter, r *http.Request) {
-	if err := s.store.ResetGalleryPresentationOverrides(r.Context()); err != nil {
+	field := r.FormValue("field")
+	if field == "" {
+		field = "all"
+	}
+	if err := s.store.ResetGalleryPresentationOverrides(r.Context(), field); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not reset gallery metadata display")
 		return
 	}
-	s.redirect(w, r, s.link("settings"), "All galleries now inherit metadata display defaults; build site to publish changes")
+	label := map[string]string{"title": "Title", "description": "Description", "exif": "EXIF", "all": "All photo details"}[field]
+	s.redirect(w, r, s.link("settings"), label+" overrides reset; build site to publish changes")
 }
 
 func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) {

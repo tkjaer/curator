@@ -8,42 +8,51 @@
   <a href="{{$.BasePath}}/settings/metadata" aria-current="page">Metadata</a>
   <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
-<form class="card settings-card metadata-card" method="post" action="{{$.BasePath}}/settings/metadata" data-dirty-form>
+<form class="settings-form" method="post" action="{{$.BasePath}}/settings/metadata" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <div class="settings-save-row" data-dirty="false">
     <button data-save-button disabled>Save metadata settings</button>
     <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
-  <h2>Lens metadata</h2>
-  <label class="field"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> Use Lightroom XMP lens profiles as a fallback</label>
-  <p><span>Per-photo lens names from adjacent XMP sidecars take precedence. Camera mappings remain useful for fixed-lens cameras, followed by the optional Lightroom fallback. The next build uses these choices; no metadata refresh is needed.</span></p>
-  <p><span>This controls how lens values are resolved. Choose whether to generate a public Lens browse page below.</span></p>
+  <div class="settings-grid">
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-panel-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
+      <label class="choice-row"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> <span><strong>Use Lightroom profile names as a fallback</strong><small>Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
+      <div class="mapping-heading">
+        <div><h3>Camera-to-lens mappings</h3><p>Useful for fixed-lens cameras when embedded EXIF has no lens.</p></div>
+        <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
+      </div>
+      <div class="mapping-list" id="mapping-list">
+        {{range .Mappings}}
+        <div class="mapping-row">
+          <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
+          <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
+          <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
+          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
+        </div>
+        {{end}}
+      </div>
+      <p class="field-help">These choices affect the next build; source metadata does not need to be refreshed.</p>
+    </section>
 
-  <div class="mapping-heading">
-    <div><h3>Camera-to-lens mappings</h3><p>Mappings apply at build time only when embedded EXIF has no lens.</p></div>
-    <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
-  </div>
-  <div class="mapping-list" id="mapping-list">
-    {{range .Mappings}}
-    <div class="mapping-row">
-      <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
-      <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
-      <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
-      {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
-    </div>
-    {{end}}
-  </div>
+    <section class="settings-panel" id="public-browse-pages">
+      <div class="settings-panel-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
+      <div class="choice-list">
+        {{range .Facets}}
+        <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
+        {{end}}
+      </div>
+    </section>
 
-  <h2 id="public-browse-pages">Public browse pages</h2>
-  <p><span>Choose which metadata indexes Curator generates on the public site.</span></p>
-  {{range .Facets}}
-  <label class="field"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> Generate a <strong>{{.Label}}</strong> browse page</label>
-  {{end}}
-  <label class="field"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> Paginate browse pages</label>
-  <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
-  <p><span>Photos are ordered newest first. Visitors can progressively load each additional static page while scrolling.</span></p>
+    <section class="settings-panel">
+      <div class="settings-panel-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
+      <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
+      <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
+      <p class="field-help">Photos are ordered newest first.</p>
+    </section>
+  </div>
 </form>
-<section class="xmp-profiles metadata-card">
+<section class="card xmp-profiles settings-wide-card">
   <h2>Detected Lightroom profiles</h2>
   <p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p>
   {{if .XMPProfiles}}
@@ -51,7 +60,7 @@
     <thead><tr><th>Profile</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
     <tbody>
       {{range .XMPProfiles}}
-      <tr><td>{{.Name}}</td><td>{{if .Cameras}}{{.Cameras}}{{else}}Unknown{{end}}</td><td>{{.Count}}</td><td><span class="badge">{{.Status}}</span></td></tr>
+      <tr><td data-label="Profile">{{.Name}}</td><td data-label="Camera">{{if .Cameras}}{{.Cameras}}{{else}}Unknown{{end}}</td><td data-label="Photos">{{.Count}}</td><td data-label="Status"><span class="badge">{{.Status}}</span></td></tr>
       {{end}}
     </tbody>
   </table>
@@ -59,7 +68,7 @@
   <p>No Lightroom XMP lens profiles found.</p>
   {{end}}
 </section>
-<form class="metadata-rescan" method="post" action="{{$.BasePath}}/rescan">
+<form class="card settings-action-card settings-wide-card metadata-rescan" method="post" action="{{$.BasePath}}/rescan">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <div><strong>Refresh source metadata</strong><p>Re-read embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
   <button class="secondary-button">Refresh metadata</button>

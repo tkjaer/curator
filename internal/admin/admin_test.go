@@ -174,12 +174,28 @@ func TestGalleryPresentationOverridesCanBeReset(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	form := url.Values{"field": {"title"}}
+	req := httptest.NewRequest(http.MethodPost, "/settings/gallery-presentation/reset", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
-	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/gallery-presentation/reset", nil))
+	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("reset status = %d", rec.Code)
+		t.Fatalf("selective reset status = %d", rec.Code)
 	}
 	gallery, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.ShowTitle != model.VisibilityInherit || gallery.ShowEXIF != model.VisibilityShow || gallery.ShowDescription != model.VisibilityShow {
+		t.Fatalf("selective gallery presentation reset changed other fields: %#v", gallery)
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/gallery-presentation/reset", nil))
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("reset-all status = %d", rec.Code)
+	}
+	gallery, err = srv.store.Gallery(ctx, id)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -779,7 +795,7 @@ func TestLensMetadataSettings(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_pagination_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_page_size" value="60"`) ||
-		!strings.Contains(rec.Body.String(), `Generate a <strong>Camera</strong> browse page`) {
+		!strings.Contains(rec.Body.String(), `<strong>Camera</strong><small>Generate a public Camera browse page.</small>`) {
 		t.Fatal("settings page did not retain lens metadata settings")
 	}
 }

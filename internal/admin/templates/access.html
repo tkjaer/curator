@@ -1,7 +1,24 @@
 {{define "access"}}{{template "head" .}}
 {{with .Data}}
 <div class="page-head">
-  <div><h1>Access users</h1><p>Manage credentials for protected galleries. Gallery access is granted from each gallery page.</p></div>
+  <div><h1>Access</h1><p>Manage sign-in for Curator and credentials for protected galleries.</p></div>
+</div>
+
+<section class="card settings-wide-card access-admin-card">
+  <div class="settings-panel-heading"><h2>Admin sign-in</h2><p>Protect the Curator administration interface.</p></div>
+  <form method="post" action="{{$.BasePath}}/settings/password">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    {{if $.AuthEnabled}}<label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"></label>{{else}}<p>No admin password is set. The administration interface is currently open.</p>{{end}}
+    <div class="settings-field-grid">
+      <label class="field"><span>New password</span><input type="password" name="new_password" autocomplete="new-password" required></label>
+      <label class="field"><span>Confirm password</span><input type="password" name="confirm_password" autocomplete="new-password" required></label>
+    </div>
+    <button>{{if $.AuthEnabled}}Change password{{else}}Set admin password{{end}}</button>
+  </form>
+</section>
+
+<div class="section-heading access-users-heading">
+  <div><h2>Protected gallery users</h2><p>Gallery access is granted from each gallery page.</p></div>
 </div>
 {{if .Users}}
 <table>
@@ -22,9 +39,9 @@
 <p>No access users yet.</p>
 {{end}}
 
-<h2>New user</h2>
-<form class="card" method="post" action="{{$.BasePath}}/access">
+<form class="card access-user-form" method="post" action="{{$.BasePath}}/access">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <h3>New protected-gallery user</h3>
   <label class="field"><span>Username</span><input name="username" required></label>
   <label class="field"><span>Password</span><input type="password" name="password" required></label>
   <button>Create user</button>
