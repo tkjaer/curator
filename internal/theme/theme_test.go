@@ -169,7 +169,7 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 			}
 			for file, wants := range map[string][]string{
 				"theme.css": {".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
-				"theme.js":  {"function toggleZoom", "dataset.zoomSrc", `classList.add("is-zoomed")`},
+				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`},
 			} {
 				content, err := fs.ReadFile(assets, file)
 				if err != nil {

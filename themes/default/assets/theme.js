@@ -30,9 +30,13 @@
 
   let index = -1;
   let zoomed = false;
+  let panFrame = 0;
+  let panAnchor = null;
 
   function resetZoom() {
     zoomed = false;
+    cancelAnimationFrame(panFrame);
+    panAnchor = null;
     dialog.classList.remove("is-zoomed");
     imageButton.setAttribute("aria-label", "View image at actual size");
     dialog.scrollLeft = 0;
@@ -48,8 +52,12 @@
     }
 
     const rect = img.getBoundingClientRect();
-    const x = e.clientX ? (e.clientX - rect.left) / rect.width : 0.5;
-    const y = e.clientY ? (e.clientY - rect.top) / rect.height : 0.5;
+    const fitWidth = rect.width;
+    const fitHeight = rect.height;
+    const clientX = e.detail > 0 ? e.clientX : dialog.clientWidth / 2;
+    const clientY = e.detail > 0 ? e.clientY : dialog.clientHeight / 2;
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
     zoomed = true;
     dialog.classList.add("is-zoomed");
     imageButton.setAttribute("aria-label", "Fit image to window");
@@ -57,6 +65,14 @@
     const center = () => requestAnimationFrame(() => {
       dialog.scrollLeft = Math.max(0, imageButton.offsetLeft + x * img.offsetWidth - dialog.clientWidth / 2);
       dialog.scrollTop = Math.max(0, imageButton.offsetTop + y * img.offsetHeight - dialog.clientHeight / 2);
+      panAnchor = {
+        clientX,
+        clientY,
+        scrollLeft: dialog.scrollLeft,
+        scrollTop: dialog.scrollTop,
+        gainX: img.offsetWidth / Math.max(1, fitWidth),
+        gainY: img.offsetHeight / Math.max(1, fitHeight)
+      };
     });
     const zoomSrc = links[index].dataset.zoomSrc;
     if (zoomSrc && img.getAttribute("src") !== zoomSrc) {
@@ -65,6 +81,20 @@
     } else {
       center();
     }
+  }
+
+  function panZoom(e) {
+    if (!zoomed || !panAnchor || (e.pointerType !== "mouse" && e.pointerType !== "pen")) return;
+    if (e.target.closest(".lb-btn")) return;
+    cancelAnimationFrame(panFrame);
+    panFrame = requestAnimationFrame(() => {
+      const maxX = dialog.scrollWidth - dialog.clientWidth;
+      const maxY = dialog.scrollHeight - dialog.clientHeight;
+      const left = panAnchor.scrollLeft + (e.clientX - panAnchor.clientX) * panAnchor.gainX;
+      const top = panAnchor.scrollTop + (e.clientY - panAnchor.clientY) * panAnchor.gainY;
+      dialog.scrollLeft = Math.max(0, Math.min(maxX, left));
+      dialog.scrollTop = Math.max(0, Math.min(maxY, top));
+    });
   }
 
   function setHash(hash) {
@@ -114,6 +144,7 @@
   bindClick(".lb-prev", () => openAt(index - 1));
   bindClick(".lb-close", () => dialog.close());
   imageButton.addEventListener("click", toggleZoom);
+  dialog.addEventListener("pointermove", panZoom);
 
   // Close when the dark backdrop (the dialog itself, not the image or buttons)
   // is clicked.
