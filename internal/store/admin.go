@@ -266,6 +266,43 @@ func (s *Store) MoveItem(ctx context.Context, galleryID, itemID int64, up bool) 
 	return tx.Commit()
 }
 
+// SetItemOrder replaces every manual photo position in a gallery atomically.
+func (s *Store) SetItemOrder(ctx context.Context, galleryID int64, itemIDs []int64) error {
+	items, err := s.ItemsByGallery(ctx, galleryID)
+	if err != nil {
+		return err
+	}
+	if len(itemIDs) != len(items) {
+		return errors.New("item order does not match gallery")
+	}
+
+	valid := make(map[int64]bool, len(items))
+	for _, item := range items {
+		valid[item.ID] = true
+	}
+	for _, itemID := range itemIDs {
+		if !valid[itemID] {
+			return errors.New("item order does not match gallery")
+		}
+		delete(valid, itemID)
+	}
+
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	for i, itemID := range itemIDs {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE items SET sort_order = ?, updated_at = datetime('now') WHERE id = ? AND gallery_id = ?`,
+			i+1, itemID, galleryID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // SetGalleryItemOrder selects the gallery's automatic ordering and clears any
 // manual photo positions.
 func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode model.SortMode, direction model.SortDirection) error {

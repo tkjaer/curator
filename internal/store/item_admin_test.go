@@ -73,6 +73,27 @@ func TestMoveItem(t *testing.T) {
 	}
 }
 
+func TestSetItemOrder(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	gid, ids := makeGalleryWithItems(t, st, 3)
+	want := []int64{ids[2], ids[0], ids[1]}
+
+	if err := st.SetItemOrder(ctx, gid, want); err != nil {
+		t.Fatal(err)
+	}
+	if got := orderIDs(t, st, gid); !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want %v", got, want)
+	}
+
+	if err := st.SetItemOrder(ctx, gid, []int64{ids[0], ids[0], ids[1]}); err == nil {
+		t.Fatal("duplicate item order succeeded")
+	}
+	if got := orderIDs(t, st, gid); !slices.Equal(got, want) {
+		t.Fatalf("order after rejected update = %v, want %v", got, want)
+	}
+}
+
 func TestSetGalleryItemOrderAlphabetically(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

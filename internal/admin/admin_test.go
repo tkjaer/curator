@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -676,6 +677,49 @@ func TestGalleryCustomOrderCanBeReset(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `<option value="date" selected>Date taken</option>`) ||
 		!strings.Contains(rec.Body.String(), `<option value="desc" selected>Descending</option>`) {
 		t.Fatal("gallery did not return to automatic ordering")
+	}
+}
+
+func TestGalleryItemsCanBeReordered(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		Slug: "arranged", Title: "Arranged", Type: model.GalleryGrid, Status: model.GalleryDraft,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var itemIDs []int64
+	for _, filename := range []string{"a.jpg", "b.jpg", "c.jpg"} {
+		itemID, err := srv.store.CreateItem(ctx, model.Item{
+			GalleryID: galleryID, OriginalPath: "arranged/" + filename, Filename: filename,
+			Status: model.ItemPublished,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		itemIDs = append(itemIDs, itemID)
+	}
+
+	form := url.Values{"item_id": {
+		strconv.FormatInt(itemIDs[2], 10), strconv.FormatInt(itemIDs[0], 10), strconv.FormatInt(itemIDs[1], 10),
+	}}
+	req := httptest.NewRequest("POST", "/galleries/1/reorder", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Curator-Async", "true")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Order updated") {
+		t.Fatalf("reorder response = %d %q", rec.Code, rec.Body.String())
+	}
+	items, err := srv.store.ItemsByGallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []int64{items[0].ID, items[1].ID, items[2].ID}
+	want := []int64{itemIDs[2], itemIDs[0], itemIDs[1]}
+	if !slices.Equal(got, want) {
+		t.Fatalf("order = %v, want %v", got, want)
 	}
 }
 
