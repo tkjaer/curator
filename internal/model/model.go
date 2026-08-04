@@ -65,8 +65,8 @@ const (
 	AspectPano      Aspect = "pano"
 )
 
-// panoRatio is the width/height (or its inverse) at or beyond which an image is
-// treated as a panorama. 65:24 ≈ 2.71; 16:9 ≈ 1.78 stays a normal landscape.
+// panoRatio is the width/height at or beyond which a landscape image is treated
+// as a panorama. 65:24 ≈ 2.71; 16:9 ≈ 1.78 stays a normal landscape.
 const panoRatio = 2.2
 
 // ClassifyAspect derives an Aspect from pixel dimensions.
@@ -76,7 +76,7 @@ func ClassifyAspect(width, height int) Aspect {
 	}
 	r := float64(width) / float64(height)
 	switch {
-	case r >= panoRatio || r <= 1/panoRatio:
+	case r >= panoRatio:
 		return AspectPano
 	case r > 1.05:
 		return AspectLandscape

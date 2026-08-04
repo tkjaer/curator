@@ -40,7 +40,7 @@ func Justify(photos []PhotoView, containerWidth, targetHeight, gap int, panoFull
 	}
 
 	for _, p := range photos {
-		if panoFullWidth && p.Aspect == "pano" {
+		if panoFullWidth && p.Aspect == "pano" && aspectRatio(p) > 1 {
 			flush(true)
 			rows = append(rows, panoRow(p, containerWidth, targetHeight))
 			continue
