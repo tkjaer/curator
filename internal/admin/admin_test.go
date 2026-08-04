@@ -116,6 +116,41 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 	}
 }
 
+func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "photos", Title: "Photos"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
+		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", Status: model.ItemPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(galleryID, 10), nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		`class="item-preview"`,
+		`data-open-photo-editor="photo-editor-` + strconv.FormatInt(itemID, 10) + `"`,
+		`<dialog class="photo-editor-dialog" id="photo-editor-` + strconv.FormatInt(itemID, 10) + `">`,
+		`action="/items/` + strconv.FormatInt(itemID, 10) + `/update"`,
+		`name="title" value="A &#34;title&#34; &lt;unsafe&gt;"`,
+		`<textarea name="description" rows="4">&lt;b&gt;Description&lt;/b&gt;</textarea>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gallery photo editor missing %q", want)
+		}
+	}
+}
+
 func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 	srv, _ := newTestServer(t)
 	handler := srv.Handler()

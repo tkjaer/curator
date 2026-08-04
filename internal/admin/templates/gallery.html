@@ -158,30 +158,60 @@
 <div class="thumbs">
   {{range .Items}}
   <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}">
-    <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" width="{{.Width}}" height="{{.Height}}" loading="lazy">
+    <button class="item-preview" type="button" data-open-photo-editor="photo-editor-{{.ID}}" aria-label="Edit {{.Filename}}">
+      <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" width="{{.Width}}" height="{{.Height}}" loading="lazy">
+    </button>
     <figcaption>
-      <div class="item-title"><span class="fn">{{.Filename}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span></div>
-      <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
-        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <input type="text" name="title" value="{{.Title}}" placeholder="title">
-        <textarea name="description" rows="2" placeholder="description">{{.Description}}</textarea>
-        <input type="text" name="caption" value="{{.Caption}}" placeholder="caption">
-        <div class="item-options">
-          <select name="status" aria-label="Photo status">
-            {{$cur := printf "%s" .Status}}
-            {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
-          </select>
-          <label><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> Highlight</label>
-          <span class="save-state" aria-live="polite"></span>
-        </div>
-      </form>
-      <div class="item-actions">
+      <div class="item-summary">
+        <div class="item-title"><span class="fn">{{if .Title}}{{.Title}}{{else}}{{.Filename}}{{end}}</span><span class="item-filename"{{if or (not .Title) (eq .Title .Filename)}} hidden{{end}}>{{.Filename}}</span></div>
+        <div class="item-badges"><span class="badge">{{.Status}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span>{{if .Highlighted}}<span class="badge highlight-label">Highlight</span>{{end}}</div>
+      </div>
+      <div class="item-card-actions">
         <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move photo up" title="Move up">&uarr;</button></form>
         <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move photo down" title="Move down">&darr;</button></form>
-        <form data-async data-action="cover" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="icon-button" aria-label="Set gallery cover" title="Set as cover">&#9733;</button></form>
-        <form data-async data-action="delete" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="icon-button danger" aria-label="Delete photo" title="Delete">&times;</button></form>
+        <button class="icon-button" type="button" data-open-photo-editor="photo-editor-{{.ID}}" aria-label="Edit {{.Filename}}" title="Edit photo">&#9998;</button>
       </div>
     </figcaption>
+    <dialog class="photo-editor-dialog" id="photo-editor-{{.ID}}">
+      <div class="photo-editor-shell">
+        <div class="photo-editor-preview">
+          <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" width="{{.Width}}" height="{{.Height}}" loading="lazy">
+          <button class="icon-button photo-editor-nav photo-editor-prev" type="button" data-photo-editor-nav="previous" aria-label="Previous photo">&lsaquo;</button>
+          <button class="icon-button photo-editor-nav photo-editor-next" type="button" data-photo-editor-nav="next" aria-label="Next photo">&rsaquo;</button>
+        </div>
+        <div class="photo-editor-panel">
+          <div class="photo-editor-heading">
+            <div><strong>{{.Filename}}</strong><small>{{.Width}} &times; {{.Height}}</small></div>
+            <button class="icon-button" type="button" data-close-photo-editor aria-label="Close photo editor">&times;</button>
+          </div>
+          <div class="photo-editor-body">
+            <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <section class="photo-editor-section">
+                <div class="photo-editor-section-heading"><h3>Content</h3><p>Text shown with this photo in galleries and lightboxes.</p></div>
+                <label class="field"><span>Title</span><input type="text" name="title" value="{{.Title}}"></label>
+                <label class="field"><span>Description</span><textarea name="description" rows="4">{{.Description}}</textarea></label>
+                <label class="field"><span>Caption</span><input type="text" name="caption" value="{{.Caption}}"></label>
+              </section>
+              <section class="photo-editor-section">
+                <div class="photo-editor-section-heading"><h3>Publishing</h3><p>Control where this photo appears in the gallery.</p></div>
+                <label class="field"><span>Status</span><select name="status">
+                  {{$cur := printf "%s" .Status}}
+                  {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
+                </select></label>
+                <label class="choice-row"><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> <span><strong>Highlight</strong><small>Give this photo more visual weight where the theme supports it.</small></span></label>
+              </section>
+            </form>
+          </div>
+          <div class="photo-editor-footer">
+            <span class="save-state" aria-live="polite"></span>
+            <form data-async data-action="cover" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="secondary-button">Set as cover</button></form>
+            <form data-async data-action="delete" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+            <button type="button" data-close-photo-editor>Done</button>
+          </div>
+        </div>
+      </div>
+    </dialog>
   </figure>
   {{end}}
 </div>
@@ -294,7 +324,11 @@
     if ((action === "move-up" || action === "move-down") && element.classList.contains("item")) {
       markCustomOrder();
     }
-    if (action === "delete") element.remove();
+    if (action === "delete") {
+      var dialog = form.closest("dialog");
+      if (dialog && dialog.open) dialog.close();
+      element.remove();
+    }
     if (action === "cover") {
       document.querySelectorAll(".item.is-cover").forEach(function (item) {
         item.classList.remove("is-cover");
@@ -302,6 +336,27 @@
       });
       element.classList.add("is-cover");
       element.querySelector(".cover-label").hidden = false;
+    }
+  }
+
+  function applyItemPresentation(form) {
+    if (!form.classList.contains("item-editor")) return;
+    var item = form.closest(".item");
+    var title = form.elements.title.value.trim();
+    var filename = item.querySelector(".item-filename");
+    var summary = item.querySelector(".item-title .fn");
+    summary.textContent = title || filename.textContent;
+    filename.hidden = !title || title === filename.textContent;
+    var status = form.elements.status.value;
+    item.querySelector(".item-badges .badge").textContent = status;
+    var highlight = item.querySelector(".highlight-label");
+    if (form.elements.highlight.checked && !highlight) {
+      highlight = document.createElement("span");
+      highlight.className = "badge highlight-label";
+      highlight.textContent = "Highlight";
+      item.querySelector(".item-badges").appendChild(highlight);
+    } else if (!form.elements.highlight.checked && highlight) {
+      highlight.remove();
     }
   }
 
@@ -343,6 +398,7 @@
       var failed = /^(Could not|Invalid|Unknown)/.test(result.message || "");
       showState(form, failed ? result.message : "Saved", failed);
       if (!failed) {
+        applyItemPresentation(form);
         applyAction(form);
         if (form.closest(".gallery-settings") &&
             (form.action.endsWith("/status") || form.action.endsWith("/move"))) {
@@ -374,6 +430,46 @@
   document.addEventListener("change", function (event) {
     var form = event.target.closest("form[data-autosave]");
     if (form) submit(form);
+  });
+
+  function photoItems() {
+    return Array.from(document.querySelectorAll("#photo-list .item"));
+  }
+
+  function openPhotoEditor(id) {
+    var dialog = document.getElementById(id);
+    if (dialog && !dialog.open) dialog.showModal();
+  }
+
+  document.addEventListener("click", function (event) {
+    var opener = event.target.closest("[data-open-photo-editor]");
+    if (opener) {
+      openPhotoEditor(opener.dataset.openPhotoEditor);
+      return;
+    }
+    var closer = event.target.closest("[data-close-photo-editor]");
+    if (closer) {
+      closer.closest("dialog").close();
+      return;
+    }
+    var nav = event.target.closest("[data-photo-editor-nav]");
+    if (!nav) return;
+    var current = nav.closest(".item");
+    var items = photoItems();
+    var index = items.indexOf(current);
+    if (index < 0 || items.length < 2) return;
+    var offset = nav.dataset.photoEditorNav === "previous" ? -1 : 1;
+    var next = items[(index + offset + items.length) % items.length];
+    nav.closest("dialog").close();
+    openPhotoEditor(next.querySelector("[data-open-photo-editor]").dataset.openPhotoEditor);
+  });
+
+  document.addEventListener("keydown", function (event) {
+    var dialog = document.querySelector(".photo-editor-dialog[open]");
+    if (!dialog || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    if (event.target.closest("input, textarea, select, [contenteditable]")) return;
+    var selector = event.key === "ArrowLeft" ? '[data-photo-editor-nav="previous"]' : '[data-photo-editor-nav="next"]';
+    dialog.querySelector(selector).click();
   });
 })();
 </script>
