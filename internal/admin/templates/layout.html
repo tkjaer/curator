@@ -160,17 +160,27 @@
   .mapping-remove:hover { color: var(--danger); background: transparent; border-color: #ddb8b4; }
   .metadata-rescan { display: flex; max-width: 900px; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 0; }
   .metadata-rescan p { margin: 0; }
-  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1.25rem; }
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
   .thumbs figure { overflow: hidden; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
   .thumbs img { display: block; width: 100%; height: auto; background: var(--surface-muted); }
-  .thumbs figcaption { padding: .8rem; color: var(--muted); font-size: .8rem; word-break: break-word; }
-  .item .fn { display: block; margin-bottom: .65rem; color: var(--ink); font-weight: 650; }
+  .thumbs figcaption { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .65rem; align-items: start; padding: .7rem .75rem; color: var(--muted); font-size: .8rem; word-break: break-word; }
+  .item .fn { display: block; overflow: hidden; margin: 0; color: var(--ink); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
   .item.is-cover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
   .item form { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
   .item form input[type="text"] { flex: 1 1 100%; }
   .item form label { grid-column: 1 / -1; }
-  .item-actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .65rem; padding-top: .65rem; border-top: 1px solid var(--line); }
-  .item-actions form { display: inline; }
+  .item-preview { display: block; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; padding: 0; background: var(--surface-muted); border: 0; border-radius: 0; cursor: zoom-in; }
+  .item-preview:hover { background: var(--surface-muted); border-color: transparent; }
+  .item-preview img { width: 100%; height: 100%; object-fit: cover; transition: transform .2s ease; }
+  .item-preview:hover img { transform: scale(1.025); }
+  .item-title { display: block; min-width: 0; grid-column: 1 / -1; }
+  .item-filename { display: block; overflow: hidden; margin-top: .12rem; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
+  .item-filename[hidden] { display: none; }
+  .item-badges { display: flex; min-height: 34px; gap: .3rem; align-items: flex-start; flex-direction: column; }
+  .item-badges .badge, .item-badges .cover-label { white-space: nowrap; text-transform: capitalize; }
+  .cover-label[hidden] { display: none; }
+  .item-card-actions { display: flex; gap: .25rem; align-self: start; }
+  .item-card-actions form { display: inline; }
   .badge { display: inline-block; padding: .15rem .5rem; color: #2949ae; background: var(--accent-soft); border: 1px solid #c4cef2; border-radius: 999px; font-size: .72rem; font-weight: 700; }
   .progress { height: 7px; overflow: hidden; margin: .7rem 0; background: var(--surface-muted); border-radius: 99px; }
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
@@ -231,18 +241,51 @@
   .upload-form input[type="file"]::file-selector-button { min-height: 28px; margin-right: 1.1rem; padding: .25rem .65rem; color: var(--ink); background: var(--surface-muted); border: 0; font-weight: 650; }
   .upload-form input[type="file"]::file-selector-button:hover { background: var(--canvas); }
   .upload-form button { min-height: 36px; padding: .35rem .75rem; }
-  .item-title { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
-  .cover-label { padding: .1rem .35rem; color: var(--accent); background: var(--accent-soft); border-radius: 3px; font-size: .65rem; font-weight: 700; text-transform: uppercase; }
   .item-editor { display: block !important; }
   .item-editor input[type="text"] { width: 100% !important; }
-  .item-options { display: flex; align-items: center; gap: .65rem; margin-top: .55rem; }
-  .item-options select { width: auto; min-height: 34px; padding: .3rem .5rem; font-size: .78rem; }
-  .item-options label { margin-left: auto; white-space: nowrap; }
-  .item-actions { justify-content: flex-end; }
   .icon-button { display: grid; width: 34px; min-height: 34px; padding: 0; place-items: center; font-size: 1rem !important; }
   .save-state { min-height: 1em; color: var(--muted); font-size: .72rem; font-weight: 500; }
   .save-state.is-error { color: var(--danger); }
   .is-saving { opacity: .65; }
+  .photo-editor-dialog { width: min(1160px, calc(100vw - 2rem)); height: min(860px, calc(100dvh - 2rem)); max-width: none; max-height: none; overflow: hidden; padding: 0; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 20px 60px #0005; }
+  .photo-editor-dialog::backdrop { background: #111a; backdrop-filter: blur(3px); }
+  .photo-editor-shell { display: grid; height: 100%; grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr); }
+  .photo-editor-preview { position: relative; display: grid; min-width: 0; min-height: 0; place-items: center; overflow: hidden; background: #151515; }
+  .photo-editor-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center center; background: #151515; }
+  .photo-editor-nav { position: absolute; top: 50%; width: 40px; min-height: 48px; color: #fff; background: #111a; border-color: #ffffff40; font-size: 1.8rem !important; transform: translateY(-50%); }
+  .photo-editor-nav:hover { color: #fff; background: #111d; border-color: #ffffff80; }
+  .photo-editor-prev { left: .75rem; }
+  .photo-editor-next { right: .75rem; }
+  .photo-editor-panel { display: grid; min-width: 0; min-height: 0; grid-template-rows: auto auto minmax(0, 1fr) auto; }
+  .photo-editor-heading { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem 1rem; border-bottom: 1px solid var(--line); }
+  .photo-editor-heading > div { min-width: 0; }
+  .photo-editor-heading strong, .photo-editor-heading small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .photo-editor-heading small { margin-top: .15rem; color: var(--muted); font-size: .72rem; }
+  .photo-editor-tabs { display: flex; min-width: 0; padding: 0 1rem; overflow-x: auto; border-bottom: 1px solid var(--line); }
+  .photo-editor-tabs button { min-height: 42px; padding: .45rem .7rem; color: var(--muted); background: transparent; border: 0; border-bottom: 2px solid transparent; border-radius: 0; font-size: .76rem; }
+  .photo-editor-tabs button:hover { color: var(--ink); background: transparent; border-bottom-color: var(--line); }
+  .photo-editor-tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .photo-editor-body { min-height: 0; overflow-y: auto; }
+  .photo-editor-section { padding: 1.15rem 1.25rem 1.3rem; }
+  .photo-editor-section[hidden] { display: none; }
+  .photo-editor-section-heading { margin-bottom: 1rem; }
+  .photo-editor-section-heading h3 { margin: 0; font-size: .9rem; }
+  .photo-editor-section-heading p { margin: .25rem 0 0; font-size: .75rem; }
+  .photo-editor-section .field { margin-bottom: .85rem; }
+  .photo-editor-section .field:last-child { margin-bottom: 0; }
+  .photo-editor-section textarea { resize: vertical; }
+  .photo-editor-metadata { margin: 0; border-top: 1px solid var(--line); }
+  .photo-editor-metadata > div { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 1rem; padding: .8rem 0; border-bottom: 1px solid var(--line); }
+  .photo-editor-metadata dt { color: var(--muted); font-size: .72rem; font-weight: 700; }
+  .photo-editor-metadata dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: .82rem; }
+  .choice-row { display: flex !important; grid-column: auto !important; align-items: flex-start; gap: .6rem; margin-top: 1rem; }
+  .choice-row input { margin-top: .2rem; }
+  .choice-row strong, .choice-row small { display: block; }
+  .choice-row small { margin-top: .15rem; color: var(--muted); font-weight: 400; }
+  .photo-editor-footer { display: flex; align-items: center; justify-content: flex-end; gap: .5rem; padding: .75rem 1rem; border-top: 1px solid var(--line); }
+  .photo-editor-footer .save-state { margin-right: auto; }
+  .photo-editor-footer form { display: block; }
+  .photo-editor-footer button { min-height: 34px; padding: .35rem .7rem; font-size: .78rem; }
   .story-editor-section { margin-top: 3rem; }
   .story-editor { max-width: 900px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
   .story-block { padding: 1rem 1.25rem 1.25rem; border-bottom: 1px solid var(--line); }
@@ -296,6 +339,13 @@
     .upload-form { width: min(100%, 440px); }
     .upload-form input[type="file"] { width: 100%; }
     .thumbs { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); }
+    .photo-editor-dialog { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
+    .photo-editor-shell { grid-template-columns: 1fr; grid-template-rows: minmax(180px, 36dvh) minmax(0, 1fr); }
+    .photo-editor-panel { min-height: 0; }
+    .photo-editor-tabs { padding: 0 .5rem; }
+    .photo-editor-section { padding: 1rem; }
+    .photo-editor-footer { flex-wrap: wrap; }
+    .photo-editor-footer .save-state { width: 100%; min-height: 0; }
     .xmp-profiles table { display: block; overflow: visible; }
     .xmp-profiles thead { display: none; }
     .xmp-profiles tbody, .xmp-profiles tr, .xmp-profiles td { display: block; width: 100%; }
@@ -327,8 +377,10 @@
     .settings-menu { position: relative; grid-column: 2; grid-row: 2; justify-self: start; margin: 0; }
     .upload-form { flex-direction: column; }
     .upload-form button { width: 100%; }
-    .item-options { align-items: flex-start; flex-wrap: wrap; }
-    .item-options label { margin-left: 0; }
+    .thumbs { grid-template-columns: 1fr; }
+    .photo-editor-heading { padding: .65rem .75rem; }
+    .photo-editor-footer { padding: .65rem .75rem; }
+    .photo-editor-footer button { padding: .35rem .55rem; }
   }
 </style>
 </head>
