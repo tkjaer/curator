@@ -50,8 +50,8 @@
     index = (i + links.length) % links.length;
     const link = links[index];
     img.src = link.getAttribute("href");
-    img.alt = link.dataset.caption || "";
-    caption.textContent = link.dataset.caption || "";
+    img.alt = link.dataset.title || link.dataset.caption || link.dataset.description || "";
+    caption.textContent = [...new Set([link.dataset.title, link.dataset.description, link.dataset.caption].filter(Boolean))].join(" · ");
     if (exif) exif.textContent = link.dataset.exif || "";
   }
 

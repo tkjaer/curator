@@ -40,11 +40,14 @@ func samplePhotos() []render.PhotoView {
 			},
 		}
 	}
-	return []render.PhotoView{
+	photos := []render.PhotoView{
 		mk(3000, 2000, "landscape", "a"),
 		mk(2000, 2000, "square", "b"),
 		mk(3000, 2000, "landscape", "c"),
 	}
+	photos[0].Title = "Harbor light"
+	photos[0].Description = "Boats at dusk"
+	return photos
 }
 
 func TestRenderGalleryGrid(t *testing.T) {
@@ -65,7 +68,7 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}

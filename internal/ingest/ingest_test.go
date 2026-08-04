@@ -65,7 +65,7 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if err := jpeg.Encode(&imageData, image.NewRGBA(image.Rect(0, 0, 10, 10)), nil); err != nil {
 		t.Fatal(err)
 	}
-	sidecar := `<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="http://ns.adobe.com/exif/1.0/aux/" aux:Lens="Voigtlander 15mm f/4.5"/>`
+	sidecar := `<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="http://ns.adobe.com/exif/1.0/aux/" xmlns:dc="http://purl.org/dc/elements/1.1/" aux:Lens="Voigtlander 15mm f/4.5" dc:title="Flickr title" dc:description="Flickr description"/>`
 	if err := ImportUploadWithSidecar(ctx, st, cfg, galleryID, "manual", "photo.jpg", &imageData, bytes.NewBufferString(sidecar)); err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,8 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 || items[0].SidecarLens != "Voigtlander 15mm f/4.5" || items[0].Lens != "Voigtlander 15mm f/4.5" {
+	if len(items) != 1 || items[0].SidecarLens != "Voigtlander 15mm f/4.5" || items[0].Lens != "Voigtlander 15mm f/4.5" ||
+		items[0].Title != "Flickr title" || items[0].Description != "Flickr description" {
 		t.Fatalf("imported item = %+v", items)
 	}
 	storedSidecar, err := os.ReadFile(filepath.Join(cfg.OriginalsDir(), "manual", "photo.xmp"))

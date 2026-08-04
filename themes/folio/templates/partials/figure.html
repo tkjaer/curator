@@ -1,9 +1,9 @@
 {{define "figure"}}<figure class="photo{{if .Highlighted}} highlighted{{end}}" style="flex-basis:{{printf "%.4f" .FlexBasis}}%;height:{{.RowHeight}}px;aspect-ratio:{{.Width}}/{{.Height}}">
-  <a href="{{.Display.URL}}" data-lightbox data-id="{{.Slug}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
+  <a href="{{.Display.URL}}" data-lightbox data-id="{{.Slug}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
     <img src="{{.Thumb.URL}}"
          srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
          sizes="(max-width: 700px) 100vw, {{printf "%.0f" .FlexBasis}}vw"
          width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
   </a>
-  {{with .Caption}}<figcaption><span class="fig-caption">{{.}}</span></figcaption>{{end}}
+  {{if or .Title .Description .Caption}}<figcaption>{{with .Title}}<span class="fig-title">{{.}}</span>{{end}}{{with .Description}}<span class="fig-description">{{.}}</span>{{end}}{{with .Caption}}<span class="fig-caption">{{.}}</span>{{end}}</figcaption>{{end}}
 </figure>{{end}}

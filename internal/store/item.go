@@ -13,11 +13,11 @@ func (s *Store) CreateItem(ctx context.Context, it model.Item) (int64, error) {
 	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO items
 			(gallery_id, original_path, filename, width, height, aspect,
-			 highlighted, sort_order, status, caption, exif, camera, lens,
+			 highlighted, sort_order, status, title, description, caption, exif, camera, lens,
 			 embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		it.GalleryID, it.OriginalPath, it.Filename, it.Width, it.Height, it.Aspect,
-		it.Highlighted, it.SortOrder, it.Status, it.Caption,
+		it.Highlighted, it.SortOrder, it.Status, it.Title, it.Description, it.Caption,
 		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens,
 		it.Aperture, it.Shutter, it.ISO, it.Focal, timeToNull(it.TakenAt))
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *Store) ItemsByGallery(ctx context.Context, galleryID int64) ([]model.It
 	}
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
-		        highlighted, sort_order, status, caption, exif, camera, lens,
+		        highlighted, sort_order, status, title, description, caption, exif, camera, lens,
 		        embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items
 		  WHERE gallery_id = ?
@@ -100,7 +100,7 @@ func (s *Store) ItemsByGallery(ctx context.Context, galleryID int64) ([]model.It
 func (s *Store) AllItems(ctx context.Context) ([]model.Item, error) {
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
-		        highlighted, sort_order, status, caption, exif, camera, lens,
+		        highlighted, sort_order, status, title, description, caption, exif, camera, lens,
 		        embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items ORDER BY id`)
 	if err != nil {
@@ -118,7 +118,7 @@ func (s *Store) ItemsInGalleryTree(ctx context.Context, galleryID int64) ([]mode
 			SELECT galleries.id FROM galleries JOIN tree ON galleries.parent_id = tree.id
 		)
 		SELECT id, gallery_id, original_path, filename, width, height, aspect,
-		       highlighted, sort_order, status, caption, exif, camera, lens,
+		       highlighted, sort_order, status, title, description, caption, exif, camera, lens,
 		       embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		  FROM items WHERE gallery_id IN (SELECT id FROM tree) ORDER BY id`, galleryID)
 	if err != nil {
@@ -214,7 +214,7 @@ func scanItems(rows *sql.Rows) ([]model.Item, error) {
 		)
 		if err := rows.Scan(&it.ID, &it.GalleryID, &it.OriginalPath, &it.Filename,
 			&it.Width, &it.Height, &it.Aspect, &it.Highlighted, &it.SortOrder,
-			&it.Status, &it.Caption, &it.EXIF, &it.Camera, &it.Lens,
+			&it.Status, &it.Title, &it.Description, &it.Caption, &it.EXIF, &it.Camera, &it.Lens,
 			&it.EmbeddedLens, &it.LightroomLens, &it.SidecarLens, &it.XMPLens,
 			&it.Aperture, &it.Shutter, &it.ISO, &it.Focal, &taken); err != nil {
 			return nil, err
@@ -242,6 +242,17 @@ func (s *Store) UpdateItemEXIF(ctx context.Context, it model.Item) error {
 		  WHERE id = ?`,
 		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.SidecarLens, it.XMPLens, it.Aperture, it.Shutter, it.ISO, it.Focal,
 		timeToNull(it.TakenAt), it.ID)
+	return err
+}
+
+// FillItemTextMetadata initializes empty text fields without overwriting edits.
+func (s *Store) FillItemTextMetadata(ctx context.Context, id int64, title, description string) error {
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE items SET
+			title = CASE WHEN trim(title) = '' THEN ? ELSE title END,
+			description = CASE WHEN trim(description) = '' THEN ? ELSE description END,
+			updated_at = datetime('now')
+		 WHERE id = ?`, title, description, id)
 	return err
 }
 

@@ -1,6 +1,7 @@
 package exif
 
 import (
+	"bytes"
 	"encoding/binary"
 	"image"
 	"image/color"
@@ -9,6 +10,81 @@ import (
 	"path/filepath"
 	"testing"
 )
+
+func TestParseXMPTextPrefersDefaultLanguage(t *testing.T) {
+	xmp := []byte(`<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title><rdf:Alt><rdf:li xml:lang="sv">Svensk titel</rdf:li><rdf:li xml:lang="x-default"> Default title </rdf:li></rdf:Alt></dc:title><dc:description><rdf:Alt><rdf:li xml:lang="x-default">First line&#13;&#10;Second line</rdf:li></rdf:Alt></dc:description></rdf:Description>`)
+
+	got := parseXMPText(xmp)
+	if got.Title != "Default title" || got.Description != "First line\nSecond line" {
+		t.Fatalf("XMP text = %+v", got)
+	}
+}
+
+func TestExtractTextMetadataPreference(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "photo.jpg")
+	embeddedXMP := []byte(`<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Embedded title</dc:title><dc:description>Embedded description</dc:description></rdf:Description>`)
+	iptc := append(iptcDataset(2, 5, "IPTC object name"), iptcDataset(2, 120, "IPTC caption")...)
+	writeMetadataJPEG(t, path, embeddedXMP, iptc)
+
+	meta, err := Extract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Title != "Embedded title" || meta.Description != "Embedded description" {
+		t.Fatalf("embedded metadata = title %q, description %q", meta.Title, meta.Description)
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "photo.xmp"), []byte(`<rdf:Description xmlns:rdf="urn:rdf" xmlns:dc="urn:dc" dc:title="Sidecar title"/>`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	meta, err = Extract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Title != "Sidecar title" || meta.Description != "Embedded description" {
+		t.Fatalf("sidecar preference = title %q, description %q", meta.Title, meta.Description)
+	}
+
+	writeMetadataJPEG(t, path, nil, iptc)
+	os.Remove(filepath.Join(dir, "photo.xmp"))
+	meta, err = Extract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Title != "IPTC object name" || meta.Description != "IPTC caption" {
+		t.Fatalf("IPTC fallback = title %q, description %q", meta.Title, meta.Description)
+	}
+}
+
+func iptcDataset(record, dataset byte, value string) []byte {
+	var buf bytes.Buffer
+	buf.Write([]byte{0x1c, record, dataset})
+	binary.Write(&buf, binary.BigEndian, uint16(len(value)))
+	buf.WriteString(value)
+	return buf.Bytes()
+}
+
+func writeMetadataJPEG(t *testing.T, path string, xmp, iptc []byte) {
+	t.Helper()
+	var data bytes.Buffer
+	data.Write([]byte{0xff, 0xd8})
+	writeSegment := func(marker byte, payload []byte) {
+		data.Write([]byte{0xff, marker})
+		binary.Write(&data, binary.BigEndian, uint16(len(payload)+2))
+		data.Write(payload)
+	}
+	if xmp != nil {
+		writeSegment(0xe1, append(append([]byte{}, xmpHeader...), xmp...))
+	}
+	if iptc != nil {
+		writeSegment(0xed, iptc)
+	}
+	data.Write([]byte{0xff, 0xd9})
+	if err := os.WriteFile(path, data.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestXMPLensFallback(t *testing.T) {
 	xmp := []byte(`<x:xmpmeta xmlns:x="adobe:ns:meta/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/"><rdf:RDF><rdf:Description crs:LensProfileName="Adobe (Voigtlander VM 15mm f/4.5)"/></rdf:RDF></x:xmpmeta>`)

@@ -70,6 +70,8 @@ func (b *Builder) derive(ctx context.Context, it model.Item, presets []model.Pre
 
 	pv := render.PhotoView{
 		Slug:        slug.Make(strings.TrimSuffix(it.Filename, filepath.Ext(it.Filename))),
+		Title:       it.Title,
+		Description: it.Description,
 		Width:       it.Width,
 		Height:      it.Height,
 		Aspect:      string(it.Aspect),
@@ -135,8 +137,14 @@ func (b *Builder) derive(ctx context.Context, it model.Item, presets []model.Pre
 type lazyImage struct{ img imaging.Image }
 
 func altText(it model.Item) string {
+	if it.Title != "" {
+		return it.Title
+	}
 	if it.Caption != "" {
 		return it.Caption
+	}
+	if it.Description != "" {
+		return it.Description
 	}
 	return strings.TrimSuffix(it.Filename, filepath.Ext(it.Filename))
 }

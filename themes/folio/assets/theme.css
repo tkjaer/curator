@@ -151,7 +151,8 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
   transition: opacity .2s;
 }
 .photo:hover figcaption, .photo:focus-within figcaption { opacity: 1; }
-.fig-caption { display: block; }
+.fig-title, .fig-description, .fig-caption { display: block; }
+.fig-title { font-weight: 750; }
 .facet-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 3rem 0 1rem; }
 .facet-pagination a { padding: .55rem .9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 3px; font-weight: 700; text-decoration: none; }
 .facet-page-status { color: var(--muted); font-size: var(--text-small); }

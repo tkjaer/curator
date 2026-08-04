@@ -180,6 +180,30 @@ func TestUpdateItemFields(t *testing.T) {
 	}
 }
 
+func TestItemTextMetadataPreservesEdits(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, ids := makeGalleryWithItems(t, st, 1)
+
+	if err := st.FillItemTextMetadata(ctx, ids[0], "Imported title", "Imported description"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.FillItemTextMetadata(ctx, ids[0], "Replacement title", "Replacement description"); err != nil {
+		t.Fatal(err)
+	}
+
+	it, err := st.Item(ctx, ids[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if it.Title != "Edited title" || it.Description != "Edited description" || it.Caption != "Caption" {
+		t.Fatalf("presentation metadata was overwritten: %+v", it)
+	}
+}
+
 func TestUpdateItemEXIF(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

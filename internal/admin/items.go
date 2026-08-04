@@ -13,11 +13,13 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	title := r.FormValue("title")
+	description := r.FormValue("description")
 	caption := r.FormValue("caption")
 	status := model.ItemStatus(r.FormValue("status"))
 	highlighted := r.FormValue("highlight") == "on"
 
-	if err := s.store.UpdateItemFields(r.Context(), it.ID, caption, status, highlighted); err != nil {
+	if err := s.store.UpdateItemPresentation(r.Context(), it.ID, title, description, caption, status, highlighted); err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}

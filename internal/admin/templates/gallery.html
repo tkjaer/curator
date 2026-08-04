@@ -143,6 +143,8 @@
       <div class="item-title"><span class="fn">{{.Filename}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span></div>
       <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+        <input type="text" name="title" value="{{.Title}}" placeholder="title">
+        <textarea name="description" rows="2" placeholder="description">{{.Description}}</textarea>
         <input type="text" name="caption" value="{{.Caption}}" placeholder="caption">
         <div class="item-options">
           <select name="status" aria-label="Photo status">

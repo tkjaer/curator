@@ -140,11 +140,11 @@ func (s *Store) Item(ctx context.Context, id int64) (model.Item, error) {
 	)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
-		        highlighted, sort_order, status, caption, exif, camera, lens,
+		        highlighted, sort_order, status, title, description, caption, exif, camera, lens,
 		        embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items WHERE id = ?`, id).
 		Scan(&it.ID, &it.GalleryID, &it.OriginalPath, &it.Filename, &it.Width, &it.Height,
-			&it.Aspect, &it.Highlighted, &it.SortOrder, &it.Status, &it.Caption, &it.EXIF,
+			&it.Aspect, &it.Highlighted, &it.SortOrder, &it.Status, &it.Title, &it.Description, &it.Caption, &it.EXIF,
 			&it.Camera, &it.Lens, &it.EmbeddedLens, &it.LightroomLens, &it.SidecarLens, &it.XMPLens,
 			&it.Aperture, &it.Shutter, &it.ISO, &it.Focal, &taken)
 	if err != nil {
@@ -160,6 +160,15 @@ func (s *Store) UpdateItemFields(ctx context.Context, id int64, caption string, 
 		`UPDATE items SET caption = ?, status = ?, highlighted = ?,
 		        updated_at = datetime('now') WHERE id = ?`,
 		caption, status, highlighted, id)
+	return err
+}
+
+// UpdateItemPresentation updates all editable presentation metadata.
+func (s *Store) UpdateItemPresentation(ctx context.Context, id int64, title, description, caption string, status model.ItemStatus, highlighted bool) error {
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE items SET title = ?, description = ?, caption = ?, status = ?, highlighted = ?,
+		        updated_at = datetime('now') WHERE id = ?`,
+		title, description, caption, status, highlighted, id)
 	return err
 }
 

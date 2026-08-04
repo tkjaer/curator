@@ -83,7 +83,8 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
   transition: opacity .15s;
 }
 .photo:hover figcaption { opacity: 1; }
-.fig-caption { display: block; }
+.fig-title, .fig-description, .fig-caption { display: block; }
+.fig-title { font-weight: 600; }
 .facet-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 2rem 0; }
 .facet-pagination a { padding: .55rem .9rem; border: 1px solid var(--line); border-radius: 4px; font-weight: 650; text-decoration: none; }
 .facet-page-status { color: var(--muted); font-size: .85rem; }

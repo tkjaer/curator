@@ -129,6 +129,8 @@ type Item struct {
 	Highlighted   bool
 	SortOrder     int
 	Status        ItemStatus
+	Title         string
+	Description   string
 	Caption       string
 	EXIF          string // raw EXIF JSON
 	Camera        string
