@@ -195,6 +195,11 @@
   .publish-steps span[data-state="failed"] { color: var(--danger); }
   .publish-steps span[data-state="failed"]::before { background: var(--danger); }
   .publish-rsync-detail { margin-top: -.25rem; color: var(--muted); font-size: .78rem; }
+  .rsync-preview { align-items: start; }
+  .rsync-preview-result { width: 100%; grid-column: 1 / -1; padding-top: .8rem; border-top: 1px solid var(--line); }
+  .rsync-preview-result h3 { margin: 0 0 .5rem; font-size: .82rem; }
+  .rsync-preview-result pre { max-height: 320px; overflow: auto; margin: 0; padding: .75rem; background: var(--surface-muted); border-radius: 5px; font-size: .75rem; line-height: 1.5; white-space: pre-wrap; }
+  .form-error { color: var(--danger); }
   .build-dismiss { width: 32px; min-height: 32px; padding: 0; color: var(--muted); background: transparent; border-color: transparent; font-size: 1.25rem; }
   .build-dismiss:hover { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .subgalleries { padding: 0; list-style: none; }

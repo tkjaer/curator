@@ -112,6 +112,7 @@ type buildStatusJSON struct {
 	BuildInstance string `json:"buildInstance"`
 	BuildID       uint64 `json:"buildId"`
 	Running       bool   `json:"running"`
+	Pending       bool   `json:"pending"`
 	EverRun       bool   `json:"everRun"`
 	Stage         string `json:"stage"`
 	Done          int    `json:"done"`
@@ -134,6 +135,7 @@ func (b *buildStatus) snapshot() buildStatusJSON {
 		BuildInstance: b.instance,
 		BuildID:       b.id,
 		Running:       b.running,
+		Pending:       b.pending,
 		EverRun:       b.everRun,
 		Stage:         b.progress.Stage,
 		Done:          b.progress.Done,
@@ -155,12 +157,12 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link(), "Build is not available")
 		return
 	}
-	if !s.builds.begin() {
-		s.redirect(w, r, s.link(), "A build is already running")
+	if s.builds.queue() {
+		go s.runBuildQueue()
+		s.redirect(w, r, s.link(), "")
 		return
 	}
-	go s.runBuildQueue()
-	s.redirect(w, r, s.link(), "")
+	s.redirect(w, r, s.link(), "Publish queued")
 }
 
 func (s *Server) queueBuild() error {

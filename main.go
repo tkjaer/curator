@@ -298,11 +298,12 @@ func cmdPublish(args []string) error {
 	}
 
 	if err := deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{
-		Target: *target,
-		Delete: *del,
-		DryRun: *dryRun,
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Target:      *target,
+		Delete:      *del,
+		DryRun:      *dryRun,
+		ShowCommand: true,
+		Stdout:      os.Stdout,
+		Stderr:      os.Stderr,
 	}); err != nil {
 		return err
 	}

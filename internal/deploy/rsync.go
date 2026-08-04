@@ -14,11 +14,12 @@ import (
 
 // Options configure an rsync deployment.
 type Options struct {
-	Target string
-	Delete bool
-	DryRun bool
-	Stdout io.Writer
-	Stderr io.Writer
+	Target      string
+	Delete      bool
+	DryRun      bool
+	ShowCommand bool
+	Stdout      io.Writer
+	Stderr      io.Writer
 }
 
 // Rsync copies the contents of outputDir to the configured destination.
@@ -35,16 +36,9 @@ func Rsync(ctx context.Context, outputDir string, opts Options) error {
 		return errors.New("publish: rsync not found in PATH")
 	}
 
-	args := []string{"-a"}
-	if opts.Delete {
-		args = append(args, "--delete")
-	}
-	if opts.DryRun {
-		args = append(args, "--dry-run", "-v")
-	}
-	args = append(args, "--", filepath.Clean(outputDir)+string(os.PathSeparator), opts.Target)
+	args := rsyncArgs(outputDir, opts)
 
-	if opts.Stdout != nil {
+	if opts.ShowCommand && opts.Stdout != nil {
 		fmt.Fprintln(opts.Stdout, "running: rsync", strings.Join(args, " "))
 	}
 	var stderr bytes.Buffer
@@ -62,4 +56,16 @@ func Rsync(ctx context.Context, outputDir string, opts Options) error {
 		return fmt.Errorf("publish: rsync failed: %w", err)
 	}
 	return nil
+}
+
+func rsyncArgs(outputDir string, opts Options) []string {
+	args := []string{"-a"}
+	if opts.Delete {
+		args = append(args, "--delete")
+	}
+	if opts.DryRun {
+		args = append(args, "--dry-run", "--itemize-changes")
+	}
+	args = append(args, "--", filepath.Clean(outputDir)+string(os.PathSeparator), opts.Target)
+	return args
 }

@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -389,6 +390,33 @@ func TestRsyncDeploymentCanBeConfiguredInUI(t *testing.T) {
 		!strings.Contains(body, `value="photos@example.com:/srv/site"`) ||
 		!strings.Contains(body, `name="rsync_delete" checked`) {
 		t.Fatalf("saved rsync settings not rendered: %s", body)
+	}
+}
+
+func TestRsyncCleanupCanBePreviewedBeforeEnablingDeployment(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if err := srv.store.SetSetting(context.Background(), "publish.rsync_target", "photos@example.com:/srv/site"); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	srv.previewDeploy = func(_ context.Context, target string, delete bool) (string, error) {
+		called = true
+		if target != "photos@example.com:/srv/site" || !delete {
+			t.Fatalf("preview = %q, delete %t", target, delete)
+		}
+		return "*deleting old <photo>.jpg\n>f+++++++++ new.jpg", nil
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/publishing/preview", nil))
+	if rec.Code != http.StatusOK || !called {
+		t.Fatalf("preview response = %d, called %t", rec.Code, called)
+	}
+	body := rec.Body.String()
+	decoded := html.UnescapeString(body)
+	if strings.Contains(body, "old <photo>.jpg") || !strings.Contains(decoded, "*deleting old <photo>.jpg") ||
+		!strings.Contains(decoded, ">f+++++++++ new.jpg") {
+		t.Fatalf("preview output not safely rendered: %s", body)
 	}
 }
 
@@ -1034,6 +1062,22 @@ func TestBuildButtonInvokesBuild(t *testing.T) {
 	case <-built:
 	case <-time.After(2 * time.Second):
 		t.Error("build function was not invoked")
+	}
+}
+
+func TestBuildButtonQueuesWhilePublishIsRunning(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if !srv.builds.begin() {
+		t.Fatal("publish did not begin")
+	}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("POST", "/build", nil))
+
+	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "Publish+queued") {
+		t.Fatalf("queue response = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if status := srv.builds.snapshot(); !status.Running || !status.Pending {
+		t.Fatalf("queue status = %#v", status)
 	}
 }
 

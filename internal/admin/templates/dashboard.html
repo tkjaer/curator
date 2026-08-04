@@ -150,6 +150,7 @@
         stage.textContent = stageName(s.stage) + (s.total ? " " + s.done + "/" + s.total : "");
         bar.style.width = (s.rsyncStatus === "running" ? 100 : (s.total ? Math.round(s.done / s.total * 100) : 0)) + "%";
         summary.textContent = s.rsyncStatus === "running" ? "Build complete. Syncing generated site…" : "Building site…";
+        if (s.pending) summary.textContent += " Another publish is queued.";
         rsyncDetail.textContent = s.rsyncStatus ? "Destination: " + s.rsyncTarget : "";
         if (!timer) timer = setInterval(poll, 700);
       } else {
