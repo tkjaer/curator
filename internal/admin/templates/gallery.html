@@ -7,30 +7,25 @@
 </nav>
 <div class="page-head gallery-page-head">
   <h1>{{.Gallery.Title}}</h1>
+  <div class="settings-links public-url-row">
+    <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
+    {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
+    <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
+  </div>
 </div>
 
 <section class="gallery-settings">
-  <div class="settings-heading">
-    <div class="settings-identity">
-      <span class="gallery-type">{{.Gallery.Type}} gallery</span>
-    </div>
-    <div class="settings-links public-url-row">
-      <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
-      {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
-      <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
-    </div>
-  </div>
   <div class="settings-row">
   <form class="setting-control listing-setting" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label><span>Listing</span>
+    <label><span>Visibility</span>
       <select name="status">
         {{range .Statuses}}<option value="{{.}}"{{if eq . (printf "%s" $.Data.Gallery.Status)}} selected{{end}}>{{.}}</option>{{end}}
       </select>
     </label>
   </form>
   <details class="gallery-options">
-    <summary>Edit gallery settings</summary>
+    <summary>Settings</summary>
     <div class="gallery-options-panel">
       <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">

@@ -6,6 +6,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -31,25 +32,30 @@ type BuildFunc func(ctx context.Context, onProgress func(build.Progress)) (build
 // DeployFunc publishes a generated site to an rsync destination.
 type DeployFunc func(ctx context.Context, target string, delete bool) error
 
+// PreviewDeployFunc dry-runs deployment and returns itemized rsync changes.
+type PreviewDeployFunc func(ctx context.Context, target string, delete bool) (string, error)
+
 // Options configure the admin server for direct or proxied operation.
 type Options struct {
-	BasePath   string
-	TrustProxy bool
-	Build      BuildFunc
-	Deploy     DeployFunc
-	Themes     []string
+	BasePath      string
+	TrustProxy    bool
+	Build         BuildFunc
+	Deploy        DeployFunc
+	PreviewDeploy PreviewDeployFunc
+	Themes        []string
 }
 
 // Server is the admin HTTP application.
 type Server struct {
-	store      *store.Store
-	cfg        config.Config
-	basePath   string
-	build      BuildFunc
-	deploy     DeployFunc
-	tmpl       *template.Template
-	themes     []string
-	publishAPI *publishapi.API
+	store         *store.Store
+	cfg           config.Config
+	basePath      string
+	build         BuildFunc
+	deploy        DeployFunc
+	previewDeploy PreviewDeployFunc
+	tmpl          *template.Template
+	themes        []string
+	publishAPI    *publishapi.API
 
 	trustProxy       bool
 	authEnabled      bool
@@ -74,18 +80,29 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 			return deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{Target: target, Delete: delete})
 		}
 	}
+	previewDeploy := opts.PreviewDeploy
+	if previewDeploy == nil {
+		previewDeploy = func(ctx context.Context, target string, delete bool) (string, error) {
+			var output bytes.Buffer
+			err := deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{
+				Target: target, Delete: delete, DryRun: true, Stdout: &output,
+			})
+			return output.String(), err
+		}
+	}
 	s := &Server{
-		store:      st,
-		cfg:        cfg,
-		basePath:   strings.TrimRight(opts.BasePath, "/"),
-		build:      opts.Build,
-		deploy:     deploySite,
-		tmpl:       tmpl,
-		themes:     opts.Themes,
-		trustProxy: opts.TrustProxy,
-		throttle:   newThrottle(),
-		loginSem:   make(chan struct{}, throttleMaxConcurrent),
-		builds:     newBuildStatus(),
+		store:         st,
+		cfg:           cfg,
+		basePath:      strings.TrimRight(opts.BasePath, "/"),
+		build:         opts.Build,
+		deploy:        deploySite,
+		previewDeploy: previewDeploy,
+		tmpl:          tmpl,
+		themes:        opts.Themes,
+		trustProxy:    opts.TrustProxy,
+		throttle:      newThrottle(),
+		loginSem:      make(chan struct{}, throttleMaxConcurrent),
+		builds:        newBuildStatus(),
 	}
 	if err := s.loadAuth(context.Background()); err != nil {
 		return nil, err
@@ -129,6 +146,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/settings/metadata"), s.handleSaveMetadataSettings)
 	mux.HandleFunc("GET "+s.path("/settings/publishing"), s.handlePublishingSettings)
 	mux.HandleFunc("POST "+s.path("/settings/publishing"), s.handleSavePublishingSettings)
+	mux.HandleFunc("POST "+s.path("/settings/publishing/preview"), s.handlePreviewRsync)
 	mux.HandleFunc("POST "+s.path("/settings/publishing/token"), s.handleCreatePublishToken)
 	mux.HandleFunc("POST "+s.path("/settings/password"), s.handlePassword)
 	mux.HandleFunc("POST "+s.path("/build"), s.handleBuild)

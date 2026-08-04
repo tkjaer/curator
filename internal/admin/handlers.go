@@ -601,6 +601,9 @@ type publishingSettingsData struct {
 	RsyncDelete            bool
 	PublishTokenConfigured bool
 	GeneratedPublishToken  string
+	RsyncPreviewRan        bool
+	RsyncPreview           string
+	RsyncPreviewError      string
 }
 
 type xmpProfileRow struct {
@@ -1064,7 +1067,11 @@ func (s *Server) handlePublishingSettings(w http.ResponseWriter, r *http.Request
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.render(w, r, "publishing-settings", "Publishing settings", s.flash(r), publishingSettingsData{
+	s.render(w, r, "publishing-settings", "Publishing settings", s.flash(r), newPublishingSettingsData(settings))
+}
+
+func newPublishingSettingsData(settings map[string]string) publishingSettingsData {
+	return publishingSettingsData{
 		BaseURL:                settings["site.base_url"],
 		FeedEnabled:            settings["site.feed_enabled"] == "true",
 		Webserver:              settings["site.webserver"],
@@ -1073,7 +1080,29 @@ func (s *Server) handlePublishingSettings(w http.ResponseWriter, r *http.Request
 		RsyncTarget:            settings["publish.rsync_target"],
 		RsyncDelete:            settings["publish.rsync_delete"] == "true",
 		PublishTokenConfigured: settings["publish.api_token_hash"] != "",
-	})
+	}
+}
+
+func (s *Server) handlePreviewRsync(w http.ResponseWriter, r *http.Request) {
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	data := newPublishingSettingsData(settings)
+	data.RsyncPreviewRan = true
+	target := strings.TrimSpace(settings["publish.rsync_target"])
+	if target == "" {
+		data.RsyncPreviewError = "Save an rsync destination before previewing remote changes."
+	} else {
+		output, previewErr := s.previewDeploy(r.Context(), target, true)
+		data.RsyncPreview = strings.TrimSpace(output)
+		if previewErr != nil {
+			data.RsyncPreviewError = previewErr.Error()
+		}
+	}
+	w.Header().Set("Cache-Control", "no-store")
+	s.render(w, r, "publishing-settings", "Publishing settings", "", data)
 }
 
 func (s *Server) handleCreatePublishToken(w http.ResponseWriter, r *http.Request) {
@@ -1096,17 +1125,10 @@ func (s *Server) handleCreatePublishToken(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
-	s.render(w, r, "publishing-settings", "Publishing settings", "Publishing token generated; copy it now", publishingSettingsData{
-		BaseURL:                settings["site.base_url"],
-		FeedEnabled:            settings["site.feed_enabled"] == "true",
-		Webserver:              settings["site.webserver"],
-		ServerRoot:             settings["site.server_root"],
-		RsyncEnabled:           settings["publish.rsync_enabled"] == "true",
-		RsyncTarget:            settings["publish.rsync_target"],
-		RsyncDelete:            settings["publish.rsync_delete"] == "true",
-		PublishTokenConfigured: true,
-		GeneratedPublishToken:  token,
-	})
+	data := newPublishingSettingsData(settings)
+	data.PublishTokenConfigured = true
+	data.GeneratedPublishToken = token
+	s.render(w, r, "publishing-settings", "Publishing settings", "Publishing token generated; copy it now", data)
 }
 
 func (s *Server) handleSavePublishingSettings(w http.ResponseWriter, r *http.Request) {

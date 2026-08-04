@@ -17,16 +17,18 @@ import (
 
 // buildStatus tracks an in-progress or finished build for the admin UI.
 type buildStatus struct {
-	mu         sync.Mutex
-	instance   string
-	id         uint64
-	running    bool
-	pending    bool
-	everRun    bool
-	progress   build.Progress
-	report     build.Report
-	err        string
-	finishedAt time.Time
+	mu          sync.Mutex
+	instance    string
+	id          uint64
+	running     bool
+	pending     bool
+	everRun     bool
+	progress    build.Progress
+	report      build.Report
+	err         string
+	rsyncTarget string
+	rsyncStatus string
+	finishedAt  time.Time
 }
 
 var buildInstanceSequence atomic.Uint64
@@ -65,6 +67,8 @@ func (b *buildStatus) startLocked() {
 	b.progress = build.Progress{}
 	b.report = build.Report{}
 	b.err = ""
+	b.rsyncTarget = ""
+	b.rsyncStatus = ""
 }
 
 func (b *buildStatus) setProgress(p build.Progress) {
@@ -73,11 +77,25 @@ func (b *buildStatus) setProgress(p build.Progress) {
 	b.mu.Unlock()
 }
 
+func (b *buildStatus) startRsync(target string) {
+	b.mu.Lock()
+	b.progress = build.Progress{Stage: "Rsync"}
+	b.rsyncTarget = target
+	b.rsyncStatus = "running"
+	b.mu.Unlock()
+}
+
 func (b *buildStatus) finish(report build.Report, err error) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.report = report
 	b.finishedAt = time.Now()
+	if b.rsyncStatus == "running" {
+		b.rsyncStatus = "complete"
+		if err != nil {
+			b.rsyncStatus = "failed"
+		}
+	}
 	if err != nil {
 		b.err = err.Error()
 	}
@@ -94,6 +112,7 @@ type buildStatusJSON struct {
 	BuildInstance string `json:"buildInstance"`
 	BuildID       uint64 `json:"buildId"`
 	Running       bool   `json:"running"`
+	Pending       bool   `json:"pending"`
 	EverRun       bool   `json:"everRun"`
 	Stage         string `json:"stage"`
 	Done          int    `json:"done"`
@@ -105,6 +124,8 @@ type buildStatusJSON struct {
 	Reused        int    `json:"reused"`
 	FeedUpdated   bool   `json:"feedUpdated"`
 	DurationMs    int64  `json:"durationMs"`
+	RsyncTarget   string `json:"rsyncTarget"`
+	RsyncStatus   string `json:"rsyncStatus"`
 }
 
 func (b *buildStatus) snapshot() buildStatusJSON {
@@ -114,6 +135,7 @@ func (b *buildStatus) snapshot() buildStatusJSON {
 		BuildInstance: b.instance,
 		BuildID:       b.id,
 		Running:       b.running,
+		Pending:       b.pending,
 		EverRun:       b.everRun,
 		Stage:         b.progress.Stage,
 		Done:          b.progress.Done,
@@ -125,6 +147,8 @@ func (b *buildStatus) snapshot() buildStatusJSON {
 		Reused:        b.report.Reused,
 		FeedUpdated:   b.report.FeedUpdated,
 		DurationMs:    b.report.Duration.Milliseconds(),
+		RsyncTarget:   b.rsyncTarget,
+		RsyncStatus:   b.rsyncStatus,
 	}
 }
 
@@ -133,12 +157,12 @@ func (s *Server) handleBuild(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link(), "Build is not available")
 		return
 	}
-	if !s.builds.begin() {
-		s.redirect(w, r, s.link(), "A build is already running")
+	if s.builds.queue() {
+		go s.runBuildQueue()
+		s.redirect(w, r, s.link(), "")
 		return
 	}
-	go s.runBuildQueue()
-	s.redirect(w, r, s.link(), "")
+	s.redirect(w, r, s.link(), "Publish queued")
 }
 
 func (s *Server) queueBuild() error {
@@ -175,7 +199,7 @@ func (s *Server) deployAfterBuild(ctx context.Context) error {
 	if target == "" {
 		return errors.New("rsync deployment is enabled but no destination is configured")
 	}
-	s.builds.setProgress(build.Progress{Stage: "Deploying"})
+	s.builds.startRsync(target)
 	return s.deploy(ctx, target, settings["publish.rsync_delete"] == "true")
 }
 

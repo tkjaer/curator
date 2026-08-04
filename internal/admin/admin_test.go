@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"html"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -108,7 +109,7 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
 		`<details class="gallery-options">`,
-		`<summary>Edit gallery settings</summary>`,
+		`<summary>Settings</summary>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery missing %q", want)
@@ -392,6 +393,33 @@ func TestRsyncDeploymentCanBeConfiguredInUI(t *testing.T) {
 	}
 }
 
+func TestRsyncCleanupCanBePreviewedBeforeEnablingDeployment(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if err := srv.store.SetSetting(context.Background(), "publish.rsync_target", "photos@example.com:/srv/site"); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	srv.previewDeploy = func(_ context.Context, target string, delete bool) (string, error) {
+		called = true
+		if target != "photos@example.com:/srv/site" || !delete {
+			t.Fatalf("preview = %q, delete %t", target, delete)
+		}
+		return "*deleting old <photo>.jpg\n>f+++++++++ new.jpg", nil
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/publishing/preview", nil))
+	if rec.Code != http.StatusOK || !called {
+		t.Fatalf("preview response = %d, called %t", rec.Code, called)
+	}
+	body := rec.Body.String()
+	decoded := html.UnescapeString(body)
+	if strings.Contains(body, "old <photo>.jpg") || !strings.Contains(decoded, "*deleting old <photo>.jpg") ||
+		!strings.Contains(decoded, ">f+++++++++ new.jpg") {
+		t.Fatalf("preview output not safely rendered: %s", body)
+	}
+}
+
 func TestBuildDeploysConfiguredRsyncTarget(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()
@@ -426,7 +454,8 @@ func TestBuildDeploysConfiguredRsyncTarget(t *testing.T) {
 		t.Fatalf("publish steps = %v", steps)
 	}
 	status := srv.builds.snapshot()
-	if status.Running || status.Error != "" || status.Stage != "Deploying" {
+	if status.Running || status.Error != "" || status.Stage != "Rsync" ||
+		status.RsyncStatus != "complete" || status.RsyncTarget != "photos@example.com:/srv/site" {
 		t.Fatalf("publish status = %#v", status)
 	}
 }
@@ -454,6 +483,35 @@ func TestFailedBuildDoesNotDeploy(t *testing.T) {
 	}
 	if got := srv.builds.snapshot().Error; got != "render failed" {
 		t.Fatalf("publish error = %q", got)
+	}
+}
+
+func TestFailedRsyncIsReportedSeparately(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	for key, value := range map[string]string{
+		"publish.rsync_enabled": "true",
+		"publish.rsync_target":  "photos@example.com:/srv/site",
+	} {
+		if err := srv.store.SetSetting(ctx, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv.build = func(context.Context, func(build.Progress)) (build.Report, error) {
+		return build.Report{Galleries: 1}, nil
+	}
+	srv.deploy = func(context.Context, string, bool) error {
+		return errors.New("connection refused")
+	}
+	if !srv.builds.begin() {
+		t.Fatal("build did not begin")
+	}
+	srv.runBuildQueue()
+
+	status := srv.builds.snapshot()
+	if status.Running || status.RsyncStatus != "failed" || status.RsyncTarget != "photos@example.com:/srv/site" ||
+		status.Error != "connection refused" {
+		t.Fatalf("publish status = %#v", status)
 	}
 }
 
@@ -1004,6 +1062,22 @@ func TestBuildButtonInvokesBuild(t *testing.T) {
 	case <-built:
 	case <-time.After(2 * time.Second):
 		t.Error("build function was not invoked")
+	}
+}
+
+func TestBuildButtonQueuesWhilePublishIsRunning(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if !srv.builds.begin() {
+		t.Fatal("publish did not begin")
+	}
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("POST", "/build", nil))
+
+	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "Publish+queued") {
+		t.Fatalf("queue response = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if status := srv.builds.snapshot(); !status.Running || !status.Pending {
+		t.Fatalf("queue status = %#v", status)
 	}
 }
 

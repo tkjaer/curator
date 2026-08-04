@@ -42,6 +42,22 @@
   </div>
 </form>
 
+<section class="card settings-action-card settings-wide-card rsync-preview">
+  <div><strong>Preview remote changes</strong><p>Dry-run rsync against the saved destination with stale-file removal simulated. Nothing is uploaded or deleted.</p></div>
+  <form method="post" action="{{$.BasePath}}/settings/publishing/preview">
+    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+    <button class="secondary-button"{{if not .RsyncTarget}} disabled{{end}}>Preview changes</button>
+  </form>
+  {{if .RsyncPreviewRan}}
+  <div class="rsync-preview-result">
+    <h3>Dry-run result</h3>
+    {{if .RsyncPreviewError}}<p class="form-error">{{.RsyncPreviewError}}</p>
+    {{else if .RsyncPreview}}<pre>{{.RsyncPreview}}</pre>
+    {{else}}<p>No uploads, updates, or remote deletions would be made.</p>{{end}}
+  </div>
+  {{end}}
+</section>
+
 <section class="card settings-wide-card">
   <h2>Lightroom Classic</h2>
   <p><span>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</span></p>

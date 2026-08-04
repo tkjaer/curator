@@ -74,6 +74,14 @@ To build and copy it to a remote host with `rsync`:
 ./curator publish -content ./site -target user@example.com:/srv/www/photos
 ```
 
+Before enabling remote deletion, use **Settings → Publishing → Preview remote
+changes** to see itemized uploads, updates, and stale files without changing the
+destination. The equivalent CLI dry run is:
+
+```sh
+./curator publish -content ./site -target user@example.com:/srv/www/photos -no-build -dry-run -delete
+```
+
 Use `./curator help` for all commands and options.
 
 ## Lens metadata
