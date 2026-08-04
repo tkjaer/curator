@@ -57,11 +57,24 @@ func (s *Store) UpdateGalleryPresentation(ctx context.Context, id int64, showEXI
 	return err
 }
 
-// ResetGalleryPresentationOverrides makes every gallery inherit site defaults.
-func (s *Store) ResetGalleryPresentationOverrides(ctx context.Context) error {
-	_, err := s.DB.ExecContext(ctx,
-		`UPDATE galleries
-		    SET show_exif = 0, show_title = 0, show_description = 0, updated_at = datetime('now')`)
+// ResetGalleryPresentationOverrides makes one presentation field, or all
+// fields, inherit site defaults for every gallery.
+func (s *Store) ResetGalleryPresentationOverrides(ctx context.Context, field string) error {
+	var query string
+	switch field {
+	case "title":
+		query = `UPDATE galleries SET show_title = 0, updated_at = datetime('now')`
+	case "description":
+		query = `UPDATE galleries SET show_description = 0, updated_at = datetime('now')`
+	case "exif":
+		query = `UPDATE galleries SET show_exif = 0, updated_at = datetime('now')`
+	case "all":
+		query = `UPDATE galleries
+		            SET show_exif = 0, show_title = 0, show_description = 0, updated_at = datetime('now')`
+	default:
+		return errors.New("invalid gallery presentation field")
+	}
+	_, err := s.DB.ExecContext(ctx, query)
 	return err
 }
 

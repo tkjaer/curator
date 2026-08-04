@@ -124,6 +124,14 @@
   .settings-action-card { display: grid; gap: 1rem; }
   .settings-action-narrow { max-width: 470px; margin-top: 1rem; }
   .settings-wide-card { width: 100%; max-width: 960px; }
+  .override-reset-list { display: grid; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .override-reset-row, .override-reset-all { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; }
+  .override-reset-row + .override-reset-row, .override-reset-all { border-top: 1px solid var(--line); }
+  .override-reset-row span, .override-reset-row strong, .override-reset-row small { display: block; }
+  .override-reset-row strong { font-size: .86rem; }
+  .override-reset-row small, .override-reset-all span { margin-top: .08rem; color: var(--muted); font-size: .75rem; }
+  .override-reset-row button, .override-reset-all button { flex: 0 0 auto; }
+  .override-reset-all { background: var(--surface-muted); }
   .access-admin-card .settings-field-grid { margin: 1rem 0; }
   .access-users-heading { max-width: 960px; margin-bottom: .75rem; }
   .access-users-heading p { margin: .2rem 0 0; }
@@ -304,6 +312,8 @@
     .mapping-evidence { align-items: flex-start; flex-direction: column; grid-row: 3; }
     .metadata-rescan { align-items: stretch; flex-direction: column; }
     .metadata-rescan button { align-self: flex-start; }
+    .override-reset-row, .override-reset-all { align-items: stretch; flex-direction: column; }
+    .override-reset-row button, .override-reset-all button { width: 100%; }
     .settings-row { grid-template-columns: minmax(0, 1fr) 36px; }
     .settings-form > .settings-save-row { position: static; align-items: stretch; flex-direction: column; }
     .settings-form > .settings-save-row button { width: 100%; }

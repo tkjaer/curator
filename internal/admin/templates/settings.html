@@ -69,11 +69,14 @@
   </div>
 </form>
 
-<section class="card settings-action-card settings-action-narrow">
-  <div><h2>Gallery overrides</h2><p>Return every gallery's photo details to the defaults above.</p></div>
-  <form method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset" onsubmit="return confirm('Reset metadata display overrides for every gallery?')">
+<section class="card settings-action-card settings-wide-card">
+  <div><h2>Gallery overrides</h2><p>Return gallery-specific choices to the photo detail defaults above.</p></div>
+  <form class="override-reset-list" method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <button class="secondary-button" type="submit">Reset gallery overrides</button>
+    <div class="override-reset-row"><span><strong>Titles</strong><small>Reset title visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="title">Reset titles</button></div>
+    <div class="override-reset-row"><span><strong>Descriptions</strong><small>Reset description visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="description">Reset descriptions</button></div>
+    <div class="override-reset-row"><span><strong>EXIF</strong><small>Reset EXIF visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="exif">Reset EXIF</button></div>
+    <div class="override-reset-all"><span>Reset all three visibility choices at once.</span><button class="secondary-button" type="submit" name="field" value="all" onclick="return confirm('Reset all photo detail overrides for every gallery?')">Reset all overrides</button></div>
   </form>
 </section>
 {{end}}
