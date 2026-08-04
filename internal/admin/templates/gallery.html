@@ -157,8 +157,8 @@
 <div id="photo-list">
 <div class="thumbs">
   {{range .Items}}
-  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}">
-    <button class="item-preview" type="button" data-open-photo-editor="photo-editor-{{.ID}}" aria-label="Edit {{.Filename}}">
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-lens="{{.Lens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
+    <button class="item-preview" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}">
       <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" width="{{.Width}}" height="{{.Height}}" loading="lazy">
     </button>
     <figcaption>
@@ -169,52 +169,63 @@
       <div class="item-card-actions">
         <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move photo up" title="Move up">&uarr;</button></form>
         <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move photo down" title="Move down">&darr;</button></form>
-        <button class="icon-button" type="button" data-open-photo-editor="photo-editor-{{.ID}}" aria-label="Edit {{.Filename}}" title="Edit photo">&#9998;</button>
+        <button class="icon-button" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}" title="Edit photo">&#9998;</button>
       </div>
     </figcaption>
-    <dialog class="photo-editor-dialog" id="photo-editor-{{.ID}}">
-      <div class="photo-editor-shell">
-        <div class="photo-editor-preview">
-          <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="{{.Filename}}" width="{{.Width}}" height="{{.Height}}" loading="lazy">
-          <button class="icon-button photo-editor-nav photo-editor-prev" type="button" data-photo-editor-nav="previous" aria-label="Previous photo">&lsaquo;</button>
-          <button class="icon-button photo-editor-nav photo-editor-next" type="button" data-photo-editor-nav="next" aria-label="Next photo">&rsaquo;</button>
-        </div>
-        <div class="photo-editor-panel">
-          <div class="photo-editor-heading">
-            <div><strong>{{.Filename}}</strong><small>{{.Width}} &times; {{.Height}}</small></div>
-            <button class="icon-button" type="button" data-close-photo-editor aria-label="Close photo editor">&times;</button>
-          </div>
-          <div class="photo-editor-body">
-            <form class="item-editor" data-async data-autosave method="post" action="{{$.BasePath}}/items/{{.ID}}/update">
-              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <section class="photo-editor-section">
-                <div class="photo-editor-section-heading"><h3>Content</h3><p>Text shown with this photo in galleries and lightboxes.</p></div>
-                <label class="field"><span>Title</span><input type="text" name="title" value="{{.Title}}"></label>
-                <label class="field"><span>Description</span><textarea name="description" rows="4">{{.Description}}</textarea></label>
-                <label class="field"><span>Caption</span><input type="text" name="caption" value="{{.Caption}}"></label>
-              </section>
-              <section class="photo-editor-section">
-                <div class="photo-editor-section-heading"><h3>Publishing</h3><p>Control where this photo appears in the gallery.</p></div>
-                <label class="field"><span>Status</span><select name="status">
-                  {{$cur := printf "%s" .Status}}
-                  {{range $.Data.ItemStatuses}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
-                </select></label>
-                <label class="choice-row"><input type="checkbox" name="highlight"{{if .Highlighted}} checked{{end}}> <span><strong>Highlight</strong><small>Give this photo more visual weight where the theme supports it.</small></span></label>
-              </section>
-            </form>
-          </div>
-          <div class="photo-editor-footer">
-            <span class="save-state" aria-live="polite"></span>
-            <form data-async data-action="cover" method="post" action="{{$.BasePath}}/items/{{.ID}}/cover"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="secondary-button">Set as cover</button></form>
-            <form data-async data-action="delete" method="post" action="{{$.BasePath}}/items/{{.ID}}/delete" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
-            <button type="button" data-close-photo-editor>Done</button>
-          </div>
-        </div>
-      </div>
-    </dialog>
   </figure>
   {{end}}
 </div>
+<dialog class="photo-editor-dialog" id="photo-editor">
+  <div class="photo-editor-shell">
+    <div class="photo-editor-preview">
+      <img alt="" width="1" height="1">
+      <button class="icon-button photo-editor-nav photo-editor-prev" type="button" data-photo-editor-nav="previous" aria-label="Previous photo">&lsaquo;</button>
+      <button class="icon-button photo-editor-nav photo-editor-next" type="button" data-photo-editor-nav="next" aria-label="Next photo">&rsaquo;</button>
+    </div>
+    <div class="photo-editor-panel">
+      <div class="photo-editor-heading">
+        <div><strong data-photo-editor-filename></strong><small data-photo-editor-dimensions></small></div>
+        <button class="icon-button" type="button" data-close-photo-editor aria-label="Close photo editor">&times;</button>
+      </div>
+      <div class="photo-editor-tabs" role="tablist" aria-label="Photo editor sections">
+        <button type="button" role="tab" aria-selected="true" aria-controls="photo-editor-content" data-photo-editor-tab="content">Content</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="photo-editor-metadata" data-photo-editor-tab="metadata" tabindex="-1">Metadata</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="photo-editor-publishing" data-photo-editor-tab="publishing" tabindex="-1">Publishing</button>
+      </div>
+      <div class="photo-editor-body">
+        <form class="item-editor" data-async data-autosave method="post">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          <section class="photo-editor-section" id="photo-editor-content" role="tabpanel" data-photo-editor-panel="content">
+            <div class="photo-editor-section-heading"><h3>Content</h3><p>Text shown with this photo in galleries and lightboxes.</p></div>
+            <label class="field"><span>Title</span><input type="text" name="title"></label>
+            <label class="field"><span>Description</span><textarea name="description" rows="4"></textarea></label>
+            <label class="field"><span>Caption</span><input type="text" name="caption"></label>
+          </section>
+          <section class="photo-editor-section" id="photo-editor-metadata" role="tabpanel" data-photo-editor-panel="metadata" hidden>
+            <div class="photo-editor-section-heading"><h3>Metadata</h3><p>Values currently resolved from the photo's source metadata.</p></div>
+            <dl class="photo-editor-metadata">
+              <div><dt>Camera</dt><dd data-photo-editor-camera></dd></div>
+              <div><dt>Lens</dt><dd data-photo-editor-lens></dd></div>
+            </dl>
+          </section>
+          <section class="photo-editor-section" id="photo-editor-publishing" role="tabpanel" data-photo-editor-panel="publishing" hidden>
+            <div class="photo-editor-section-heading"><h3>Publishing</h3><p>Control where this photo appears in the gallery.</p></div>
+            <label class="field"><span>Status</span><select name="status">
+              {{range $.Data.ItemStatuses}}<option value="{{.}}">{{.}}</option>{{end}}
+            </select></label>
+            <label class="choice-row"><input type="checkbox" name="highlight"> <span><strong>Highlight</strong><small>Give this photo more visual weight where the theme supports it.</small></span></label>
+          </section>
+        </form>
+      </div>
+      <div class="photo-editor-footer">
+        <span class="save-state" aria-live="polite"></span>
+        <form data-async data-action="cover" method="post"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="secondary-button">Set as cover</button></form>
+        <form data-async data-action="delete" method="post" onsubmit="return confirm('Delete this photo?')"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><button class="danger">Delete</button></form>
+        <button type="button" data-close-photo-editor>Done</button>
+      </div>
+    </div>
+  </div>
+</dialog>
 </div>
 {{else}}
 <div id="photo-list"><p>No photos yet.</p></div>
@@ -273,11 +284,14 @@
 <script>
 (function () {
   var busy = new WeakSet();
+  var photoEditor = document.getElementById("photo-editor");
+  var activePhotoItem = null;
 
   function stateFor(form) {
     var container = form.closest(".item, .story-block");
     return form.querySelector(".save-state") ||
       (container && container.querySelector(".save-state")) ||
+      (form.closest(".photo-editor-dialog") && form.closest(".photo-editor-dialog").querySelector(".save-state")) ||
       document.getElementById("gallery-save-state");
   }
 
@@ -315,9 +329,13 @@
     select.value = "custom";
   }
 
-  function applyAction(form) {
+  function elementForForm(form) {
+    return form.closest(".item, .story-block") ||
+      (form.closest(".photo-editor-dialog") && activePhotoItem);
+  }
+
+  function applyAction(form, element) {
     var action = form.dataset.action;
-    var element = form.closest(".item, .story-block");
     if (!action || !element) return;
     if (action === "move-up") move(element, true);
     if (action === "move-down") move(element, false);
@@ -325,8 +343,7 @@
       markCustomOrder();
     }
     if (action === "delete") {
-      var dialog = form.closest("dialog");
-      if (dialog && dialog.open) dialog.close();
+      if (photoEditor && photoEditor.open) photoEditor.close();
       element.remove();
     }
     if (action === "cover") {
@@ -339,25 +356,32 @@
     }
   }
 
-  function applyItemPresentation(form) {
-    if (!form.classList.contains("item-editor")) return;
-    var item = form.closest(".item");
-    var title = form.elements.title.value.trim();
+  function applyItemPresentation(form, item, values) {
+    if (!form.classList.contains("item-editor") || !item) return;
+    var title = (values.get("title") || "").trim();
+    var description = values.get("description") || "";
+    var caption = values.get("caption") || "";
+    var status = values.get("status") || "";
+    var highlighted = values.has("highlight");
     var filename = item.querySelector(".item-filename");
     var summary = item.querySelector(".item-title .fn");
     summary.textContent = title || filename.textContent;
     filename.hidden = !title || title === filename.textContent;
-    var status = form.elements.status.value;
     item.querySelector(".item-badges .badge").textContent = status;
     var highlight = item.querySelector(".highlight-label");
-    if (form.elements.highlight.checked && !highlight) {
+    if (highlighted && !highlight) {
       highlight = document.createElement("span");
       highlight.className = "badge highlight-label";
       highlight.textContent = "Highlight";
       item.querySelector(".item-badges").appendChild(highlight);
-    } else if (!form.elements.highlight.checked && highlight) {
+    } else if (!highlighted && highlight) {
       highlight.remove();
     }
+    item.dataset.title = title;
+    item.dataset.description = description;
+    item.dataset.caption = caption;
+    item.dataset.status = status;
+    item.dataset.highlighted = String(highlighted);
   }
 
   async function refreshFromServer(selectors) {
@@ -372,6 +396,8 @@
       var updated = page.querySelector(selector);
       if (current && updated) current.replaceWith(updated);
     });
+    photoEditor = document.getElementById("photo-editor");
+    activePhotoItem = null;
   }
 
   async function submit(form) {
@@ -382,9 +408,11 @@
     busy.add(form);
     form.classList.add("is-saving");
     showState(form, "Saving...", false);
+    var element = elementForForm(form);
+    var values = new FormData(form);
     try {
       var body = new URLSearchParams();
-      new FormData(form).forEach(function (value, key) { body.append(key, value); });
+      values.forEach(function (value, key) { body.append(key, value); });
       var response = await fetch(form.action, {
         method: "POST",
         body: body,
@@ -398,8 +426,8 @@
       var failed = /^(Could not|Invalid|Unknown)/.test(result.message || "");
       showState(form, failed ? result.message : "Saved", failed);
       if (!failed) {
-        applyItemPresentation(form);
-        applyAction(form);
+        applyItemPresentation(form, element, values);
+        applyAction(form, element);
         if (form.closest(".gallery-settings") &&
             (form.action.endsWith("/status") || form.action.endsWith("/move"))) {
           await refreshFromServer([".public-url-row", "#access-settings"]);
@@ -436,15 +464,58 @@
     return Array.from(document.querySelectorAll("#photo-list .item"));
   }
 
-  function openPhotoEditor(id) {
-    var dialog = document.getElementById(id);
-    if (dialog && !dialog.open) dialog.showModal();
+  function setPhotoEditorTab(name, focus) {
+    photoEditor.querySelectorAll("[data-photo-editor-tab]").forEach(function (tab) {
+      var selected = tab.dataset.photoEditorTab === name;
+      tab.setAttribute("aria-selected", String(selected));
+      tab.tabIndex = selected ? 0 : -1;
+      if (selected && focus) tab.focus();
+    });
+    photoEditor.querySelectorAll("[data-photo-editor-panel]").forEach(function (panel) {
+      panel.hidden = panel.dataset.photoEditorPanel !== name;
+    });
+    photoEditor.querySelector(".photo-editor-body").scrollTop = 0;
+  }
+
+  function loadPhotoEditor(item, resetTab) {
+    activePhotoItem = item;
+    var cardImage = item.querySelector(".item-preview img");
+    var filename = item.querySelector(".item-filename").textContent;
+    var preview = photoEditor.querySelector(".photo-editor-preview img");
+    preview.src = cardImage.currentSrc || cardImage.src;
+    preview.alt = filename;
+    preview.width = cardImage.getAttribute("width");
+    preview.height = cardImage.getAttribute("height");
+    photoEditor.querySelector("[data-photo-editor-filename]").textContent = filename;
+    photoEditor.querySelector("[data-photo-editor-dimensions]").textContent = preview.width + " × " + preview.height;
+    photoEditor.querySelector("[data-photo-editor-camera]").textContent = item.dataset.camera || "Not detected";
+    photoEditor.querySelector("[data-photo-editor-lens]").textContent = item.dataset.lens || "Not detected";
+
+    var form = photoEditor.querySelector(".item-editor");
+    form.action = item.dataset.updateAction;
+    form.elements.title.value = item.dataset.title;
+    form.elements.description.value = item.dataset.description;
+    form.elements.caption.value = item.dataset.caption;
+    form.elements.status.value = item.dataset.status;
+    form.elements.highlight.checked = item.dataset.highlighted === "true";
+    photoEditor.querySelector('[data-action="cover"]').action = item.dataset.coverAction;
+    photoEditor.querySelector('[data-action="delete"]').action = item.dataset.deleteAction;
+    photoEditor.querySelectorAll("[data-photo-editor-nav]").forEach(function (button) {
+      button.disabled = photoItems().length < 2;
+    });
+    if (resetTab) setPhotoEditorTab("content", false);
+  }
+
+  function openPhotoEditor(item) {
+    if (!photoEditor || !item) return;
+    loadPhotoEditor(item, true);
+    if (!photoEditor.open) photoEditor.showModal();
   }
 
   document.addEventListener("click", function (event) {
     var opener = event.target.closest("[data-open-photo-editor]");
     if (opener) {
-      openPhotoEditor(opener.dataset.openPhotoEditor);
+      openPhotoEditor(opener.closest(".item"));
       return;
     }
     var closer = event.target.closest("[data-close-photo-editor]");
@@ -452,24 +523,35 @@
       closer.closest("dialog").close();
       return;
     }
+    var tab = event.target.closest("[data-photo-editor-tab]");
+    if (tab) {
+      setPhotoEditorTab(tab.dataset.photoEditorTab, false);
+      return;
+    }
     var nav = event.target.closest("[data-photo-editor-nav]");
     if (!nav) return;
-    var current = nav.closest(".item");
     var items = photoItems();
-    var index = items.indexOf(current);
+    var index = items.indexOf(activePhotoItem);
     if (index < 0 || items.length < 2) return;
     var offset = nav.dataset.photoEditorNav === "previous" ? -1 : 1;
     var next = items[(index + offset + items.length) % items.length];
-    nav.closest("dialog").close();
-    openPhotoEditor(next.querySelector("[data-open-photo-editor]").dataset.openPhotoEditor);
+    loadPhotoEditor(next, false);
   });
 
   document.addEventListener("keydown", function (event) {
-    var dialog = document.querySelector(".photo-editor-dialog[open]");
-    if (!dialog || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    if (!photoEditor || !photoEditor.open || (event.key !== "ArrowLeft" && event.key !== "ArrowRight")) return;
+    var activeTab = event.target.closest("[data-photo-editor-tab]");
+    if (activeTab) {
+      var tabs = Array.from(photoEditor.querySelectorAll("[data-photo-editor-tab]"));
+      var tabOffset = event.key === "ArrowLeft" ? -1 : 1;
+      var nextTab = tabs[(tabs.indexOf(activeTab) + tabOffset + tabs.length) % tabs.length];
+      setPhotoEditorTab(nextTab.dataset.photoEditorTab, true);
+      event.preventDefault();
+      return;
+    }
     if (event.target.closest("input, textarea, select, [contenteditable]")) return;
     var selector = event.key === "ArrowLeft" ? '[data-photo-editor-nav="previous"]' : '[data-photo-editor-nav="next"]';
-    dialog.querySelector(selector).click();
+    photoEditor.querySelector(selector).click();
   });
 })();
 </script>

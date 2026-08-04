@@ -139,15 +139,20 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	body := rec.Body.String()
 	for _, want := range []string{
 		`class="item-preview"`,
-		`data-open-photo-editor="photo-editor-` + strconv.FormatInt(itemID, 10) + `"`,
-		`<dialog class="photo-editor-dialog" id="photo-editor-` + strconv.FormatInt(itemID, 10) + `">`,
-		`action="/items/` + strconv.FormatInt(itemID, 10) + `/update"`,
-		`name="title" value="A &#34;title&#34; &lt;unsafe&gt;"`,
-		`<textarea name="description" rows="4">&lt;b&gt;Description&lt;/b&gt;</textarea>`,
+		`data-item-id="` + strconv.FormatInt(itemID, 10) + `"`,
+		`data-title="A &#34;title&#34; &lt;unsafe&gt;"`,
+		`data-description="&lt;b&gt;Description&lt;/b&gt;"`,
+		`data-update-action="/items/` + strconv.FormatInt(itemID, 10) + `/update"`,
+		`<dialog class="photo-editor-dialog" id="photo-editor">`,
+		`role="tablist" aria-label="Photo editor sections"`,
+		`data-photo-editor-panel="metadata" hidden`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery photo editor missing %q", want)
 		}
+	}
+	if strings.Count(body, `<dialog class="photo-editor-dialog"`) != 1 {
+		t.Error("gallery should render one shared photo editor dialog")
 	}
 }
 
