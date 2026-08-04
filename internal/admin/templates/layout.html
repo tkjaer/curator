@@ -213,7 +213,7 @@
   .settings-row { display: flex; gap: .5rem; align-items: end; padding: .65rem 0; }
   .setting-control { min-width: 0; }
   .setting-control > span, .settings-row form > label > span, .add-block label > span { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
-  .settings-row select { width: 150px; height: 36px; min-height: 36px; padding: .35rem .55rem; }
+  .listing-setting select { width: 150px; height: 36px; min-height: 36px; padding: .35rem .55rem; }
   .listing-setting select, .listing-setting option { text-transform: capitalize; }
   .toggle-form { display: flex; height: 36px; align-items: center; white-space: nowrap; }
   .toggle-form label { font-size: .82rem; font-weight: 600; }
@@ -249,9 +249,11 @@
   .section-heading p { margin: .2rem 0 0; }
   .media-section > .section-heading { align-items: center; }
   .media-actions { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; }
-  .arrange-control { display: flex; align-items: center; gap: .5rem; }
+  .arrange-control, .arrange-control form { display: flex; align-items: center; gap: .5rem; }
   .arrange-control .save-state { min-width: 3.25rem; text-align: right; }
   .arrange-control button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  .arrange-control [data-order-reset] { display: none; }
+  .arrange-control.is-arranging [data-order-reset]:not([hidden]) { display: flex; }
   .upload-form { display: flex; width: min(44vw, 440px); gap: .5rem; align-items: center; }
   .upload-form input[type="file"] { flex: 1; width: auto; min-width: 0; min-height: 36px; padding: .2rem .55rem .2rem .2rem; color: var(--muted); background: var(--surface); }
   .upload-form:focus-within input[type="file"] { border-color: var(--accent); outline: 3px solid #3157d526; }
