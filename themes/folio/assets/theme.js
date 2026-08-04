@@ -30,11 +30,15 @@
 
   let index = -1;
   let zoomed = false;
+  let zoomPending = false;
+  let zoomRequest = 0;
   let panFrame = 0;
   let panAnchor = null;
 
   function resetZoom() {
     zoomed = false;
+    zoomPending = false;
+    zoomRequest++;
     cancelAnimationFrame(panFrame);
     panAnchor = null;
     dialog.classList.remove("is-zoomed");
@@ -46,6 +50,7 @@
   function toggleZoom(e) {
     if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
     if (!window.matchMedia("(pointer: fine)").matches) return;
+    if (zoomPending) return;
     if (zoomed) {
       resetZoom();
       return;
@@ -58,28 +63,43 @@
     const clientY = e.detail > 0 ? e.clientY : dialog.clientHeight / 2;
     const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    zoomed = true;
-    dialog.classList.add("is-zoomed");
-    imageButton.setAttribute("aria-label", "Fit image to window");
+    const request = ++zoomRequest;
+    const requestedIndex = index;
 
-    const center = () => requestAnimationFrame(() => {
-      dialog.scrollLeft = Math.max(0, imageButton.offsetLeft + x * img.offsetWidth - dialog.clientWidth / 2);
-      dialog.scrollTop = Math.max(0, imageButton.offsetTop + y * img.offsetHeight - dialog.clientHeight / 2);
-      panAnchor = {
-        clientX,
-        clientY,
-        scrollLeft: dialog.scrollLeft,
-        scrollTop: dialog.scrollTop,
-        gainX: img.offsetWidth / Math.max(1, fitWidth),
-        gainY: img.offsetHeight / Math.max(1, fitHeight)
-      };
-    });
+    const activate = (zoomSrc) => {
+      if (request !== zoomRequest || requestedIndex !== index) return;
+      zoomPending = false;
+      img.src = zoomSrc;
+      zoomed = true;
+      dialog.classList.add("is-zoomed");
+      imageButton.setAttribute("aria-label", "Fit image to window");
+      requestAnimationFrame(() => {
+        dialog.scrollLeft = Math.max(0, imageButton.offsetLeft + x * img.offsetWidth - dialog.clientWidth / 2);
+        dialog.scrollTop = Math.max(0, imageButton.offsetTop + y * img.offsetHeight - dialog.clientHeight / 2);
+        panAnchor = {
+          clientX,
+          clientY,
+          scrollLeft: dialog.scrollLeft,
+          scrollTop: dialog.scrollTop,
+          gainX: img.offsetWidth / Math.max(1, fitWidth),
+          gainY: img.offsetHeight / Math.max(1, fitHeight)
+        };
+      });
+    };
     const zoomSrc = links[index].dataset.zoomSrc;
     if (zoomSrc && img.getAttribute("src") !== zoomSrc) {
-      img.addEventListener("load", center, { once: true });
-      img.src = zoomSrc;
+      zoomPending = true;
+      const preload = new Image();
+      preload.onload = () => {
+        const decoded = typeof preload.decode === "function" ? preload.decode() : Promise.resolve();
+        decoded.catch(() => {}).then(() => activate(zoomSrc));
+      };
+      preload.onerror = () => {
+        if (request === zoomRequest) zoomPending = false;
+      };
+      preload.src = zoomSrc;
     } else {
-      center();
+      activate(zoomSrc || img.getAttribute("src"));
     }
   }
 
