@@ -163,6 +163,49 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 }
 
+func TestItemCoverCanBeSetAndRemoved(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "photos", Title: "Photos"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	postCover := func() {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/cover", nil)
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("status = %d, want %d", rec.Code, http.StatusSeeOther)
+		}
+	}
+
+	postCover()
+	g, err := srv.store.Gallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.CoverItemID == nil || *g.CoverItemID != itemID {
+		t.Fatalf("cover = %v, want %d", g.CoverItemID, itemID)
+	}
+
+	postCover()
+	g, err = srv.store.Gallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.CoverItemID != nil {
+		t.Fatalf("cover = %d, want nil", *g.CoverItemID)
+	}
+}
+
 func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()
