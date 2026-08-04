@@ -61,6 +61,21 @@ func TestJustifyPanoFullWidth(t *testing.T) {
 	}
 }
 
+func TestJustifyTallLegacyPanoInline(t *testing.T) {
+	photos := []PhotoView{
+		photo(3008, 2000, "landscape"),
+		photo(807, 2000, "pano"),
+		photo(3008, 2000, "landscape"),
+	}
+
+	rows := Justify(photos, 1200, 300, 8, true)
+	for _, row := range rows {
+		if len(row.Photos) == 1 && row.Photos[0].Width == 807 {
+			t.Fatal("tall photo with legacy pano classification was isolated")
+		}
+	}
+}
+
 func TestJustifyEmpty(t *testing.T) {
 	if rows := Justify(nil, 1000, 300, 8, false); rows != nil {
 		t.Errorf("expected nil rows, got %v", rows)
