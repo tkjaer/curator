@@ -1,42 +1,48 @@
 {{define "publishing-settings"}}{{template "head" .}}
 {{with .Data}}
 <div class="page-head">
-  <div><h1>Settings</h1><p>Configure generated feeds and protected-gallery server files.</p></div>
+  <div><h1>Settings</h1><p>Choose how Curator deploys, distributes, and protects the generated site.</p></div>
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
   <a href="{{$.BasePath}}/settings">Site</a>
   <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
   <a href="{{$.BasePath}}/settings/publishing" aria-current="page">Publishing</a>
 </nav>
-<form class="card settings-card" method="post" action="{{$.BasePath}}/settings/publishing" data-dirty-form>
+<form class="settings-form" method="post" action="{{$.BasePath}}/settings/publishing" data-dirty-form>
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <div class="settings-save-row" data-dirty="false">
     <button data-save-button disabled>Save publishing settings</button>
     <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
 
-  <h2>Deployment</h2>
-  <label class="field"><input type="checkbox" name="rsync_enabled"{{if .RsyncEnabled}} checked{{end}}> Deploy with rsync after publishing the site</label>
-  <label class="field"><span>Rsync destination (e.g. user@host:/srv/site)</span><input name="rsync_target" value="{{.RsyncTarget}}" placeholder="user@host:/srv/site" autocomplete="off" spellcheck="false"></label>
-  <label class="field"><input type="checkbox" name="rsync_delete"{{if .RsyncDelete}} checked{{end}}> Delete remote files that are no longer in the generated site</label>
-  <p><span>Remote connections use your system's existing SSH and rsync configuration.</span></p>
+  <div class="settings-grid">
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-panel-heading"><h2>Deployment</h2><p>Send the generated site to its web server after a successful build.</p></div>
+      <label class="choice-row"><input type="checkbox" name="rsync_enabled"{{if .RsyncEnabled}} checked{{end}}> <span><strong>Deploy with rsync</strong><small>Uses the system's existing SSH and rsync configuration.</small></span></label>
+      <label class="field"><span>Rsync destination</span><input name="rsync_target" value="{{.RsyncTarget}}" placeholder="user@host:/srv/site" autocomplete="off" spellcheck="false"></label>
+      <label class="choice-row"><input type="checkbox" name="rsync_delete"{{if .RsyncDelete}} checked{{end}}> <span><strong>Remove stale remote files</strong><small>Delete files that are no longer in the generated site.</small></span></label>
+    </section>
 
-  <h2>Syndication</h2>
-  <label class="field"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> Generate an Atom feed of published galleries at /feed.xml</label>
-  {{if .BaseURL}}<p><span>Feed links use the Base URL <strong>{{.BaseURL}}</strong>.</span></p>{{else}}<p><span>Set a <a href="{{$.BasePath}}/settings">Base URL under Site settings</a> to enable the feed.</span></p>{{end}}
+    <section class="settings-panel">
+      <div class="settings-panel-heading"><h2>Atom feed</h2><p>Publish new galleries for feed readers.</p></div>
+      <label class="choice-row"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> <span><strong>Generate /feed.xml</strong><small>Include published galleries in the site feed.</small></span></label>
+      {{if .BaseURL}}<p class="field-help">Links use <strong>{{.BaseURL}}</strong>. <a href="{{$.BasePath}}/settings">Change the Base URL</a>.</p>{{else}}<p class="field-help">Set a <a href="{{$.BasePath}}/settings">Base URL under Site settings</a> to enable the feed.</p>{{end}}
+    </section>
 
-  <h2>Protected galleries</h2>
-  <p><span>Generate access-control files for the web server that hosts the published site.</span></p>
-  <label class="field"><span>Web server</span>
-    <select name="webserver">
-      <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
-      <option value="apache"{{if eq .Webserver "apache"}} selected{{end}}>Apache</option>
-    </select>
-  </label>
-  <label class="field"><span>Server root (absolute deployed output path, e.g. /srv/site)</span><input name="server_root" value="{{.ServerRoot}}"></label>
+    <section class="settings-panel">
+      <div class="settings-panel-heading"><h2>Protected galleries</h2><p>Generate access-control files for the deployed web server.</p></div>
+      <label class="field"><span>Web server</span>
+        <select name="webserver">
+          <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
+          <option value="apache"{{if eq .Webserver "apache"}} selected{{end}}>Apache</option>
+        </select>
+      </label>
+      <label class="field"><span>Absolute server root</span><input name="server_root" value="{{.ServerRoot}}" placeholder="/srv/site"></label>
+    </section>
+  </div>
 </form>
 
-<section class="card settings-card">
+<section class="card settings-wide-card">
   <h2>Lightroom Classic</h2>
   <p><span>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</span></p>
   {{if .GeneratedPublishToken}}

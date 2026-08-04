@@ -779,7 +779,7 @@ func TestLensMetadataSettings(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_pagination_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_page_size" value="60"`) ||
-		!strings.Contains(rec.Body.String(), `Generate a <strong>Camera</strong> browse page`) {
+		!strings.Contains(rec.Body.String(), `<strong>Camera</strong><small>Generate a public Camera browse page.</small>`) {
 		t.Fatal("settings page did not retain lens metadata settings")
 	}
 }
