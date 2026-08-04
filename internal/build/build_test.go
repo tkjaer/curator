@@ -165,11 +165,12 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeSourceImage(t, filepath.Join(cfg.OriginalsDir(), "trip", "a.jpg"), 1)
-	if _, err := st.CreateItem(ctx, model.Item{
+	itemID, err := st.CreateItem(ctx, model.Item{
 		GalleryID: gid, OriginalPath: filepath.Join("trip", "a.jpg"), Filename: "a.jpg",
 		Width: 600, Height: 400, Aspect: model.AspectLandscape, Status: model.ItemPublished,
 		Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm",
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -185,6 +186,7 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	}
 	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
 	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
+	manualPage := filepath.Join(cfg.OutputDir, "browse", "lens", "manual-prime", "index.html")
 
 	build()
 	mustNotExist(t, xmpPage)
@@ -203,6 +205,20 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	}
 	build()
 	mustNotExist(t, xmpPage)
+	mustExist(t, mappedPage)
+
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "Manual Prime", "stale cached value"); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, mappedPage)
+	mustExist(t, manualPage)
+
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached value"); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, manualPage)
 	mustExist(t, mappedPage)
 }
 

@@ -188,7 +188,7 @@ func TestItemTextMetadataPreservesEdits(t *testing.T) {
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Imported title", "Imported description"); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Replacement title", "Replacement description"); err != nil {
@@ -199,7 +199,7 @@ func TestItemTextMetadataPreservesEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.Title != "Edited title" || it.Description != "Edited description" || it.Caption != "Caption" {
+	if it.Title != "Edited title" || it.Description != "Edited description" || it.Caption != "Caption" || it.ManualLens != "Manual lens" || it.Lens != "Manual lens" {
 		t.Fatalf("presentation metadata was overwritten: %+v", it)
 	}
 }
@@ -303,6 +303,30 @@ func TestXMPProfileUsages(t *testing.T) {
 	if len(usages) != 2 || usages[0].Camera != "FUJIFILM GFX 50R" || usages[0].Count != 2 || usages[0].SidecarCount != 1 ||
 		usages[1].Camera != "Leica M10" || usages[1].Count != 1 {
 		t.Fatalf("profile usages = %+v", usages)
+	}
+}
+
+func TestLensSuggestionsPreferManualUsage(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, ids := makeGalleryWithItems(t, st, 3)
+	if err := st.UpdateItemPresentation(ctx, ids[0], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[1], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[2], "", "", "", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
+		t.Fatal(err)
+	}
+
+	suggestions, err := st.LensSuggestions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(suggestions) != 2 || suggestions[0].Name != "Manual lens" || suggestions[0].ManualCount != 1 ||
+		suggestions[1].Name != "Automatic lens" || suggestions[1].Count != 2 {
+		t.Fatalf("suggestions = %+v", suggestions)
 	}
 }
 

@@ -76,6 +76,11 @@ To build and copy it to a remote host with `rsync`:
 
 Use `./curator help` for all commands and options.
 
+## Lens metadata
+
+See the [lens metadata guide](docs/lens-metadata.md) for correcting lens names,
+tagging manual or adapted lenses, and configuring automatic resolution.
+
 ## Lightroom Classic
 
 The publish-service plugin is in

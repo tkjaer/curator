@@ -14,11 +14,11 @@ func (s *Store) CreateItem(ctx context.Context, it model.Item) (int64, error) {
 		`INSERT INTO items
 			(gallery_id, original_path, filename, width, height, aspect,
 			 highlighted, sort_order, status, title, description, caption, exif, camera, lens,
-			 embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 embedded_lens, lightroom_lens, manual_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		it.GalleryID, it.OriginalPath, it.Filename, it.Width, it.Height, it.Aspect,
 		it.Highlighted, it.SortOrder, it.Status, it.Title, it.Description, it.Caption,
-		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens,
+		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.LightroomLens, it.ManualLens, it.SidecarLens, it.XMPLens,
 		it.Aperture, it.Shutter, it.ISO, it.Focal, timeToNull(it.TakenAt))
 	if err != nil {
 		return 0, err
@@ -37,11 +37,11 @@ func (s *Store) ReplaceItemMedia(ctx context.Context, it model.Item) error {
 
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE items SET gallery_id = ?, original_path = ?, filename = ?, width = ?, height = ?, aspect = ?,
-			exif = ?, camera = ?, lens = ?, embedded_lens = ?, lightroom_lens = ?, sidecar_lens = ?, xmp_lens = ?,
+			exif = ?, camera = ?, lens = ?, embedded_lens = ?, lightroom_lens = ?, manual_lens = ?, sidecar_lens = ?, xmp_lens = ?,
 			aperture = ?, shutter = ?, iso = ?, focal = ?, taken_at = ?, updated_at = datetime('now')
 		WHERE id = ?`,
 		it.GalleryID, it.OriginalPath, it.Filename, it.Width, it.Height, it.Aspect,
-		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens,
+		it.EXIF, it.Camera, it.Lens, it.EmbeddedLens, it.LightroomLens, it.ManualLens, it.SidecarLens, it.XMPLens,
 		it.Aperture, it.Shutter, it.ISO, it.Focal, timeToNull(it.TakenAt), it.ID); err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (s *Store) ItemsByGallery(ctx context.Context, galleryID int64) ([]model.It
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
 		        highlighted, sort_order, status, title, description, caption, exif, camera, lens,
-		        embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
+		        embedded_lens, lightroom_lens, manual_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items
 		  WHERE gallery_id = ?
 		  ORDER BY `+orderBy, galleryID)
@@ -101,7 +101,7 @@ func (s *Store) AllItems(ctx context.Context) ([]model.Item, error) {
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, gallery_id, original_path, filename, width, height, aspect,
 		        highlighted, sort_order, status, title, description, caption, exif, camera, lens,
-		        embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
+		        embedded_lens, lightroom_lens, manual_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		   FROM items ORDER BY id`)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (s *Store) ItemsInGalleryTree(ctx context.Context, galleryID int64) ([]mode
 		)
 		SELECT id, gallery_id, original_path, filename, width, height, aspect,
 		       highlighted, sort_order, status, title, description, caption, exif, camera, lens,
-		       embedded_lens, lightroom_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
+		       embedded_lens, lightroom_lens, manual_lens, sidecar_lens, xmp_lens, aperture, shutter, iso, focal, taken_at
 		  FROM items WHERE gallery_id IN (SELECT id FROM tree) ORDER BY id`, galleryID)
 	if err != nil {
 		return nil, err
@@ -143,6 +143,39 @@ type CameraLensClue struct {
 	MaxApertureAPEX string
 	XMPProfile      string
 	Count           int
+}
+
+// LensSuggestion is an existing effective lens name that can be reused as a
+// manual override. Explicit override usage ranks ahead of total usage.
+type LensSuggestion struct {
+	Name        string
+	Count       int
+	ManualCount int
+}
+
+// LensSuggestions returns existing effective lens names ordered by how useful
+// they are likely to be when assigning another photo.
+func (s *Store) LensSuggestions(ctx context.Context) ([]LensSuggestion, error) {
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT trim(lens), count(*), sum(CASE WHEN trim(manual_lens) <> '' THEN 1 ELSE 0 END)
+		   FROM items
+		  WHERE trim(lens) <> ''
+		  GROUP BY trim(lens)
+		  ORDER BY 3 DESC, 2 DESC, trim(lens) COLLATE NOCASE`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suggestions []LensSuggestion
+	for rows.Next() {
+		var suggestion LensSuggestion
+		if err := rows.Scan(&suggestion.Name, &suggestion.Count, &suggestion.ManualCount); err != nil {
+			return nil, err
+		}
+		suggestions = append(suggestions, suggestion)
+	}
+	return suggestions, rows.Err()
 }
 
 // CameraLensClues returns metadata combinations for photos without an embedded
@@ -215,7 +248,7 @@ func scanItems(rows *sql.Rows) ([]model.Item, error) {
 		if err := rows.Scan(&it.ID, &it.GalleryID, &it.OriginalPath, &it.Filename,
 			&it.Width, &it.Height, &it.Aspect, &it.Highlighted, &it.SortOrder,
 			&it.Status, &it.Title, &it.Description, &it.Caption, &it.EXIF, &it.Camera, &it.Lens,
-			&it.EmbeddedLens, &it.LightroomLens, &it.SidecarLens, &it.XMPLens,
+			&it.EmbeddedLens, &it.LightroomLens, &it.ManualLens, &it.SidecarLens, &it.XMPLens,
 			&it.Aperture, &it.Shutter, &it.ISO, &it.Focal, &taken); err != nil {
 			return nil, err
 		}
