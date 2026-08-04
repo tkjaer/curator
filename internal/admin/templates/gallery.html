@@ -163,7 +163,7 @@
     </button>
     <figcaption>
       <div class="item-title"><span class="fn">{{if .Title}}{{.Title}}{{else}}{{.Filename}}{{end}}</span><span class="item-filename"{{if or (not .Title) (eq .Title .Filename)}} hidden{{end}}>{{.Filename}}</span></div>
-      <div class="item-badges"><span class="badge">{{.Status}}</span><span class="cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>Cover</span>{{if .Highlighted}}<span class="badge highlight-label">Highlight</span>{{end}}</div>
+      <div class="item-badges"><span class="badge">{{.Status}}</span><span class="badge cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>&#9733; Cover</span>{{if .Highlighted}}<span class="badge highlight-label">Highlight</span>{{end}}</div>
       <div class="item-card-actions">
         <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move photo up" title="Move up">&uarr;</button></form>
         <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/items/{{.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move photo down" title="Move down">&darr;</button></form>
