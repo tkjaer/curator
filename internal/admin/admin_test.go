@@ -146,6 +146,7 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`<dialog class="photo-editor-dialog" id="photo-editor">`,
 		`role="tablist" aria-label="Photo editor sections"`,
 		`data-photo-editor-panel="metadata" hidden`,
+		`.cover-label[hidden] { display: none; }`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery photo editor missing %q", want)
