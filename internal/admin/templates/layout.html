@@ -163,7 +163,7 @@
   .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 1rem; }
   .thumbs figure { overflow: hidden; margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
   .thumbs img { display: block; width: 100%; height: auto; background: var(--surface-muted); }
-  .thumbs figcaption { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .65rem; align-items: center; padding: .7rem .75rem; color: var(--muted); font-size: .8rem; word-break: break-word; }
+  .thumbs figcaption { display: grid; grid-template-columns: minmax(0, 1fr); gap: .65rem; align-items: center; padding: .7rem .75rem; color: var(--muted); font-size: .8rem; word-break: break-word; }
   .item .fn { display: block; overflow: hidden; margin: 0; color: var(--ink); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
   .item.is-cover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), var(--shadow); }
   .item form { display: grid; grid-template-columns: 1fr auto; gap: .5rem; align-items: center; }
@@ -176,8 +176,9 @@
   .item-summary { min-width: 0; }
   .item-title { display: block; min-width: 0; }
   .item-filename { display: block; overflow: hidden; margin-top: .12rem; font-size: .7rem; text-overflow: ellipsis; white-space: nowrap; }
-  .item-badges { display: flex; min-height: 21px; gap: .3rem; align-items: center; margin-top: .45rem; overflow: hidden; }
-  .item-card-actions { display: flex; gap: .25rem; }
+  .item-badges { display: flex; min-height: 21px; gap: .3rem; align-items: center; flex-wrap: wrap; margin-top: .45rem; }
+  .item-badges .badge, .item-badges .cover-label { white-space: nowrap; }
+  .item-card-actions { display: flex; gap: .25rem; justify-content: flex-end; }
   .item-card-actions form { display: inline; }
   .badge { display: inline-block; padding: .15rem .5rem; color: #2949ae; background: var(--accent-soft); border: 1px solid #c4cef2; border-radius: 999px; font-size: .72rem; font-weight: 700; }
   .progress { height: 7px; overflow: hidden; margin: .7rem 0; background: var(--surface-muted); border-radius: 99px; }
