@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/tkjaer/curator/internal/imaging"
+	"github.com/tkjaer/curator/internal/ingest"
 	"github.com/tkjaer/curator/internal/model"
 	"github.com/tkjaer/curator/internal/render"
 	"github.com/tkjaer/curator/internal/slug"
@@ -37,6 +38,7 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 		if it.Status != model.ItemPublished {
 			continue
 		}
+		it.Camera = ingest.ResolveCamera(it.EmbeddedCamera, it.ManualCamera)
 		it.Lens = b.lensPolicy.Resolve(it.Camera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens, it.ManualLens)
 		if !g.ShowTitle.Resolve(b.settings["site.default_gallery_show_title"] != "false") {
 			it.Title = ""

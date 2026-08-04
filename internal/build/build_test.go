@@ -157,6 +157,9 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	if err := st.SetFacetEnabled(ctx, "lens", true); err != nil {
 		t.Fatal(err)
 	}
+	if err := st.SetFacetEnabled(ctx, "camera", true); err != nil {
+		t.Fatal(err)
+	}
 
 	gid, err := st.CreateGallery(ctx, model.Gallery{
 		Slug: "trip", Title: "Trip", Type: model.GalleryGrid, Status: model.GalleryPublished,
@@ -187,9 +190,12 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
 	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
 	manualPage := filepath.Join(cfg.OutputDir, "browse", "lens", "manual-prime", "index.html")
+	importedCameraPage := filepath.Join(cfg.OutputDir, "browse", "camera", "fujifilm-gfx-50r", "index.html")
+	manualCameraPage := filepath.Join(cfg.OutputDir, "browse", "camera", "leica-m6", "index.html")
 
 	build()
 	mustNotExist(t, xmpPage)
+	mustExist(t, importedCameraPage)
 
 	if err := st.SetSetting(ctx, "metadata.use_lightroom_lens_profile", "true"); err != nil {
 		t.Fatal(err)
@@ -207,19 +213,33 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	mustNotExist(t, xmpPage)
 	mustExist(t, mappedPage)
 
-	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "Manual Prime", "stale cached value"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached camera", "Manual Prime", "stale cached value"); err != nil {
 		t.Fatal(err)
 	}
 	build()
 	mustNotExist(t, mappedPage)
 	mustExist(t, manualPage)
 
-	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached value"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached camera", "", "stale cached value"); err != nil {
 		t.Fatal(err)
 	}
 	build()
 	mustNotExist(t, manualPage)
 	mustExist(t, mappedPage)
+
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "Leica M6", "stale cached camera", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, importedCameraPage)
+	mustExist(t, manualCameraPage)
+
+	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached camera", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, manualCameraPage)
+	mustExist(t, importedCameraPage)
 }
 
 func TestCopyrightLine(t *testing.T) {

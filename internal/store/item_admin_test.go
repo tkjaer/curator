@@ -209,7 +209,7 @@ func TestItemTextMetadataPreservesEdits(t *testing.T) {
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Imported title", "Imported description"); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[0], "Edited title", "Edited description", "Caption", model.ItemPublished, false, "", "", "Manual lens", "Manual lens"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.FillItemTextMetadata(ctx, ids[0], "Replacement title", "Replacement description"); err != nil {
@@ -251,7 +251,7 @@ func TestUpdateItemEXIF(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Camera != "Canon EOS R5" || got.EmbeddedLens != "RF 50mm F1.2" ||
+	if got.Camera != "Canon EOS R5" || got.EmbeddedCamera != "Canon EOS R5" || got.EmbeddedLens != "RF 50mm F1.2" ||
 		got.LightroomLens != "Catalog lens" || got.XMPLens != "Adobe fallback" || got.ISO != "400" || got.Focal != "50 mm" {
 		t.Errorf("EXIF not updated: %+v", got)
 	}
@@ -331,13 +331,13 @@ func TestLensSuggestionsPreferManualUsage(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
 	_, ids := makeGalleryWithItems(t, st, 3)
-	if err := st.UpdateItemPresentation(ctx, ids[0], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[0], "", "", "", model.ItemPublished, false, "", "", "", "Automatic lens"); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.UpdateItemPresentation(ctx, ids[1], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[1], "", "", "", model.ItemPublished, false, "", "", "", "Automatic lens"); err != nil {
 		t.Fatal(err)
 	}
-	if err := st.UpdateItemPresentation(ctx, ids[2], "", "", "", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, ids[2], "", "", "", model.ItemPublished, false, "", "", "Manual lens", "Manual lens"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -347,6 +347,30 @@ func TestLensSuggestionsPreferManualUsage(t *testing.T) {
 	}
 	if len(suggestions) != 2 || suggestions[0].Name != "Manual lens" || suggestions[0].ManualCount != 1 ||
 		suggestions[1].Name != "Automatic lens" || suggestions[1].Count != 2 {
+		t.Fatalf("suggestions = %+v", suggestions)
+	}
+}
+
+func TestCameraSuggestionsPreferManualUsage(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, ids := makeGalleryWithItems(t, st, 3)
+	if err := st.UpdateItemPresentation(ctx, ids[0], "", "", "", model.ItemPublished, false, "", "Automatic camera", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[1], "", "", "", model.ItemPublished, false, "", "Automatic camera", "", ""); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[2], "", "", "", model.ItemPublished, false, "Leica M6", "Leica M6", "", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	suggestions, err := st.CameraSuggestions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(suggestions) != 2 || suggestions[0].Name != "Leica M6" || suggestions[0].ManualCount != 1 ||
+		suggestions[1].Name != "Automatic camera" || suggestions[1].Count != 2 {
 		t.Fatalf("suggestions = %+v", suggestions)
 	}
 }

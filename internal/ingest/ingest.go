@@ -88,11 +88,12 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 			continue
 		}
 		it.EXIF = meta.Raw
-		it.Camera = meta.Camera
+		it.EmbeddedCamera = meta.Camera
+		it.Camera = ResolveCamera(it.EmbeddedCamera, it.ManualCamera)
 		it.EmbeddedLens = meta.Lens
 		it.SidecarLens = meta.SidecarLens
 		it.XMPLens = meta.XMPLens
-		it.Lens = policy.Resolve(meta.Camera, meta.Lens, it.LightroomLens, meta.SidecarLens, meta.XMPLens, it.ManualLens)
+		it.Lens = policy.Resolve(it.Camera, meta.Lens, it.LightroomLens, meta.SidecarLens, meta.XMPLens, it.ManualLens)
 		it.Aperture = meta.Aperture
 		it.Shutter = meta.Shutter
 		it.ISO = meta.ISO
@@ -156,6 +157,7 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	}
 	item.ID = itemID
 	item.LightroomLens = oldItem.LightroomLens
+	item.ManualCamera = oldItem.ManualCamera
 	item.ManualLens = oldItem.ManualLens
 	settings, err := st.Settings(ctx)
 	if err != nil {
@@ -165,6 +167,7 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	if err != nil {
 		return err
 	}
+	item.Camera = ResolveCamera(item.EmbeddedCamera, item.ManualCamera)
 	item.Lens = policy.Resolve(item.Camera, item.EmbeddedLens, item.LightroomLens, item.SidecarLens, item.XMPLens, item.ManualLens)
 	if err := st.ReplaceItemMedia(ctx, item); err != nil {
 		return err
@@ -222,27 +225,36 @@ func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, g
 	}
 
 	return model.Item{
-		GalleryID:    galleryID,
-		OriginalPath: filepath.ToSlash(filepath.Join(galleryPath, storedName)),
-		Filename:     name,
-		Width:        w,
-		Height:       h,
-		Aspect:       model.ClassifyAspect(w, h),
-		Status:       model.ItemPublished,
-		Title:        meta.Title,
-		Description:  meta.Description,
-		EXIF:         meta.Raw,
-		Camera:       meta.Camera,
-		Lens:         policy.Lens(meta),
-		EmbeddedLens: meta.Lens,
-		SidecarLens:  meta.SidecarLens,
-		XMPLens:      meta.XMPLens,
-		Aperture:     meta.Aperture,
-		Shutter:      meta.Shutter,
-		ISO:          meta.ISO,
-		Focal:        meta.Focal,
-		TakenAt:      meta.TakenAt,
+		GalleryID:      galleryID,
+		OriginalPath:   filepath.ToSlash(filepath.Join(galleryPath, storedName)),
+		Filename:       name,
+		Width:          w,
+		Height:         h,
+		Aspect:         model.ClassifyAspect(w, h),
+		Status:         model.ItemPublished,
+		Title:          meta.Title,
+		Description:    meta.Description,
+		EXIF:           meta.Raw,
+		Camera:         meta.Camera,
+		EmbeddedCamera: meta.Camera,
+		Lens:           policy.Lens(meta),
+		EmbeddedLens:   meta.Lens,
+		SidecarLens:    meta.SidecarLens,
+		XMPLens:        meta.XMPLens,
+		Aperture:       meta.Aperture,
+		Shutter:        meta.Shutter,
+		ISO:            meta.ISO,
+		Focal:          meta.Focal,
+		TakenAt:        meta.TakenAt,
 	}, nil
+}
+
+// ResolveCamera chooses a manual camera name over the imported EXIF value.
+func ResolveCamera(embeddedCamera, manualCamera string) string {
+	if manualCamera != "" {
+		return manualCamera
+	}
+	return embeddedCamera
 }
 
 // LensPolicy controls explicit lens overrides and metadata fallbacks.
