@@ -145,6 +145,39 @@ type CameraLensClue struct {
 	Count           int
 }
 
+// LensSuggestion is an existing effective lens name that can be reused as a
+// manual override. Explicit override usage ranks ahead of total usage.
+type LensSuggestion struct {
+	Name        string
+	Count       int
+	ManualCount int
+}
+
+// LensSuggestions returns existing effective lens names ordered by how useful
+// they are likely to be when assigning another photo.
+func (s *Store) LensSuggestions(ctx context.Context) ([]LensSuggestion, error) {
+	rows, err := s.DB.QueryContext(ctx,
+		`SELECT trim(lens), count(*), sum(CASE WHEN trim(manual_lens) <> '' THEN 1 ELSE 0 END)
+		   FROM items
+		  WHERE trim(lens) <> ''
+		  GROUP BY trim(lens)
+		  ORDER BY 3 DESC, 2 DESC, trim(lens) COLLATE NOCASE`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var suggestions []LensSuggestion
+	for rows.Next() {
+		var suggestion LensSuggestion
+		if err := rows.Scan(&suggestion.Name, &suggestion.Count, &suggestion.ManualCount); err != nil {
+			return nil, err
+		}
+		suggestions = append(suggestions, suggestion)
+	}
+	return suggestions, rows.Err()
+}
+
 // CameraLensClues returns metadata combinations for photos without an embedded
 // lens name. MaxApertureAPEX is retained as a rational for conversion by the UI.
 func (s *Store) CameraLensClues(ctx context.Context) ([]CameraLensClue, error) {

@@ -205,7 +205,10 @@
               <div><dt>Camera</dt><dd data-photo-editor-camera></dd></div>
               <div><dt>Resolved lens</dt><dd data-photo-editor-lens></dd></div>
             </dl>
-            <label class="field"><span>Manual lens override</span><input type="text" name="manual_lens" placeholder="Use automatically detected lens"></label>
+            <label class="field"><span>Manual lens override</span><input type="text" name="manual_lens" list="lens-suggestions" placeholder="Use automatically detected lens"></label>
+            <datalist id="lens-suggestions">
+              {{range $.Data.LensSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}
+            </datalist>
           </section>
           <section class="photo-editor-section" id="photo-editor-publishing" role="tabpanel" data-photo-editor-panel="publishing" hidden>
             <div class="photo-editor-section-heading"><h3>Publishing</h3><p>Control where this photo appears in the gallery.</p></div>

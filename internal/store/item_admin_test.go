@@ -306,6 +306,30 @@ func TestXMPProfileUsages(t *testing.T) {
 	}
 }
 
+func TestLensSuggestionsPreferManualUsage(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, ids := makeGalleryWithItems(t, st, 3)
+	if err := st.UpdateItemPresentation(ctx, ids[0], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[1], "", "", "", model.ItemPublished, false, "", "Automatic lens"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateItemPresentation(ctx, ids[2], "", "", "", model.ItemPublished, false, "Manual lens", "Manual lens"); err != nil {
+		t.Fatal(err)
+	}
+
+	suggestions, err := st.LensSuggestions(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(suggestions) != 2 || suggestions[0].Name != "Manual lens" || suggestions[0].ManualCount != 1 ||
+		suggestions[1].Name != "Automatic lens" || suggestions[1].Count != 2 {
+		t.Fatalf("suggestions = %+v", suggestions)
+	}
+}
+
 func TestMoveGalleryCyclePrevention(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

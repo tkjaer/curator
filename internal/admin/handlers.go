@@ -251,6 +251,7 @@ type galleryData struct {
 	Gallery              model.Gallery
 	Breadcrumbs          []galleryRow
 	Items                []model.Item
+	LensSuggestions      []store.LensSuggestion
 	Statuses             []string
 	ItemStatuses         []string
 	CoverID              int64
@@ -305,6 +306,11 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	lensSuggestions, err := s.store.LensSuggestions(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	var cover int64
 	if g.CoverItemID != nil {
 		cover = *g.CoverItemID
@@ -313,6 +319,7 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	data := galleryData{
 		Gallery:            g,
 		Items:              items,
+		LensSuggestions:    lensSuggestions,
 		Statuses:           []string{"draft", "unlisted", "published", "protected"},
 		ItemStatuses:       []string{"draft", "unlisted", "published"},
 		CoverID:            cover,

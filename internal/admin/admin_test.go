@@ -125,7 +125,7 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 	itemID, err := srv.store.CreateItem(ctx, model.Item{
 		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
-		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", ManualLens: `A "manual" <lens>`, Status: model.ItemPublished,
+		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", Lens: `A "manual" <lens>`, ManualLens: `A "manual" <lens>`, Status: model.ItemPublished,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -147,7 +147,9 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`<dialog class="photo-editor-dialog" id="photo-editor">`,
 		`role="tablist" aria-label="Photo editor sections"`,
 		`data-photo-editor-panel="metadata" hidden`,
-		`name="manual_lens"`,
+		`name="manual_lens" list="lens-suggestions"`,
+		`<datalist id="lens-suggestions">`,
+		`<option value="A &#34;manual&#34; &lt;lens&gt;" label="1 photo"></option>`,
 		`.cover-label[hidden] { display: none; }`,
 	} {
 		if !strings.Contains(body, want) {
