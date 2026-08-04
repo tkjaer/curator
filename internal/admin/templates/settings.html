@@ -37,7 +37,9 @@
     </select>
   </label>
   <label><input type="checkbox" name="default_gallery_published"{{if .DefaultPublished}} checked{{end}}> Publish new galleries immediately</label>
-  <label><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> Show EXIF in new gallery lightboxes</label>
+  <label><input type="checkbox" name="default_gallery_show_title"{{if .DefaultShowTitle}} checked{{end}}> Show photo titles</label>
+  <label><input type="checkbox" name="default_gallery_show_description"{{if .DefaultShowDescription}} checked{{end}}> Show photo descriptions</label>
+  <label><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> Show EXIF in lightboxes</label>
 
   <h2>Theme</h2>
   {{$cur := .Theme}}
@@ -47,6 +49,13 @@
     </select>
   </label>
 
+</form>
+
+<h2>Gallery overrides</h2>
+<form class="card" method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset" onsubmit="return confirm('Reset metadata display overrides for every gallery?')">
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <p>Existing galleries can override the photo detail defaults above.</p>
+  <button type="submit">Reset all galleries to defaults</button>
 </form>
 
 <h2>Admin password</h2>

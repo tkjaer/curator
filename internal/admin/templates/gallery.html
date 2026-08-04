@@ -64,10 +64,30 @@
         </form>
       </div>
       <div class="setting-control exif-setting">
-        <span>Metadata</span>
-        <form class="toggle-form" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/exif">
+        <span>Photo details</span>
+        <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/presentation">
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <label><input type="checkbox" name="show_exif"{{if .Gallery.ShowEXIF}} checked{{end}}> Show EXIF in lightbox</label>
+          <label><span>Title</span>
+            <select name="show_title">
+              <option value="inherit"{{if eq (printf "%d" .Gallery.ShowTitle) "0"}} selected{{end}}>Default: {{if .PresentationDefaults.ShowTitle}}Show{{else}}Hide{{end}}</option>
+              <option value="show"{{if eq (printf "%d" .Gallery.ShowTitle) "1"}} selected{{end}}>Show</option>
+              <option value="hide"{{if eq (printf "%d" .Gallery.ShowTitle) "2"}} selected{{end}}>Hide</option>
+            </select>
+          </label>
+          <label><span>Description</span>
+            <select name="show_description">
+              <option value="inherit"{{if eq (printf "%d" .Gallery.ShowDescription) "0"}} selected{{end}}>Default: {{if .PresentationDefaults.ShowDescription}}Show{{else}}Hide{{end}}</option>
+              <option value="show"{{if eq (printf "%d" .Gallery.ShowDescription) "1"}} selected{{end}}>Show</option>
+              <option value="hide"{{if eq (printf "%d" .Gallery.ShowDescription) "2"}} selected{{end}}>Hide</option>
+            </select>
+          </label>
+          <label><span>EXIF</span>
+            <select name="show_exif">
+              <option value="inherit"{{if eq (printf "%d" .Gallery.ShowEXIF) "0"}} selected{{end}}>Default: {{if .PresentationDefaults.ShowEXIF}}Show{{else}}Hide{{end}}</option>
+              <option value="show"{{if eq (printf "%d" .Gallery.ShowEXIF) "1"}} selected{{end}}>Show</option>
+              <option value="hide"{{if eq (printf "%d" .Gallery.ShowEXIF) "2"}} selected{{end}}>Hide</option>
+            </select>
+          </label>
         </form>
       </div>
     </div>

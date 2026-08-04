@@ -82,18 +82,32 @@ func (s *Store) EffectiveGallerySortDirection(ctx context.Context, direction mod
 	return model.SortAscending, nil
 }
 
-// GalleryDefaults returns the initial visibility and EXIF presentation for new
-// galleries. Missing settings retain the conservative draft/off behavior.
-func (s *Store) GalleryDefaults(ctx context.Context) (model.GalleryStatus, bool, error) {
+// GalleryDefaults returns creation-time defaults. Presentation settings are
+// inherited dynamically and therefore are not copied onto new galleries.
+func (s *Store) GalleryDefaults(ctx context.Context) (model.GalleryStatus, error) {
 	settings, err := s.Settings(ctx)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	status := model.GalleryDraft
 	if settings["site.default_gallery_published"] == "true" {
 		status = model.GalleryPublished
 	}
-	return status, settings["site.default_gallery_show_exif"] == "true", nil
+	return status, nil
+}
+
+// GalleryPresentationDefaults returns the site-wide metadata visibility used
+// by galleries whose corresponding setting is inherited.
+func (s *Store) GalleryPresentationDefaults(ctx context.Context) (model.GalleryPresentationDefaults, error) {
+	settings, err := s.Settings(ctx)
+	if err != nil {
+		return model.GalleryPresentationDefaults{}, err
+	}
+	return model.GalleryPresentationDefaults{
+		ShowEXIF:        settings["site.default_gallery_show_exif"] == "true",
+		ShowTitle:       settings["site.default_gallery_show_title"] != "false",
+		ShowDescription: settings["site.default_gallery_show_description"] != "false",
+	}, nil
 }
 
 func decodeSetting(raw string) string {

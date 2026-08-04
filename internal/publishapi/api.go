@@ -166,7 +166,7 @@ func (a *API) handleUpsertGallery(w http.ResponseWriter, r *http.Request) {
 		}
 		parentID = &id
 	}
-	status, showEXIF, err := a.store.GalleryDefaults(r.Context())
+	status, err := a.store.GalleryDefaults(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load gallery defaults")
 		return
@@ -184,7 +184,7 @@ func (a *API) handleUpsertGallery(w http.ResponseWriter, r *http.Request) {
 	}
 	id, created, err := a.store.UpsertExternalGallery(r.Context(), "lightroom", externalID, model.Gallery{
 		ParentID: parentID, Slug: gallerySlug, Title: input.Title, Description: input.Description,
-		Type: model.GalleryGrid, Status: status, SortMode: model.SortDefault, ShowEXIF: showEXIF,
+		Type: model.GalleryGrid, Status: status, SortMode: model.SortDefault,
 	})
 	if err != nil {
 		writeError(w, http.StatusConflict, "could not synchronize gallery: "+err.Error())
@@ -258,7 +258,7 @@ func (a *API) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 	} else {
 		input.Slug = slug.Make(input.Slug)
 	}
-	status, showEXIF, err := a.store.GalleryDefaults(r.Context())
+	status, err := a.store.GalleryDefaults(r.Context())
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "could not load gallery defaults")
 		return
@@ -273,7 +273,7 @@ func (a *API) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 	id, err := a.store.CreateGallery(r.Context(), model.Gallery{
 		ParentID: input.ParentID, Slug: input.Slug, Title: input.Title,
 		Description: input.Description, Type: model.GalleryGrid, Status: status,
-		SortMode: model.SortDefault, ShowEXIF: showEXIF,
+		SortMode: model.SortDefault,
 	})
 	if err != nil {
 		writeError(w, http.StatusConflict, "could not create gallery: "+err.Error())
