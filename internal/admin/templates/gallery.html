@@ -25,7 +25,7 @@
     </label>
   </form>
   <details class="gallery-options">
-    <summary>Settings</summary>
+    <summary>Gallery options</summary>
     <div class="gallery-options-panel">
       <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
         <input type="hidden" name="_csrf" value="{{$.CSRF}}">
@@ -649,6 +649,14 @@
   document.addEventListener("pointercancel", function (event) { finishPhotoDrag(event.pointerId); });
 
   document.addEventListener("click", function (event) {
+    var galleryOptions = document.querySelector(".gallery-options");
+    if (galleryOptions && galleryOptions.open && !galleryOptions.contains(event.target)) {
+      galleryOptions.open = false;
+    }
+    if (photoEditor && photoEditor.open && event.target === photoEditor) {
+      photoEditor.close();
+      return;
+    }
     var arrangeToggle = event.target.closest("[data-toggle-arrange]");
     if (arrangeToggle) {
       setArrangeMode(arrangeToggle.getAttribute("aria-pressed") !== "true");

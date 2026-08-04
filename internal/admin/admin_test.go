@@ -110,7 +110,7 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
 		`<details class="gallery-options">`,
-		`<summary>Settings</summary>`,
+		`<summary>Gallery options</summary>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery missing %q", want)
