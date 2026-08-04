@@ -61,6 +61,7 @@
   form.inline { display: inline; }
   input, select, textarea, button { min-height: 40px; border: 1px solid #c9cdc7; border-radius: 5px; font: inherit; }
   input, select, textarea { max-width: 100%; padding: .55rem .7rem; color: var(--ink); background: var(--surface); }
+  select { padding: .6rem 2rem .6rem .75rem; }
   input:not([type="checkbox"]):not([type="file"]), select { width: min(100%, 460px); }
   textarea { width: 100%; resize: vertical; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: 3px solid #3157d526; }
@@ -218,14 +219,16 @@
   .toggle-form { display: flex; height: 36px; align-items: center; white-space: nowrap; }
   .toggle-form label { font-size: .82rem; font-weight: 600; }
   .order-setting { min-width: 0; }
-  .order-setting form { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.15fr); gap: .5rem; }
+  .order-setting form { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(200px, 1.15fr); gap: .75rem; }
   .gallery-options { position: relative; min-width: 0; }
   .gallery-options > summary { display: flex; height: 36px; min-height: 36px; width: max-content; align-items: center; padding: .35rem .75rem; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 5px; font-size: .82rem; font-weight: 650; line-height: normal; cursor: pointer; list-style: none; }
   .gallery-options > summary::-webkit-details-marker { display: none; }
   .gallery-options > summary:hover, .gallery-options[open] > summary { color: var(--ink); background: var(--surface-muted); }
-  .gallery-options-panel { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 4; width: min(430px, calc(100vw - 3rem)); padding: .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
-  .gallery-options-panel > .setting-control + .setting-control { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--line); }
-  .gallery-options-panel .setting-control > span { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
+  .gallery-options-panel { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 4; width: min(500px, calc(100vw - 3rem)); padding: 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
+  .gallery-options-panel > .setting-control + .setting-control { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+  .gallery-options-panel .setting-control > span { display: block; margin-bottom: .5rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
+  .gallery-options-panel .setting-control form { display: grid; gap: .75rem; }
+  .gallery-options-panel form label > span { margin-bottom: .4rem; }
   .gallery-options-panel select { width: 100%; }
   .settings-menu { position: relative; align-self: end; margin-left: auto; }
   .settings-menu > summary { display: grid; width: 36px; height: 36px; place-items: center; color: var(--muted); border: 1px solid transparent; border-radius: 5px; cursor: pointer; list-style: none; }
@@ -355,6 +358,8 @@
     .settings-panel-wide { grid-column: auto; }
     .settings-links { width: 100%; justify-content: flex-start; }
     .settings-row { flex-wrap: wrap; }
+    .gallery-options { flex: 1 1 100%; }
+    .gallery-options-panel { position: static; width: 100%; margin-top: .4rem; }
     .compact-form, .add-block { grid-template-columns: 1fr; }
     .section-heading { align-items: stretch; flex-direction: column; }
     .media-actions { align-items: stretch; justify-content: flex-start; flex-wrap: wrap; }
