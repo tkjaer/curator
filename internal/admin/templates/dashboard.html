@@ -2,8 +2,13 @@
 {{with .Data}}
 <div id="build-status" class="card build-status" hidden>
   <div class="build-status-heading"><div><strong>Publish</strong> <span id="build-stage"></span></div><button class="build-dismiss" id="build-dismiss" type="button" aria-label="Dismiss publish status" title="Dismiss">&times;</button></div>
+  <div class="publish-steps" aria-label="Publish progress">
+    <span id="publish-build-step">Build</span>
+    <span id="publish-rsync-step" hidden>Rsync</span>
+  </div>
   <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
   <p id="build-summary"></p>
+  <p class="publish-rsync-detail" id="publish-rsync-detail" hidden></p>
 </div>
 <div class="page-head">
   <div>
@@ -108,6 +113,9 @@
   var bar = document.getElementById("build-bar");
   var stage = document.getElementById("build-stage");
   var summary = document.getElementById("build-summary");
+  var buildStep = document.getElementById("publish-build-step");
+  var rsyncStep = document.getElementById("publish-rsync-step");
+  var rsyncDetail = document.getElementById("publish-rsync-detail");
   var dismiss = document.getElementById("build-dismiss");
   var currentBuildKey = "";
   var dismissKey = "curator-dismissed-build:" + base;
@@ -117,6 +125,12 @@
     box.hidden = true;
     if (timer) { clearInterval(timer); timer = null; }
   });
+  function stepState(element, state) {
+    element.dataset.state = state;
+  }
+  function stageName(name) {
+    return {images: "Images", render: "Pages", finishing: "Finishing", Rsync: "Rsync"}[name] || name;
+  }
   function poll() {
     fetch(base + "/build/status").then(function (r) { return r.json(); }).then(function (s) {
       if (!s.everRun) { box.hidden = true; return; }
@@ -128,19 +142,26 @@
       }
       box.hidden = false;
       dismiss.hidden = s.running;
+      rsyncStep.hidden = !s.rsyncStatus;
+      rsyncDetail.hidden = !s.rsyncStatus;
+      stepState(buildStep, s.rsyncStatus ? "complete" : (s.error ? "failed" : (s.running ? "running" : "complete")));
+      if (s.rsyncStatus) stepState(rsyncStep, s.rsyncStatus);
       if (s.running) {
-        stage.textContent = s.stage + (s.total ? " " + s.done + "/" + s.total : "");
-        bar.style.width = (s.total ? Math.round(s.done / s.total * 100) : 0) + "%";
-        summary.textContent = s.stage === "Deploying" ? "Deploying with rsync…" : "Building site…";
+        stage.textContent = stageName(s.stage) + (s.total ? " " + s.done + "/" + s.total : "");
+        bar.style.width = (s.rsyncStatus === "running" ? 100 : (s.total ? Math.round(s.done / s.total * 100) : 0)) + "%";
+        summary.textContent = s.rsyncStatus === "running" ? "Build complete. Syncing generated site…" : "Building site…";
+        rsyncDetail.textContent = s.rsyncStatus ? "Destination: " + s.rsyncTarget : "";
         if (!timer) timer = setInterval(poll, 700);
       } else {
         bar.style.width = "100%";
         stage.textContent = "";
-        if (s.error) summary.textContent = "Publish failed: " + s.error;
-        else summary.textContent = (s.stage === "Deploying" ? "Published and deployed " : "Published ") + s.galleries + " galleries, " + s.photos +
+        if (s.error) summary.textContent = (s.rsyncStatus === "failed" ? "Rsync failed: " : "Publish failed: ") + s.error;
+        else summary.textContent = "Published " + s.galleries + " galleries, " + s.photos +
           " photos (" + s.generated + " generated, " + s.reused + " reused" +
           (s.feedUpdated ? "; Atom feed updated" : "") + ") in " +
           (s.durationMs / 1000).toFixed(1) + "s";
+        rsyncDetail.textContent = s.rsyncStatus ?
+          (s.rsyncStatus === "complete" ? "Rsync complete · " : "Rsync failed · ") + s.rsyncTarget : "";
         if (timer) { clearInterval(timer); timer = null; }
       }
     }).catch(function () {});

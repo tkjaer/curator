@@ -108,7 +108,7 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
 		`<details class="gallery-options">`,
-		`<summary>Edit gallery settings</summary>`,
+		`<summary>Settings</summary>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery missing %q", want)
@@ -426,7 +426,8 @@ func TestBuildDeploysConfiguredRsyncTarget(t *testing.T) {
 		t.Fatalf("publish steps = %v", steps)
 	}
 	status := srv.builds.snapshot()
-	if status.Running || status.Error != "" || status.Stage != "Deploying" {
+	if status.Running || status.Error != "" || status.Stage != "Rsync" ||
+		status.RsyncStatus != "complete" || status.RsyncTarget != "photos@example.com:/srv/site" {
 		t.Fatalf("publish status = %#v", status)
 	}
 }
@@ -454,6 +455,35 @@ func TestFailedBuildDoesNotDeploy(t *testing.T) {
 	}
 	if got := srv.builds.snapshot().Error; got != "render failed" {
 		t.Fatalf("publish error = %q", got)
+	}
+}
+
+func TestFailedRsyncIsReportedSeparately(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	for key, value := range map[string]string{
+		"publish.rsync_enabled": "true",
+		"publish.rsync_target":  "photos@example.com:/srv/site",
+	} {
+		if err := srv.store.SetSetting(ctx, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	srv.build = func(context.Context, func(build.Progress)) (build.Report, error) {
+		return build.Report{Galleries: 1}, nil
+	}
+	srv.deploy = func(context.Context, string, bool) error {
+		return errors.New("connection refused")
+	}
+	if !srv.builds.begin() {
+		t.Fatal("build did not begin")
+	}
+	srv.runBuildQueue()
+
+	status := srv.builds.snapshot()
+	if status.Running || status.RsyncStatus != "failed" || status.RsyncTarget != "photos@example.com:/srv/site" ||
+		status.Error != "connection refused" {
+		t.Fatalf("publish status = %#v", status)
 	}
 }
 

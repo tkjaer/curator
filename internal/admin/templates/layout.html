@@ -186,38 +186,46 @@
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .build-status { position: relative; }
   .build-status-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .publish-steps { display: flex; gap: 1rem; margin-top: .6rem; color: var(--muted); font-size: .75rem; font-weight: 700; }
+  .publish-steps span { display: inline-flex; align-items: center; gap: .35rem; }
+  .publish-steps span::before { width: 7px; height: 7px; content: ""; background: var(--line); border-radius: 50%; }
+  .publish-steps span[data-state="running"] { color: var(--ink); }
+  .publish-steps span[data-state="running"]::before { background: var(--accent); }
+  .publish-steps span[data-state="complete"]::before { background: var(--ink); }
+  .publish-steps span[data-state="failed"] { color: var(--danger); }
+  .publish-steps span[data-state="failed"]::before { background: var(--danger); }
+  .publish-rsync-detail { margin-top: -.25rem; color: var(--muted); font-size: .78rem; }
   .build-dismiss { width: 32px; min-height: 32px; padding: 0; color: var(--muted); background: transparent; border-color: transparent; font-size: 1.25rem; }
   .build-dismiss:hover { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .subgalleries { padding: 0; list-style: none; }
   .subgalleries li { padding: .65rem 0; border-bottom: 1px solid var(--line); }
-  .gallery-page-head { margin-bottom: .75rem; }
-  .gallery-settings { margin: .75rem 0 1.5rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
-  .settings-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 48px; padding: .6rem 1rem; border-bottom: 1px solid var(--line); }
-  .settings-identity, .settings-links { display: flex; align-items: center; gap: .65rem; min-width: 0; }
-  .gallery-type { color: var(--muted); font-size: .78rem; font-weight: 700; text-transform: capitalize; }
+  .gallery-page-head { align-items: center; margin-bottom: .75rem; }
+  .gallery-settings { margin: 0 0 1.5rem; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .settings-links { display: flex; align-items: center; gap: .65rem; min-width: 0; }
   .settings-links { justify-content: flex-end; font-size: .78rem; white-space: nowrap; }
-  .settings-links a { font-weight: 700; text-decoration: none; }
+  .settings-links a { color: var(--muted); font-weight: 650; text-decoration: none; }
+  .settings-links a:hover { color: var(--ink); }
   .visibility-note { padding: .12rem .4rem; color: var(--muted); background: var(--surface-muted); border-radius: 3px; font-size: .7rem; font-weight: 700; }
-  .settings-row { display: grid; grid-template-columns: minmax(150px, 190px) minmax(210px, 1fr) 36px; gap: .75rem; align-items: end; padding: .85rem 1rem 1rem; }
+  .settings-row { display: flex; gap: .5rem; align-items: end; padding: .65rem 0; }
   .setting-control { min-width: 0; }
   .setting-control > span, .settings-row form > label > span, .add-block label > span { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
-  .settings-row select { width: 100%; height: 36px; min-height: 36px; padding: .35rem .55rem; }
+  .settings-row select { width: 150px; height: 36px; min-height: 36px; padding: .35rem .55rem; }
+  .listing-setting select, .listing-setting option { text-transform: capitalize; }
   .toggle-form { display: flex; height: 36px; align-items: center; white-space: nowrap; }
   .toggle-form label { font-size: .82rem; font-weight: 600; }
   .order-setting { min-width: 0; }
   .order-setting form { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.15fr); gap: .5rem; }
-  .gallery-options { position: relative; min-width: 0; justify-self: start; }
-  .gallery-options > summary { display: flex; height: 36px; min-height: 36px; width: max-content; align-items: center; padding: .35rem .75rem; color: var(--ink); background: var(--surface-muted); border: 1px solid var(--line); border-radius: 5px; font-size: .82rem; font-weight: 700; line-height: normal; cursor: pointer; list-style: none; }
+  .gallery-options { position: relative; min-width: 0; }
+  .gallery-options > summary { display: flex; height: 36px; min-height: 36px; width: max-content; align-items: center; padding: .35rem .75rem; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 5px; font-size: .82rem; font-weight: 650; line-height: normal; cursor: pointer; list-style: none; }
   .gallery-options > summary::-webkit-details-marker { display: none; }
-  .gallery-options > summary:hover { background: var(--line); }
-  .gallery-options[open] > summary { color: var(--accent); background: var(--accent-soft); border-color: var(--accent); }
+  .gallery-options > summary:hover, .gallery-options[open] > summary { color: var(--ink); background: var(--surface-muted); }
   .gallery-options-panel { position: absolute; top: calc(100% + .4rem); left: 0; z-index: 4; width: min(430px, calc(100vw - 3rem)); padding: .8rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
   .gallery-options-panel > .setting-control + .setting-control { margin-top: .75rem; padding-top: .75rem; border-top: 1px solid var(--line); }
   .gallery-options-panel .setting-control > span { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
-  .settings-menu { position: relative; align-self: end; }
-  .settings-menu > summary { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; list-style: none; }
+  .settings-menu { position: relative; align-self: end; margin-left: auto; }
+  .settings-menu > summary { display: grid; width: 36px; height: 36px; place-items: center; color: var(--muted); border: 1px solid transparent; border-radius: 5px; cursor: pointer; list-style: none; }
   .settings-menu > summary::-webkit-details-marker { display: none; }
-  .settings-menu[open] > summary { background: var(--surface-muted); }
+  .settings-menu > summary:hover, .settings-menu[open] > summary { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .settings-menu form { position: absolute; top: calc(100% + .4rem); right: 0; z-index: 3; width: max-content; padding: .6rem; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow); }
   .organization-panel { margin: 1rem 0 2rem; border: 1px solid var(--line); border-radius: 6px; }
   .organization-panel > summary { display: flex; align-items: center; gap: .6rem; padding: .7rem .85rem; cursor: pointer; list-style: none; }
@@ -328,12 +336,8 @@
     .settings-save-row { top: 0; }
     .settings-grid { grid-template-columns: 1fr; }
     .settings-panel-wide { grid-column: auto; }
-    .settings-heading { align-items: flex-start; flex-direction: column; }
     .settings-links { width: 100%; justify-content: flex-start; }
-    .settings-row { grid-template-columns: 1fr 1fr; }
-    .order-setting { grid-column: 1 / -1; }
-    .gallery-options { grid-column: 1 / -1; }
-    .settings-menu { justify-self: end; }
+    .settings-row { flex-wrap: wrap; }
     .compact-form, .add-block { grid-template-columns: 1fr; }
     .section-heading { align-items: stretch; flex-direction: column; }
     .upload-form { width: min(100%, 440px); }
@@ -364,17 +368,15 @@
     .metadata-rescan button { align-self: flex-start; }
     .override-reset-row, .override-reset-all { align-items: stretch; flex-direction: column; }
     .override-reset-row button, .override-reset-all button { width: 100%; }
-    .settings-row { grid-template-columns: minmax(0, 1fr) 36px; }
     .settings-form > .settings-save-row { position: static; align-items: stretch; flex-direction: column; }
     .settings-form > .settings-save-row button { width: 100%; }
     .settings-field-grid, .settings-field-grid-copyright { grid-template-columns: 1fr; }
-    .listing-setting { grid-column: 1 / -1; }
-    .gallery-options { grid-column: 1; }
+    .listing-setting { flex: 1 1 100%; }
+    .listing-setting select { width: 100%; }
+    .gallery-options { flex: 1 1 auto; }
     .gallery-options-panel { position: static; width: 100%; margin-top: .4rem; }
     .order-setting form { grid-template-columns: 1fr; }
-    .settings-identity { flex-wrap: wrap; }
     .settings-links { flex-wrap: wrap; white-space: normal; }
-    .settings-menu { position: relative; grid-column: 2; grid-row: 2; justify-self: start; margin: 0; }
     .upload-form { flex-direction: column; }
     .upload-form button { width: 100%; }
     .thumbs { grid-template-columns: 1fr; }
