@@ -22,6 +22,7 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	caption := r.FormValue("caption")
 	status := model.ItemStatus(r.FormValue("status"))
 	highlighted := r.FormValue("highlight") == "on"
+	manualCamera := strings.TrimSpace(r.FormValue("manual_camera"))
 	manualLens := strings.TrimSpace(r.FormValue("manual_lens"))
 
 	settings, err := s.store.Settings(r.Context())
@@ -34,15 +35,16 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
-	effectiveLens := policy.Resolve(it.Camera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens, manualLens)
-	if err := s.store.UpdateItemPresentation(r.Context(), it.ID, title, description, caption, status, highlighted, manualLens, effectiveLens); err != nil {
+	effectiveCamera := ingest.ResolveCamera(it.EmbeddedCamera, manualCamera)
+	effectiveLens := policy.Resolve(effectiveCamera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens, manualLens)
+	if err := s.store.UpdateItemPresentation(r.Context(), it.ID, title, description, caption, status, highlighted, manualCamera, effectiveCamera, manualLens, effectiveLens); err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
 	if r.Header.Get("X-Curator-Async") == "true" {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"message": "Photo updated", "redirect": s.galleryLink(it.GalleryID), "resolvedLens": effectiveLens,
+			"message": "Photo updated", "redirect": s.galleryLink(it.GalleryID), "resolvedCamera": effectiveCamera, "resolvedLens": effectiveLens,
 		})
 		return
 	}

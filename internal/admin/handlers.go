@@ -251,6 +251,7 @@ type galleryData struct {
 	Gallery              model.Gallery
 	Breadcrumbs          []galleryRow
 	Items                []model.Item
+	CameraSuggestions    []store.CameraSuggestion
 	LensSuggestions      []store.LensSuggestion
 	Statuses             []string
 	ItemStatuses         []string
@@ -306,6 +307,11 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	cameraSuggestions, err := s.store.CameraSuggestions(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	lensSuggestions, err := s.store.LensSuggestions(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -319,6 +325,7 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	data := galleryData{
 		Gallery:            g,
 		Items:              items,
+		CameraSuggestions:  cameraSuggestions,
 		LensSuggestions:    lensSuggestions,
 		Statuses:           []string{"draft", "unlisted", "published", "protected"},
 		ItemStatuses:       []string{"draft", "unlisted", "published"},

@@ -166,7 +166,7 @@
 <div id="photo-list" aria-label="Gallery photos">
 <div class="thumbs">
   {{range .Items}}
-  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-filename="{{.Filename}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-move-action="{{$.BasePath}}/items/{{.ID}}/move" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-filename="{{.Filename}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-embedded-camera="{{.EmbeddedCamera}}" data-manual-camera="{{.ManualCamera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-move-action="{{$.BasePath}}/items/{{.ID}}/move" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
     <button class="item-preview" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}">
       <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" width="{{.Width}}" height="{{.Height}}" loading="lazy">
       <span class="item-badges"><span class="item-marker status-label"{{if eq (printf "%s" .Status) "published"}} hidden{{end}}>{{.Status}}</span><span class="item-marker cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>&#9733; Cover</span>{{if .Highlighted}}<span class="item-marker highlight-label">Highlight</span>{{end}}</span>
@@ -205,9 +205,14 @@
           <section class="photo-editor-section" id="photo-editor-metadata" role="tabpanel" data-photo-editor-panel="metadata" hidden>
             <div class="photo-editor-section-heading"><h3>Metadata</h3><p>Values currently resolved from the photo's source metadata.</p></div>
             <dl class="photo-editor-metadata">
-              <div><dt>Camera</dt><dd data-photo-editor-camera></dd></div>
+              <div><dt>Imported camera</dt><dd data-photo-editor-embedded-camera></dd></div>
+              <div><dt>Resolved camera</dt><dd data-photo-editor-camera></dd></div>
               <div><dt>Resolved lens</dt><dd data-photo-editor-lens></dd></div>
             </dl>
+            <label class="field"><span>Manual camera override</span><input type="text" name="manual_camera" list="camera-suggestions" placeholder="Use automatically detected camera"></label>
+            <datalist id="camera-suggestions">
+              {{range $.Data.CameraSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}
+            </datalist>
             <label class="field"><span>Manual lens override</span><input type="text" name="manual_lens" list="lens-suggestions" placeholder="Use automatically detected lens"></label>
             <datalist id="lens-suggestions">
               {{range $.Data.LensSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}
@@ -376,7 +381,7 @@
     if (photoEditor && photoEditor.open && activePhotoItem) updatePhotoEditorState(activePhotoItem);
   }
 
-  function applyItemPresentation(form, item, values, resolvedLens) {
+  function applyItemPresentation(form, item, values, resolvedCamera, resolvedLens) {
     if (!form.classList.contains("item-editor") || !item) return;
     var title = (values.get("title") || "").trim();
     var description = values.get("description") || "";
@@ -410,9 +415,12 @@
     item.dataset.caption = caption;
     item.dataset.status = status;
     item.dataset.highlighted = String(highlighted);
+    item.dataset.manualCamera = (values.get("manual_camera") || "").trim();
+    item.dataset.camera = resolvedCamera || "";
     item.dataset.manualLens = (values.get("manual_lens") || "").trim();
     item.dataset.lens = resolvedLens || "";
     if (item === activePhotoItem) {
+      photoEditor.querySelector("[data-photo-editor-camera]").textContent = resolvedCamera || "Not detected";
       photoEditor.querySelector("[data-photo-editor-lens]").textContent = resolvedLens || "Not detected";
       updatePhotoEditorState(item);
     }
@@ -460,7 +468,7 @@
       var failed = /^(Could not|Invalid|Unknown)/.test(result.message || "");
       showState(form, failed ? result.message : "Saved", failed);
       if (!failed) {
-        applyItemPresentation(form, element, values, result.resolvedLens);
+        applyItemPresentation(form, element, values, result.resolvedCamera, result.resolvedLens);
         applyAction(form, element);
         if (form.closest(".gallery-settings") &&
             (form.action.endsWith("/status") || form.action.endsWith("/move"))) {
@@ -537,6 +545,7 @@
     photoEditor.querySelector("[data-photo-editor-filename]").textContent = filename;
     photoEditor.querySelector("[data-photo-editor-dimensions]").textContent = sourceWidth + " × " + sourceHeight;
     updatePhotoEditorState(item);
+    photoEditor.querySelector("[data-photo-editor-embedded-camera]").textContent = item.dataset.embeddedCamera || "Not detected";
     photoEditor.querySelector("[data-photo-editor-camera]").textContent = item.dataset.camera || "Not detected";
     photoEditor.querySelector("[data-photo-editor-lens]").textContent = item.dataset.lens || "Not detected";
 
@@ -545,6 +554,7 @@
     form.elements.title.value = item.dataset.title;
     form.elements.description.value = item.dataset.description;
     form.elements.caption.value = item.dataset.caption;
+    form.elements.manual_camera.value = item.dataset.manualCamera;
     form.elements.manual_lens.value = item.dataset.manualLens;
     form.elements.status.value = item.dataset.status;
     form.elements.highlight.checked = item.dataset.highlighted === "true";

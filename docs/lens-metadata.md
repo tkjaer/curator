@@ -1,4 +1,21 @@
-# Lens metadata
+# Camera and lens metadata
+
+Curator keeps the imported camera name separate from an optional manual camera
+override. This is useful for scanned film, where EXIF may identify a scanner
+such as `Frontier` instead of the camera that exposed the negative.
+
+## Camera overrides
+
+Open a photo in the admin and select **Metadata → Manual camera override**.
+Choose a camera already used in the library or enter a new name. Galleries,
+lightboxes, camera browse pages, and camera-based lens mappings use the manual
+name while the override is present.
+
+The imported EXIF camera remains visible in the editor for provenance. Clearing
+the override restores that imported value. Camera overrides remain attached to
+the photo when source metadata is refreshed or its image is replaced.
+
+## Lens metadata
 
 Curator keeps lens values from each metadata source separately and resolves one
 effective lens name for galleries, lightboxes, and lens browse pages.

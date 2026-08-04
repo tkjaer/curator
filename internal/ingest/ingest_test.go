@@ -89,7 +89,7 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	}
 
 	it := items[0]
-	if err := st.UpdateItemPresentation(ctx, it.ID, it.Title, it.Description, it.Caption, it.Status, it.Highlighted, "Manual override", "Manual override"); err != nil {
+	if err := st.UpdateItemPresentation(ctx, it.ID, it.Title, it.Description, it.Caption, it.Status, it.Highlighted, "Leica M6", "Leica M6", "Manual override", "Manual override"); err != nil {
 		t.Fatal(err)
 	}
 	if updated, skipped, err := Rescan(ctx, st, cfg); err != nil || updated != 1 || skipped != 0 {
@@ -99,8 +99,8 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.ManualLens != "Manual override" || it.Lens != "Manual override" {
-		t.Fatalf("rescan lost manual lens: %+v", it)
+	if it.ManualCamera != "Leica M6" || it.Camera != "Leica M6" || it.ManualLens != "Manual override" || it.Lens != "Manual override" {
+		t.Fatalf("rescan lost manual metadata: %+v", it)
 	}
 
 	var replacement bytes.Buffer
@@ -114,8 +114,17 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.ManualLens != "Manual override" || it.Lens != "Manual override" {
-		t.Fatalf("replacement lost manual lens: %+v", it)
+	if it.ManualCamera != "Leica M6" || it.Camera != "Leica M6" || it.ManualLens != "Manual override" || it.Lens != "Manual override" {
+		t.Fatalf("replacement lost manual metadata: %+v", it)
+	}
+}
+
+func TestResolveCamera(t *testing.T) {
+	if got := ResolveCamera("Frontier", "Leica M6"); got != "Leica M6" {
+		t.Fatalf("manual camera = %q, want Leica M6", got)
+	}
+	if got := ResolveCamera("Frontier", ""); got != "Frontier" {
+		t.Fatalf("imported camera = %q, want Frontier", got)
 	}
 }
 

@@ -127,7 +127,7 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 	itemID, err := srv.store.CreateItem(ctx, model.Item{
 		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
-		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", Lens: `A "manual" <lens>`, ManualLens: `A "manual" <lens>`, Status: model.ItemPublished,
+		Title: `A "title" <unsafe>`, Description: "<b>Description</b>", Camera: `A "manual" <camera>`, EmbeddedCamera: "Frontier", ManualCamera: `A "manual" <camera>`, Lens: `A "manual" <lens>`, ManualLens: `A "manual" <lens>`, Status: model.ItemPublished,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -144,11 +144,16 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`data-item-id="` + strconv.FormatInt(itemID, 10) + `"`,
 		`data-title="A &#34;title&#34; &lt;unsafe&gt;"`,
 		`data-description="&lt;b&gt;Description&lt;/b&gt;"`,
+		`data-embedded-camera="Frontier"`,
+		`data-manual-camera="A &#34;manual&#34; &lt;camera&gt;"`,
 		`data-manual-lens="A &#34;manual&#34; &lt;lens&gt;"`,
 		`data-update-action="/items/` + strconv.FormatInt(itemID, 10) + `/update"`,
 		`<dialog class="photo-editor-dialog" id="photo-editor">`,
 		`role="tablist" aria-label="Photo editor sections"`,
 		`data-photo-editor-panel="metadata" hidden`,
+		`name="manual_camera" list="camera-suggestions"`,
+		`<datalist id="camera-suggestions">`,
+		`<option value="A &#34;manual&#34; &lt;camera&gt;" label="1 photo"></option>`,
 		`name="manual_lens" list="lens-suggestions"`,
 		`<datalist id="lens-suggestions">`,
 		`<option value="A &#34;manual&#34; &lt;lens&gt;" label="1 photo"></option>`,
@@ -206,7 +211,7 @@ func TestItemCoverCanBeSetAndRemoved(t *testing.T) {
 	}
 }
 
-func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
+func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()
 	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "photos", Title: "Photos"})
@@ -215,15 +220,15 @@ func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
 	}
 	itemID, err := srv.store.CreateItem(ctx, model.Item{
 		GalleryID: galleryID, OriginalPath: "photos/image.jpg", Filename: "image.jpg",
-		Status: model.ItemPublished, EmbeddedLens: "Detected lens", Lens: "Detected lens",
+		Status: model.ItemPublished, EmbeddedCamera: "Frontier", Camera: "Frontier", EmbeddedLens: "Detected lens", Lens: "Detected lens",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	update := func(manualLens string) *httptest.ResponseRecorder {
+	update := func(manualCamera, manualLens string) *httptest.ResponseRecorder {
 		t.Helper()
-		form := url.Values{"status": {string(model.ItemPublished)}, "manual_lens": {manualLens}}
+		form := url.Values{"status": {string(model.ItemPublished)}, "manual_camera": {manualCamera}, "manual_lens": {manualLens}}
 		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/update", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("X-Curator-Async", "true")
@@ -232,7 +237,10 @@ func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
 		return rec
 	}
 
-	rec := update("  Manual lens  ")
+	rec := update("  Leica M6  ", "  Manual lens  ")
+	if body := rec.Body.String(); !strings.Contains(body, `"resolvedCamera":"Leica M6"`) {
+		t.Fatalf("manual update response = %q", body)
+	}
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Manual lens"`) {
 		t.Fatalf("manual update response = %q", body)
 	}
@@ -240,11 +248,14 @@ func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.ManualLens != "Manual lens" || it.Lens != "Manual lens" {
+	if it.EmbeddedCamera != "Frontier" || it.ManualCamera != "Leica M6" || it.Camera != "Leica M6" || it.ManualLens != "Manual lens" || it.Lens != "Manual lens" {
 		t.Fatalf("manual update stored %+v", it)
 	}
 
-	rec = update("")
+	rec = update("", "")
+	if body := rec.Body.String(); !strings.Contains(body, `"resolvedCamera":"Frontier"`) {
+		t.Fatalf("clear response = %q", body)
+	}
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Detected lens"`) {
 		t.Fatalf("clear response = %q", body)
 	}
@@ -252,7 +263,7 @@ func TestItemUpdateSetsAndClearsManualLens(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if it.ManualLens != "" || it.Lens != "Detected lens" {
+	if it.EmbeddedCamera != "Frontier" || it.ManualCamera != "" || it.Camera != "Frontier" || it.ManualLens != "" || it.Lens != "Detected lens" {
 		t.Fatalf("cleared manual update stored %+v", it)
 	}
 }
