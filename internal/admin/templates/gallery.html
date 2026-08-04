@@ -205,7 +205,7 @@
             <div class="photo-editor-section-heading"><h3>Metadata</h3><p>Values currently resolved from the photo's source metadata.</p></div>
             <dl class="photo-editor-metadata">
               <div><dt>Camera</dt><dd data-photo-editor-camera></dd></div>
-              <div><dt>Lens</dt><dd data-photo-editor-lens></dd></div>
+              <div><dt>Resolved lens</dt><dd data-photo-editor-lens></dd></div>
             </dl>
           </section>
           <section class="photo-editor-section" id="photo-editor-publishing" role="tabpanel" data-photo-editor-panel="publishing" hidden>
@@ -482,12 +482,14 @@
     var cardImage = item.querySelector(".item-preview img");
     var filename = item.querySelector(".item-filename").textContent;
     var preview = photoEditor.querySelector(".photo-editor-preview img");
+    var sourceWidth = cardImage.getAttribute("width");
+    var sourceHeight = cardImage.getAttribute("height");
     preview.src = cardImage.currentSrc || cardImage.src;
     preview.alt = filename;
-    preview.width = cardImage.getAttribute("width");
-    preview.height = cardImage.getAttribute("height");
+    preview.width = sourceWidth;
+    preview.height = sourceHeight;
     photoEditor.querySelector("[data-photo-editor-filename]").textContent = filename;
-    photoEditor.querySelector("[data-photo-editor-dimensions]").textContent = preview.width + " × " + preview.height;
+    photoEditor.querySelector("[data-photo-editor-dimensions]").textContent = sourceWidth + " × " + sourceHeight;
     photoEditor.querySelector("[data-photo-editor-camera]").textContent = item.dataset.camera || "Not detected";
     photoEditor.querySelector("[data-photo-editor-lens]").textContent = item.dataset.lens || "Not detected";
 
