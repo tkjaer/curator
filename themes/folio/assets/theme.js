@@ -6,8 +6,10 @@
   if (!dialog || typeof dialog.showModal !== "function") return;
 
   const img = dialog.querySelector(".lb-img");
+  const imageButton = dialog.querySelector(".lb-image-button");
   const caption = dialog.querySelector(".lb-caption");
   const exif = dialog.querySelector(".lb-exif");
+  if (!img || !imageButton) return;
   const links = [];
   const indexByID = new Map();
   function registerLinks(root) {
@@ -27,6 +29,93 @@
   if (links.length === 0) return;
 
   let index = -1;
+  let zoomed = false;
+  let zoomPending = false;
+  let zoomRequest = 0;
+  let panFrame = 0;
+  let panAnchor = null;
+
+  function resetZoom() {
+    zoomed = false;
+    zoomPending = false;
+    zoomRequest++;
+    cancelAnimationFrame(panFrame);
+    panAnchor = null;
+    dialog.classList.remove("is-zoomed");
+    imageButton.setAttribute("aria-label", "View image at actual size");
+    dialog.scrollLeft = 0;
+    dialog.scrollTop = 0;
+  }
+
+  function toggleZoom(e) {
+    if (e.pointerType && e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    if (zoomPending) return;
+    if (zoomed) {
+      resetZoom();
+      return;
+    }
+
+    const rect = img.getBoundingClientRect();
+    const fitWidth = rect.width;
+    const fitHeight = rect.height;
+    const clientX = e.detail > 0 ? e.clientX : dialog.clientWidth / 2;
+    const clientY = e.detail > 0 ? e.clientY : dialog.clientHeight / 2;
+    const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    const request = ++zoomRequest;
+    const requestedIndex = index;
+
+    const activate = (zoomSrc) => {
+      if (request !== zoomRequest || requestedIndex !== index) return;
+      zoomPending = false;
+      img.src = zoomSrc;
+      zoomed = true;
+      dialog.classList.add("is-zoomed");
+      imageButton.setAttribute("aria-label", "Fit image to window");
+      requestAnimationFrame(() => {
+        dialog.scrollLeft = Math.max(0, imageButton.offsetLeft + x * img.offsetWidth - dialog.clientWidth / 2);
+        dialog.scrollTop = Math.max(0, imageButton.offsetTop + y * img.offsetHeight - dialog.clientHeight / 2);
+        panAnchor = {
+          clientX,
+          clientY,
+          scrollLeft: dialog.scrollLeft,
+          scrollTop: dialog.scrollTop,
+          gainX: img.offsetWidth / Math.max(1, fitWidth),
+          gainY: img.offsetHeight / Math.max(1, fitHeight)
+        };
+      });
+    };
+    const zoomSrc = links[index].dataset.zoomSrc;
+    if (zoomSrc && img.getAttribute("src") !== zoomSrc) {
+      zoomPending = true;
+      const preload = new Image();
+      preload.onload = () => {
+        const decoded = typeof preload.decode === "function" ? preload.decode() : Promise.resolve();
+        decoded.catch(() => {}).then(() => activate(zoomSrc));
+      };
+      preload.onerror = () => {
+        if (request === zoomRequest) zoomPending = false;
+      };
+      preload.src = zoomSrc;
+    } else {
+      activate(zoomSrc || img.getAttribute("src"));
+    }
+  }
+
+  function panZoom(e) {
+    if (!zoomed || !panAnchor || (e.pointerType !== "mouse" && e.pointerType !== "pen")) return;
+    if (e.target.closest(".lb-btn")) return;
+    cancelAnimationFrame(panFrame);
+    panFrame = requestAnimationFrame(() => {
+      const maxX = dialog.scrollWidth - dialog.clientWidth;
+      const maxY = dialog.scrollHeight - dialog.clientHeight;
+      const left = panAnchor.scrollLeft + (e.clientX - panAnchor.clientX) * panAnchor.gainX;
+      const top = panAnchor.scrollTop + (e.clientY - panAnchor.clientY) * panAnchor.gainY;
+      dialog.scrollLeft = Math.max(0, Math.min(maxX, left));
+      dialog.scrollTop = Math.max(0, Math.min(maxY, top));
+    });
+  }
 
   function setHash(hash) {
     if (location.hash === hash) return;
@@ -47,6 +136,7 @@
   }
 
   function render(i) {
+    resetZoom();
     index = (i + links.length) % links.length;
     const link = links[index];
     img.src = link.getAttribute("href");
@@ -65,6 +155,7 @@
   // Clear the hash whenever the lightbox closes (backdrop, Esc, or button).
   // Registered first so a later missing button can't stop it from running.
   dialog.addEventListener("close", clearHash);
+  dialog.addEventListener("close", resetZoom);
   dialog.addEventListener("cancel", clearHash);
 
   document.addEventListener("curator:content-added", (e) => registerLinks(e.detail || document));
@@ -72,11 +163,13 @@
   bindClick(".lb-next", () => openAt(index + 1));
   bindClick(".lb-prev", () => openAt(index - 1));
   bindClick(".lb-close", () => dialog.close());
+  imageButton.addEventListener("click", toggleZoom);
+  dialog.addEventListener("pointermove", panZoom);
 
   // Close when the dark backdrop (the dialog itself, not the image or buttons)
   // is clicked.
   dialog.addEventListener("click", (e) => {
-    if (e.target === dialog) dialog.close();
+    if (e.target === dialog && !zoomed) dialog.close();
   });
 
   function bindClick(selector, fn) {
@@ -91,7 +184,9 @@
   });
 
   let startX = null;
-  dialog.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; }, { passive: true });
+  dialog.addEventListener("touchstart", (e) => {
+    startX = e.touches.length === 1 ? e.touches[0].clientX : null;
+  }, { passive: true });
   dialog.addEventListener("touchend", (e) => {
     if (startX === null) return;
     const dx = e.changedTouches[0].clientX - startX;

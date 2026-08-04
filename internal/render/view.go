@@ -62,6 +62,7 @@ type PhotoView struct {
 	Highlighted bool
 	Thumb       Source
 	Display     Source
+	Zoom        Source
 	Srcset      []Source
 	Href        string
 	Exif        *ExifView

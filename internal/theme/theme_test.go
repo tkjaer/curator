@@ -34,9 +34,11 @@ func samplePhotos() []render.PhotoView {
 			Width: w, Height: h, Aspect: aspect, Alt: alt,
 			Thumb:   render.Source{URL: "/_curator/img/" + alt + "-t.jpg", Width: 400},
 			Display: render.Source{URL: "/_curator/img/" + alt + "-d.jpg", Width: 1600},
+			Zoom:    render.Source{URL: "/_curator/img/" + alt + "-2400.jpg", Width: 2400},
 			Srcset: []render.Source{
 				{URL: "/_curator/img/" + alt + "-800.jpg", Width: 800},
 				{URL: "/_curator/img/" + alt + "-1600.jpg", Width: 1600},
+				{URL: "/_curator/img/" + alt + "-2400.jpg", Width: 2400},
 			},
 		}
 	}
@@ -68,7 +70,7 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`, `data-zoom-src="/_curator/img/a-2400.jpg"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}
@@ -142,9 +144,44 @@ func TestFolioTheme(t *testing.T) {
 		if err := th.Render(&buf, test.name, test.view); err != nil {
 			t.Fatalf("render %s: %v", test.name, err)
 		}
-		if strings.Contains(buf.String(), "<no value>") {
+		out := buf.String()
+		if strings.Contains(out, "<no value>") {
 			t.Errorf("%s produced <no value>", test.name)
 		}
+		for _, want := range []string{`data-zoom-src="/_curator/img/a-2400.jpg"`, `class="lb-image-button"`} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s missing %q", test.name, want)
+			}
+		}
+	}
+}
+
+func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
+	for _, name := range []string{"default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			assets, err := th.Assets()
+			if err != nil {
+				t.Fatal(err)
+			}
+			for file, wants := range map[string][]string{
+				"theme.css": {".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
+				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`},
+			} {
+				content, err := fs.ReadFile(assets, file)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, want := range wants {
+					if !strings.Contains(string(content), want) {
+						t.Errorf("%s missing %q", file, want)
+					}
+				}
+			}
+		})
 	}
 }
 

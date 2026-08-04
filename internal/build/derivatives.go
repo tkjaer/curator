@@ -135,6 +135,12 @@ func (b *Builder) derive(ctx context.Context, it model.Item, presets []model.Pre
 	if pv.Display.URL == "" && len(pv.Srcset) > 0 {
 		pv.Display = pv.Srcset[len(pv.Srcset)-1]
 	}
+	pv.Zoom = pv.Display
+	for _, src := range pv.Srcset {
+		if src.Width > pv.Zoom.Width {
+			pv.Zoom = src
+		}
+	}
 	return pv, nil
 }
 
