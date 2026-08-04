@@ -163,7 +163,7 @@ ITEM
   width, height, aspect (landscape | portrait | square | pano),
   highlighted, sort_order, status,
   title, description, caption, exif (json), camera,
-  embedded_lens, lightroom_lens, sidecar_lens, xmp_lens,
+  manual_lens, embedded_lens, lightroom_lens, sidecar_lens, xmp_lens,
   lens (effective cache), taken_at
 
 DERIVATIVE
@@ -250,13 +250,14 @@ gallery that still inherits it. Existing EXIF choices are preserved as
 explicit overrides when this model is introduced. The settings UI can reset
 all gallery presentation overrides to inheritance in one operation.
 
-Each build resolves the effective lens from the current metadata policy:
-a direct child of Lightroom's `Curator Lens` keyword first, then embedded EXIF,
-then a standard adjacent XMP sidecar (`aux:Lens` or `exifEX:LensModel`), then a
-configured fixed-camera mapping, then Lightroom XMP when that fallback is
-enabled. The explicit catalog keyword can therefore correct generic or
-incorrect embedded lens metadata. Changing this policy requires only another
-build, not a reread of the original files.
+Each build resolves the effective lens from the current metadata policy: the
+per-photo Curator manual override first, then a direct child of Lightroom's
+`Curator Lens` keyword, embedded EXIF, a standard adjacent XMP sidecar
+(`aux:Lens` or `exifEX:LensModel`), a configured fixed-camera mapping, and
+finally Lightroom XMP when that fallback is enabled. Manual overrides are
+durable source facts retained across metadata refreshes and media replacement;
+clearing one restores automatic resolution. Changing this policy requires only
+another build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.

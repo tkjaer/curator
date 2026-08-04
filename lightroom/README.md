@@ -72,6 +72,9 @@ JPEG. Removing the lens keyword and republishing clears the Lightroom value.
 Assigning multiple direct children fails that photo's publish rather than
 choosing one unpredictably.
 
-Lens precedence is the explicit Curator Lens keyword, embedded EXIF, direct XMP
-sidecar lens, camera mapping, then the optional Lightroom lens-profile fallback.
-Lightroom marks photos for republish after keyword changes.
+Lens precedence is a per-photo override entered in Curator, the explicit
+Curator Lens keyword, embedded EXIF, direct XMP sidecar lens, camera mapping,
+then the optional Lightroom lens-profile fallback. Lightroom marks photos for
+republish after keyword changes. See the
+[lens metadata guide](../docs/lens-metadata.md) for Curator-side overrides and
+resolution settings.
