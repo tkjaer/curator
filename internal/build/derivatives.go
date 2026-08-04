@@ -38,11 +38,17 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 			continue
 		}
 		it.Lens = b.lensPolicy.Resolve(it.Camera, it.EmbeddedLens, it.LightroomLens, it.SidecarLens, it.XMPLens)
+		if !g.ShowTitle.Resolve(b.settings["site.default_gallery_show_title"] != "false") {
+			it.Title = ""
+		}
+		if !g.ShowDescription.Resolve(b.settings["site.default_gallery_show_description"] != "false") {
+			it.Description = ""
+		}
 		pv, err := b.derive(ctx, it, presets, imgPrefix)
 		if err != nil {
 			return nil, nil, err
 		}
-		if g.ShowEXIF {
+		if g.ShowEXIF.Resolve(b.settings["site.default_gallery_show_exif"] == "true") {
 			pv.Exif = exifView(it)
 		}
 		if g.Status == model.GalleryPublished {

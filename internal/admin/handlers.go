@@ -189,14 +189,14 @@ func (s *Server) handleCreateGallery(w http.ResponseWriter, r *http.Request) {
 			parentID = &id
 		}
 	}
-	defaultStatus, defaultShowEXIF, err := s.store.GalleryDefaults(r.Context())
+	defaultStatus, err := s.store.GalleryDefaults(r.Context())
 	if err != nil {
 		s.redirect(w, r, s.link(), "Could not load gallery defaults")
 		return
 	}
 	id, err := s.store.CreateGallery(r.Context(), model.Gallery{
 		ParentID: parentID, Slug: sl, Title: title, Type: gType,
-		Status: defaultStatus, SortMode: model.SortDefault, ShowEXIF: defaultShowEXIF,
+		Status: defaultStatus, SortMode: model.SortDefault,
 	})
 	if err != nil {
 		s.redirect(w, r, s.link(), "Could not create gallery: "+err.Error())
@@ -248,25 +248,26 @@ func (s *Server) handleDeleteGallery(w http.ResponseWriter, r *http.Request) {
 }
 
 type galleryData struct {
-	Gallery            model.Gallery
-	Breadcrumbs        []galleryRow
-	Items              []model.Item
-	Statuses           []string
-	ItemStatuses       []string
-	CoverID            int64
-	Protected          bool
-	PublicURL          string
-	AccessUsers        []accessUserGrant
-	Children           []galleryRow
-	MoveTargets        []parentOption
-	CurrentParentID    int64
-	IsStory            bool
-	Blocks             []blockRow
-	BlockTypes         []string
-	ItemChoices        []itemChoice
-	CustomOrder        bool
-	AutomaticOrder     string
-	AutomaticDirection string
+	Gallery              model.Gallery
+	Breadcrumbs          []galleryRow
+	Items                []model.Item
+	Statuses             []string
+	ItemStatuses         []string
+	CoverID              int64
+	Protected            bool
+	PublicURL            string
+	AccessUsers          []accessUserGrant
+	Children             []galleryRow
+	MoveTargets          []parentOption
+	CurrentParentID      int64
+	IsStory              bool
+	Blocks               []blockRow
+	BlockTypes           []string
+	ItemChoices          []itemChoice
+	CustomOrder          bool
+	AutomaticOrder       string
+	AutomaticDirection   string
+	PresentationDefaults model.GalleryPresentationDefaults
 }
 
 type blockRow struct {
@@ -318,6 +319,11 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		Protected:          g.Status == model.GalleryProtected,
 		AutomaticOrder:     "Date taken",
 		AutomaticDirection: "Ascending",
+	}
+	data.PresentationDefaults, err = s.store.GalleryPresentationDefaults(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	effectiveSortMode, err := s.store.EffectiveGallerySortMode(ctx, g.SortMode)
 	if err != nil {
@@ -531,31 +537,35 @@ func (s *Server) handleGalleryStatus(w http.ResponseWriter, r *http.Request) {
 	s.redirect(w, r, s.galleryLink(id), "Status updated")
 }
 
-func (s *Server) handleGalleryEXIF(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleGalleryPresentation(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
 		return
 	}
-	show := r.FormValue("show_exif") == "on"
-	if err := s.store.UpdateGalleryShowEXIF(r.Context(), id, show); err != nil {
-		s.redirect(w, r, s.galleryLink(id), "Could not update EXIF setting")
+	if err := s.store.UpdateGalleryPresentation(r.Context(), id,
+		model.ParseVisibility(r.FormValue("show_exif")),
+		model.ParseVisibility(r.FormValue("show_title")),
+		model.ParseVisibility(r.FormValue("show_description"))); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not update metadata display")
 		return
 	}
-	s.redirect(w, r, s.galleryLink(id), "EXIF setting updated")
+	s.redirect(w, r, s.galleryLink(id), "Metadata display updated")
 }
 
 type settingsData struct {
-	Title            string
-	BaseURL          string
-	CopyrightHolder  string
-	CopyrightYear    string
-	CurrentYear      int
-	Theme            string
-	Themes           []string
-	DefaultOrder     string
-	DefaultDirection string
-	DefaultPublished bool
-	DefaultShowEXIF  bool
+	Title                  string
+	BaseURL                string
+	CopyrightHolder        string
+	CopyrightYear          string
+	CurrentYear            int
+	Theme                  string
+	Themes                 []string
+	DefaultOrder           string
+	DefaultDirection       string
+	DefaultPublished       bool
+	DefaultShowEXIF        bool
+	DefaultShowTitle       bool
+	DefaultShowDescription bool
 }
 
 type lensMappingRow struct {
@@ -621,15 +631,17 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
-		Title:            settings["site.title"],
-		BaseURL:          settings["site.base_url"],
-		CopyrightHolder:  settings["site.copyright_holder"],
-		CopyrightYear:    settings["site.copyright_start_year"],
-		CurrentYear:      time.Now().Year(),
-		Theme:            themeOr(settings["site.theme"]),
-		Themes:           s.themes,
-		DefaultPublished: settings["site.default_gallery_published"] == "true",
-		DefaultShowEXIF:  settings["site.default_gallery_show_exif"] == "true",
+		Title:                  settings["site.title"],
+		BaseURL:                settings["site.base_url"],
+		CopyrightHolder:        settings["site.copyright_holder"],
+		CopyrightYear:          settings["site.copyright_start_year"],
+		CurrentYear:            time.Now().Year(),
+		Theme:                  themeOr(settings["site.theme"]),
+		Themes:                 s.themes,
+		DefaultPublished:       settings["site.default_gallery_published"] == "true",
+		DefaultShowEXIF:        settings["site.default_gallery_show_exif"] == "true",
+		DefaultShowTitle:       settings["site.default_gallery_show_title"] != "false",
+		DefaultShowDescription: settings["site.default_gallery_show_description"] != "false",
 		DefaultOrder: func() string {
 			mode := model.SortMode(settings["site.default_gallery_order"])
 			if mode == model.SortByDateAdded || mode == model.SortByFilename {
@@ -730,7 +742,23 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
-	if err := s.store.SetSetting(ctx, "site.default_gallery_show_exif", strconv.FormatBool(r.FormValue("default_gallery_show_exif") == "on")); err != nil {
+	defaultShowEXIF := strconv.FormatBool(r.FormValue("default_gallery_show_exif") == "on")
+	defaultShowTitle := strconv.FormatBool(r.FormValue("default_gallery_show_title") == "on")
+	defaultShowDescription := strconv.FormatBool(r.FormValue("default_gallery_show_description") == "on")
+	if settings["site.default_gallery_show_exif"] != defaultShowEXIF ||
+		settings["site.default_gallery_show_title"] != defaultShowTitle ||
+		settings["site.default_gallery_show_description"] != defaultShowDescription {
+		buildNeeded = true
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_show_exif", defaultShowEXIF); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_show_title", defaultShowTitle); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_show_description", defaultShowDescription); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
@@ -739,6 +767,14 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		message += "; build site to publish changes"
 	}
 	s.redirect(w, r, s.link("settings"), message)
+}
+
+func (s *Server) handleResetGalleryPresentation(w http.ResponseWriter, r *http.Request) {
+	if err := s.store.ResetGalleryPresentationOverrides(r.Context()); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not reset gallery metadata display")
+		return
+	}
+	s.redirect(w, r, s.link("settings"), "All galleries now inherit metadata display defaults; build site to publish changes")
 }
 
 func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) {

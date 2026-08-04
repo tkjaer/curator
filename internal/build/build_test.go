@@ -73,6 +73,7 @@ func TestBuildProducesSite(t *testing.T) {
 	if _, err := st.CreateItem(ctx, model.Item{
 		GalleryID: gid, OriginalPath: origRel, Filename: "a.jpg",
 		Width: 1500, Height: 1000, Aspect: model.AspectLandscape, Status: model.ItemPublished,
+		Title: "Visible title", Description: "Visible description",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -84,9 +85,46 @@ func TestBuildProducesSite(t *testing.T) {
 	if err := New(st, th, cfg).Build(ctx); err != nil {
 		t.Fatalf("build: %v", err)
 	}
+	galleryPage := filepath.Join(cfg.OutputDir, "trip", "index.html")
+	page, err := os.ReadFile(galleryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), "Visible title") || !strings.Contains(string(page), "Visible description") {
+		t.Fatal("inherited title and description defaults were not rendered")
+	}
+	if err := st.SetSetting(ctx, "site.default_gallery_show_title", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "site.default_gallery_show_description", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatalf("rebuild with hidden metadata: %v", err)
+	}
+	page, err = os.ReadFile(galleryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(page), "Visible title") || strings.Contains(string(page), "Visible description") {
+		t.Fatal("hidden inherited title or description was rendered")
+	}
+	if err := st.UpdateGalleryPresentation(ctx, gid, model.VisibilityInherit, model.VisibilityShow, model.VisibilityInherit); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatalf("rebuild with title override: %v", err)
+	}
+	page, err = os.ReadFile(galleryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), "Visible title") || strings.Contains(string(page), "Visible description") {
+		t.Fatal("gallery title override did not supersede inherited defaults")
+	}
 
 	mustExist(t, filepath.Join(cfg.OutputDir, "index.html"))
-	mustExist(t, filepath.Join(cfg.OutputDir, "trip", "index.html"))
+	mustExist(t, galleryPage)
 	mustExist(t, filepath.Join(cfg.OutputDir, "_curator", "assets", "theme.css"))
 
 	imgs, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "_curator", "img", "*.jpg"))

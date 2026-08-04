@@ -224,8 +224,15 @@ func TestSyncGalleryUsesConfiguredDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gallery.Status != model.GalleryPublished || !gallery.ShowEXIF {
+	if gallery.Status != model.GalleryPublished || gallery.ShowEXIF != model.VisibilityInherit {
 		t.Fatalf("sync defaults not applied: %#v", gallery)
+	}
+	defaults, err := st.GalleryPresentationDefaults(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !gallery.ShowEXIF.Resolve(defaults.ShowEXIF) {
+		t.Fatalf("sync EXIF default not resolved: %#v", defaults)
 	}
 	if response.URL != "https://photos.example.com/visible-now/" {
 		t.Fatalf("public URL = %q", response.URL)

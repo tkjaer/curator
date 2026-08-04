@@ -121,9 +121,11 @@ func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 	handler := srv.Handler()
 
 	settings := url.Values{
-		"default_gallery_order":     {"date"},
-		"default_gallery_published": {"on"},
-		"default_gallery_show_exif": {"on"},
+		"default_gallery_order":            {"date"},
+		"default_gallery_published":        {"on"},
+		"default_gallery_show_exif":        {"on"},
+		"default_gallery_show_title":       {"on"},
+		"default_gallery_show_description": {"on"},
 	}
 	req := httptest.NewRequest(http.MethodPost, "/settings", strings.NewReader(settings.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -145,8 +147,44 @@ func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(galleries) != 1 || galleries[0].Status != model.GalleryPublished || !galleries[0].ShowEXIF || galleries[0].PublishedAt == nil {
+	if len(galleries) != 1 || galleries[0].Status != model.GalleryPublished || galleries[0].PublishedAt == nil {
 		t.Fatalf("gallery defaults not applied: %#v", galleries)
+	}
+	g := galleries[0]
+	if g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit || g.ShowDescription != model.VisibilityInherit {
+		t.Fatalf("new gallery presentation should inherit: %#v", g)
+	}
+	defaults, err := srv.store.GalleryPresentationDefaults(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !g.ShowEXIF.Resolve(defaults.ShowEXIF) || !g.ShowTitle.Resolve(defaults.ShowTitle) || !g.ShowDescription.Resolve(defaults.ShowDescription) {
+		t.Fatalf("gallery presentation defaults not resolved: %#v", defaults)
+	}
+}
+
+func TestGalleryPresentationOverridesCanBeReset(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	id, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "gallery", Title: "Gallery", Type: model.GalleryGrid})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.UpdateGalleryPresentation(ctx, id, model.VisibilityShow, model.VisibilityHide, model.VisibilityShow); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/settings/gallery-presentation/reset", nil))
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("reset status = %d", rec.Code)
+	}
+	gallery, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.ShowEXIF != model.VisibilityInherit || gallery.ShowTitle != model.VisibilityInherit || gallery.ShowDescription != model.VisibilityInherit {
+		t.Fatalf("gallery presentation not reset: %#v", gallery)
 	}
 }
 

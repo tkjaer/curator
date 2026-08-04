@@ -18,10 +18,12 @@ func (s *Store) Gallery(ctx context.Context, id int64) (model.Gallery, error) {
 	)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
-		        cover_item_id, sort_mode, sort_direction, sort_order, theme, show_exif
+		        cover_item_id, sort_mode, sort_direction, sort_order, theme,
+		        show_exif, show_title, show_description
 		   FROM galleries WHERE id = ?`, id).
 		Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description, &g.Type, &g.Status,
-			&cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme, &g.ShowEXIF)
+			&cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
+			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription)
 	if err != nil {
 		return model.Gallery{}, err
 	}
@@ -46,10 +48,20 @@ func (s *Store) UpdateGalleryStatus(ctx context.Context, id int64, status model.
 	return err
 }
 
-// UpdateGalleryShowEXIF toggles camera metadata in a gallery's lightbox.
-func (s *Store) UpdateGalleryShowEXIF(ctx context.Context, id int64, show bool) error {
+// UpdateGalleryPresentation sets a gallery's metadata visibility overrides.
+func (s *Store) UpdateGalleryPresentation(ctx context.Context, id int64, showEXIF, showTitle, showDescription model.Visibility) error {
 	_, err := s.DB.ExecContext(ctx,
-		`UPDATE galleries SET show_exif = ?, updated_at = datetime('now') WHERE id = ?`, show, id)
+		`UPDATE galleries
+		    SET show_exif = ?, show_title = ?, show_description = ?, updated_at = datetime('now')
+		  WHERE id = ?`, showEXIF, showTitle, showDescription, id)
+	return err
+}
+
+// ResetGalleryPresentationOverrides makes every gallery inherit site defaults.
+func (s *Store) ResetGalleryPresentationOverrides(ctx context.Context) error {
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE galleries
+		    SET show_exif = 0, show_title = 0, show_description = 0, updated_at = datetime('now')`)
 	return err
 }
 

@@ -98,22 +98,61 @@ const (
 	BlockGrid    BlockType = "grid"
 )
 
+// Visibility controls whether gallery presentation metadata inherits the site
+// default or explicitly overrides it.
+type Visibility int
+
+const (
+	VisibilityInherit Visibility = iota
+	VisibilityShow
+	VisibilityHide
+)
+
+func (v Visibility) Resolve(defaultValue bool) bool {
+	if v == VisibilityShow {
+		return true
+	}
+	if v == VisibilityHide {
+		return false
+	}
+	return defaultValue
+}
+
+func ParseVisibility(value string) Visibility {
+	switch value {
+	case "show":
+		return VisibilityShow
+	case "hide":
+		return VisibilityHide
+	default:
+		return VisibilityInherit
+	}
+}
+
+type GalleryPresentationDefaults struct {
+	ShowEXIF        bool
+	ShowTitle       bool
+	ShowDescription bool
+}
+
 // Gallery is a node in the gallery tree.
 type Gallery struct {
-	ID            int64
-	ParentID      *int64
-	Slug          string
-	Title         string
-	Description   string
-	Type          GalleryType
-	Status        GalleryStatus
-	CoverItemID   *int64
-	SortMode      SortMode
-	SortDirection SortDirection
-	SortOrder     int
-	Theme         string
-	ShowEXIF      bool
-	PublishedAt   *time.Time
+	ID              int64
+	ParentID        *int64
+	Slug            string
+	Title           string
+	Description     string
+	Type            GalleryType
+	Status          GalleryStatus
+	CoverItemID     *int64
+	SortMode        SortMode
+	SortDirection   SortDirection
+	SortOrder       int
+	Theme           string
+	ShowEXIF        Visibility
+	ShowTitle       Visibility
+	ShowDescription Visibility
+	PublishedAt     *time.Time
 }
 
 // Item is a single photo. The original file is immutable; derivatives are a

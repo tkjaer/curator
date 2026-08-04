@@ -34,10 +34,12 @@ func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID st
 		}
 		result, err := tx.ExecContext(ctx, `
 			INSERT INTO galleries
-				(parent_id, slug, title, description, type, status, sort_mode, sort_direction, sort_order, show_exif, published_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
+				(parent_id, slug, title, description, type, status, sort_mode, sort_direction, sort_order,
+				 show_exif, show_title, show_description, published_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
 			gallery.ParentID, gallery.Slug, gallery.Title, gallery.Description, gallery.Type,
-			gallery.Status, gallery.SortMode, gallery.SortDirection, gallery.SortOrder, gallery.ShowEXIF, gallery.Status)
+			gallery.Status, gallery.SortMode, gallery.SortDirection, gallery.SortOrder,
+			gallery.ShowEXIF, gallery.ShowTitle, gallery.ShowDescription, gallery.Status)
 		if err != nil {
 			return 0, false, err
 		}

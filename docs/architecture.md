@@ -154,6 +154,7 @@ GALLERY
   id, parent_id (nesting), slug, title, description,
   type (grid | story), status,
   cover_item_id, sort_mode (default | date | filename | manual),
+  show_title, show_description, show_exif (inherit | show | hide),
   theme (optional override), password_realm (protected),
   published_at
 
@@ -241,6 +242,13 @@ Description sources are considered in this order:
 
 Imports initialize both fields. Metadata refreshes and media replacements fill
 only empty fields, so values edited in Curator are never overwritten.
+
+Photo title, description, and EXIF visibility each have a site default and a
+per-gallery tri-state value: inherit, show, or hide. Builds resolve inherited
+values against the current site defaults, so changing a default affects every
+gallery that still inherits it. Existing EXIF choices are preserved as
+explicit overrides when this model is introduced. The settings UI can reset
+all gallery presentation overrides to inheritance in one operation.
 
 Each build resolves the effective lens from the current metadata policy:
 a direct child of Lightroom's `Curator Lens` keyword first, then embedded EXIF,
