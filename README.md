@@ -11,6 +11,9 @@ and publishing from Lightroom Classic.
 
 Initial setup and Curator-specific settings live in the admin UI. Galleries and
 photos can then be managed there or published day to day from Lightroom Classic.
+The admin supports gallery hierarchies, contact-sheet review and ordering,
+photo metadata overrides, block-based story editing, presentation defaults,
+access users, facets, themes, and publishing.
 
 ## Screenshots
 
@@ -61,6 +64,24 @@ be started from the admin UI. Configure an rsync destination under
 the generated output after a successful build. The machine running Curator
 needs `rsync` and working SSH access to the destination.
 
+Create a content root explicitly when not starting with `serve`:
+
+```sh
+./curator init -content ./site
+```
+
+Import a folder of images as a new gallery:
+
+```sh
+./curator import -content ./site -title "Summer trip" /path/to/photos
+```
+
+Re-read source EXIF and XMP metadata while preserving manual overrides:
+
+```sh
+./curator rescan -content ./site
+```
+
 Build the public site into `site/output`:
 
 ```sh
@@ -82,11 +103,16 @@ destination. The equivalent CLI dry run is:
 ./curator publish -content ./site -target user@example.com:/srv/www/photos -no-build -dry-run -delete
 ```
 
+To generate the Atom feed, configure the public base URL under
+**Settings → Site**, then enable **Generate /feed.xml** under
+**Settings → Publishing**.
+
 Use `./curator help` for all commands and options.
 
-## Lens metadata
+## Camera and lens metadata
 
-See the [lens metadata guide](docs/lens-metadata.md) for correcting lens names,
+See the [camera and lens metadata guide](docs/lens-metadata.md) for replacing
+scanner names with the camera that exposed the photo, correcting lens names,
 tagging manual or adapted lenses, and configuring automatic resolution.
 
 ## Lightroom Classic
