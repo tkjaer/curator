@@ -194,7 +194,12 @@ func (a *API) handleUpsertGallery(w http.ResponseWriter, r *http.Request) {
 	if created {
 		httpStatus = http.StatusCreated
 	}
-	response := map[string]any{"id": id, "slug": gallerySlug}
+	synchronizedGallery, err := a.store.Gallery(r.Context(), id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load synchronized gallery")
+		return
+	}
+	response := map[string]any{"id": id, "slug": synchronizedGallery.Slug}
 	if publicURL, err := a.publicGalleryURL(r.Context(), id); err == nil && publicURL != "" {
 		response["url"] = publicURL
 	}

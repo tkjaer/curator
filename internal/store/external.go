@@ -11,9 +11,6 @@ import (
 // UpsertExternalGallery creates or updates a gallery owned by an external
 // publisher and returns its stable Curator id.
 func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID string, gallery model.Gallery) (int64, bool, error) {
-	if err := validateGalleryRootSlug(gallery.ParentID, gallery.Slug); err != nil {
-		return 0, false, err
-	}
 	tx, err := s.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, false, err
@@ -29,6 +26,9 @@ func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID st
 		return 0, false, err
 	}
 	if created {
+		if err := validateGalleryRootSlug(gallery.ParentID, gallery.Slug); err != nil {
+			return 0, false, err
+		}
 		if gallery.SortDirection == "" {
 			gallery.SortDirection = model.SortDirectionDefault
 		}
@@ -53,6 +53,12 @@ func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID st
 			return 0, false, err
 		}
 	} else {
+		if err := tx.QueryRowContext(ctx, `SELECT slug FROM galleries WHERE id = ?`, id).Scan(&gallery.Slug); err != nil {
+			return 0, false, err
+		}
+		if err := validateGalleryRootSlug(gallery.ParentID, gallery.Slug); err != nil {
+			return 0, false, err
+		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE galleries
 			SET parent_id = ?, slug = ?, title = ?, description = ?,

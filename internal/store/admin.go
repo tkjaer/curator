@@ -48,6 +48,45 @@ func (s *Store) UpdateGalleryStatus(ctx context.Context, id int64, status model.
 	return err
 }
 
+// UpdateGalleryTitle changes a gallery's display title without changing its URL.
+func (s *Store) UpdateGalleryTitle(ctx context.Context, id int64, title string) error {
+	if title == "" {
+		return errors.New("gallery title is required")
+	}
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE galleries SET title = ?, updated_at = datetime('now') WHERE id = ?`, title, id)
+	return err
+}
+
+// UpdateGallerySlug changes a gallery's public URL segment. Previous slugs are
+// intentionally not retained as aliases or redirects.
+func (s *Store) UpdateGallerySlug(ctx context.Context, id int64, gallerySlug string) error {
+	if gallerySlug == "" {
+		return errors.New("gallery slug is required")
+	}
+	g, err := s.Gallery(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := validateGalleryRootSlug(g.ParentID, gallerySlug); err != nil {
+		return err
+	}
+	var exists bool
+	if err := s.DB.QueryRowContext(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM galleries
+			 WHERE parent_id IS ? AND slug = ? COLLATE NOCASE AND id <> ?
+		)`, g.ParentID, gallerySlug, id).Scan(&exists); err != nil {
+		return err
+	}
+	if exists {
+		return errors.New("another gallery at this level already uses that slug")
+	}
+	_, err = s.DB.ExecContext(ctx,
+		`UPDATE galleries SET slug = ?, updated_at = datetime('now') WHERE id = ?`, gallerySlug, id)
+	return err
+}
+
 // UpdateGalleryPresentation sets a gallery's metadata visibility overrides.
 func (s *Store) UpdateGalleryPresentation(ctx context.Context, id int64, showEXIF, showTitle, showDescription model.Visibility) error {
 	_, err := s.DB.ExecContext(ctx,
@@ -315,6 +354,34 @@ func (s *Store) SetGalleryItemOrder(ctx context.Context, galleryID int64, mode m
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE galleries SET sort_mode = ?, sort_direction = ?, updated_at = datetime('now') WHERE id = ?`,
 		mode, direction, galleryID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE items SET sort_order = 0, updated_at = datetime('now') WHERE gallery_id = ?`,
+		galleryID); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// ResetGalleryOptions restores inherited ordering and photo display settings
+// and clears manual photo positions without changing gallery identity or status.
+func (s *Store) ResetGalleryOptions(ctx context.Context, galleryID int64) error {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE galleries
+		    SET sort_mode = ?, sort_direction = ?,
+		        show_exif = ?, show_title = ?, show_description = ?,
+		        updated_at = datetime('now')
+		  WHERE id = ?`,
+		model.SortDefault, model.SortDirectionDefault,
+		model.VisibilityInherit, model.VisibilityInherit, model.VisibilityInherit,
+		galleryID); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx,

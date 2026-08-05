@@ -226,6 +226,41 @@ func (s *Server) handleMoveGallery(w http.ResponseWriter, r *http.Request) {
 	s.redirect(w, r, s.galleryLink(id), "Gallery moved")
 }
 
+func (s *Server) handleGalleryTitle(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	managed, err := s.store.IsExternalGallery(r.Context(), "lightroom", id)
+	if err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not check gallery ownership")
+		return
+	}
+	if managed {
+		s.redirect(w, r, s.galleryLink(id), "Could not update title: managed by Lightroom")
+		return
+	}
+	title := strings.TrimSpace(r.FormValue("title"))
+	if err := s.store.UpdateGalleryTitle(r.Context(), id, title); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not update title: "+err.Error())
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Title updated")
+}
+
+func (s *Server) handleGallerySlug(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	gallerySlug := slug.Make(r.FormValue("slug"))
+	if err := s.store.UpdateGallerySlug(r.Context(), id, gallerySlug); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not change URL: "+err.Error())
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Gallery URL changed")
+}
+
 func (s *Server) handleDeleteGallery(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
@@ -257,6 +292,7 @@ type galleryData struct {
 	ItemStatuses         []string
 	CoverID              int64
 	Protected            bool
+	LightroomManaged     bool
 	PublicURL            string
 	AccessUsers          []accessUserGrant
 	Children             []galleryRow
@@ -333,6 +369,11 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		Protected:          g.Status == model.GalleryProtected,
 		AutomaticOrder:     "Date taken",
 		AutomaticDirection: "Ascending",
+	}
+	data.LightroomManaged, err = s.store.IsExternalGallery(ctx, "lightroom", id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	data.PresentationDefaults, err = s.store.GalleryPresentationDefaults(ctx)
 	if err != nil {
@@ -564,6 +605,18 @@ func (s *Server) handleGalleryPresentation(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	s.redirect(w, r, s.galleryLink(id), "Metadata display updated")
+}
+
+func (s *Server) handleGalleryOptionsReset(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	if err := s.store.ResetGalleryOptions(r.Context(), id); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not reset gallery options")
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Gallery options reset")
 }
 
 type settingsData struct {
