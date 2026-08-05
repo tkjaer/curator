@@ -157,7 +157,7 @@ func TestSyncGalleryHierarchyIsIdempotent(t *testing.T) {
 	api, st := testAPI(t, token)
 	handler := api.Handler()
 
-	put := func(externalID, body string, wantStatus int) int64 {
+	put := func(externalID, body string, wantStatus int) (int64, string) {
 		t.Helper()
 		req := authorizedRequest(http.MethodPut, "/sync/galleries/"+externalID, token, bytes.NewBufferString(body))
 		req.Header.Set("Content-Type", "application/json")
@@ -167,28 +167,37 @@ func TestSyncGalleryHierarchyIsIdempotent(t *testing.T) {
 			t.Fatalf("sync %s status = %d, body = %s", externalID, rec.Code, rec.Body.String())
 		}
 		var response struct {
-			ID int64 `json:"id"`
+			ID   int64  `json:"id"`
+			Slug string `json:"slug"`
 		}
 		if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil || response.ID == 0 {
 			t.Fatalf("sync %s response = %q, err = %v", externalID, rec.Body.String(), err)
 		}
-		return response.ID
+		return response.ID, response.Slug
 	}
 
-	parentID := put("set-1", `{"title":"Trips","status":"draft"}`, http.StatusCreated)
-	childID := put("collection-2", `{"title":"Norway","parent_external_id":"set-1","status":"draft"}`, http.StatusCreated)
+	parentID, _ := put("set-1", `{"title":"Trips","status":"draft"}`, http.StatusCreated)
+	childID, _ := put("collection-2", `{"title":"Norway","parent_external_id":"set-1","status":"draft"}`, http.StatusCreated)
 	if err := st.UpdateGalleryStatus(context.Background(), childID, model.GalleryPublished); err != nil {
 		t.Fatal(err)
 	}
-	if got := put("collection-2", `{"title":"Norway 2026","parent_external_id":"set-1","status":"draft"}`, http.StatusOK); got != childID {
-		t.Fatalf("repeated sync id = %d, want %d", got, childID)
+	if got, gotSlug := put("collection-2", `{"title":"Norway 2026","parent_external_id":"set-1","status":"draft"}`, http.StatusOK); got != childID || gotSlug != "norway" {
+		t.Fatalf("repeated sync = (%d, %q), want (%d, norway)", got, gotSlug, childID)
 	}
 	child, err := st.Gallery(context.Background(), childID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if child.Title != "Norway 2026" || child.Status != model.GalleryPublished || child.ParentID == nil || *child.ParentID != parentID {
+	if child.Title != "Norway 2026" || child.Slug != "norway" || child.Status != model.GalleryPublished || child.ParentID == nil || *child.ParentID != parentID {
 		t.Fatalf("synchronized child = %#v", child)
+	}
+	_, synchronizedSlug := put("collection-2", `{"title":"Norway 2026","slug":"norway-new","parent_external_id":"set-1","status":"draft"}`, http.StatusOK)
+	child, err = st.Gallery(context.Background(), childID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if child.Slug != "norway" || synchronizedSlug != "norway" {
+		t.Fatalf("explicit synchronized slug = (%q, %q), want preserved norway", child.Slug, synchronizedSlug)
 	}
 }
 

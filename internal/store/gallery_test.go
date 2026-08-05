@@ -48,6 +48,53 @@ func TestReservedRootGallerySlugs(t *testing.T) {
 	}
 }
 
+func TestUpdateGalleryTitleDoesNotChangeSlug(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	id, err := st.CreateGallery(ctx, model.Gallery{Slug: "original-url", Title: "Original title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateGalleryTitle(ctx, id, "New title"); err != nil {
+		t.Fatal(err)
+	}
+	g, err := st.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Title != "New title" || g.Slug != "original-url" {
+		t.Fatalf("updated gallery = %#v", g)
+	}
+}
+
+func TestUpdateGallerySlugValidatesConflicts(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	first, err := st.CreateGallery(ctx, model.Gallery{Slug: "first", Title: "First"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateGallery(ctx, model.Gallery{Slug: "second", Title: "Second"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.UpdateGallerySlug(ctx, first, "second"); err == nil {
+		t.Fatal("expected sibling slug conflict")
+	}
+	if err := st.UpdateGallerySlug(ctx, first, "browse"); err == nil || !strings.Contains(err.Error(), "reserved") {
+		t.Fatalf("reserved slug error = %v", err)
+	}
+	if err := st.UpdateGallerySlug(ctx, first, "renamed"); err != nil {
+		t.Fatal(err)
+	}
+	g, err := st.Gallery(ctx, first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Slug != "renamed" {
+		t.Fatalf("slug = %q, want renamed", g.Slug)
+	}
+}
+
 func TestPublishStampsPublishedAt(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()
