@@ -109,8 +109,16 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<nav class="breadcrumbs" aria-label="Gallery hierarchy">`,
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
+		`<div class="settings-links public-url-row">`,
+		`Open public gallery &nearr;`,
 		`<details class="gallery-options">`,
-		`<summary>Gallery options</summary>`,
+		`<span class="disclosure-title">Gallery options</span>`,
+		`<input id="gallery-url-name" type="text" name="slug" value="summer" aria-describedby="url-name-format url-name-warning" required>`,
+		`<button type="submit" class="secondary-button">Update URL</button>`,
+		`<strong>Allowed:</strong> a-z, 0-9, and hyphens.`,
+		`<strong>Changing this breaks existing and descendant links.</strong> No redirects are kept.`,
+		`<section class="gallery-option-section gallery-danger">`,
+		`Delete this gallery and everything inside it. This cannot be undone.`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("gallery missing %q", want)
@@ -674,6 +682,139 @@ func TestAsyncMutationReturnsJSONInsteadOfRedirect(t *testing.T) {
 	}
 	if body := rec.Body.String(); !strings.Contains(body, `"message":"Gallery created"`) {
 		t.Errorf("async response = %q, want JSON message", body)
+	}
+}
+
+func TestLocalGalleryTitleCanChangeWithoutChangingSlug(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	id, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "original-url", Title: "Original title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{"title": {"New title"}}
+	req := httptest.NewRequest("POST", "/galleries/1/title", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Curator-Async", "true")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Title updated") {
+		t.Fatalf("title response = %d %q", rec.Code, rec.Body.String())
+	}
+	g, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Title != "New title" || g.Slug != "original-url" {
+		t.Fatalf("updated gallery = %#v", g)
+	}
+}
+
+func TestLightroomGalleryTitleIsManagedButSlugCanChange(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	id, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "lightroom-title", Title: "Lightroom title"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.SetExternalGallery(ctx, "lightroom", "collection-1", id); err != nil {
+		t.Fatal(err)
+	}
+
+	h := srv.Handler()
+	form := url.Values{"title": {"Curator title"}}
+	req := httptest.NewRequest("POST", "/galleries/1/title", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Curator-Async", "true")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "managed by Lightroom") {
+		t.Fatalf("managed title response = %d %q", rec.Code, rec.Body.String())
+	}
+	g, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Title != "Lightroom title" {
+		t.Fatalf("managed title = %q", g.Title)
+	}
+
+	form = url.Values{"slug": {"New Website URL"}}
+	req = httptest.NewRequest("POST", "/galleries/1/slug", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Curator-Async", "true")
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Gallery URL changed") {
+		t.Fatalf("slug response = %d %q", rec.Code, rec.Body.String())
+	}
+	g, err = srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Slug != "new-website-url" {
+		t.Fatalf("slug = %q, want new-website-url", g.Slug)
+	}
+
+	rec = httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
+	body := rec.Body.String()
+	for _, want := range []string{"Managed by Lightroom", "No redirects are kept", "Republish from Lightroom", `value="new-website-url"`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gallery page missing %q", want)
+		}
+	}
+	if strings.Contains(body, `/galleries/1/title`) {
+		t.Error("managed gallery rendered an editable title field")
+	}
+}
+
+func TestGalleryOptionsCanBeResetToDefaults(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	parentID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "parent", Title: "Parent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := srv.store.CreateGallery(ctx, model.Gallery{
+		ParentID: &parentID, Slug: "custom", Title: "Custom", Status: model.GalleryPublished,
+		SortMode: model.SortByFilename, SortDirection: model.SortDescending,
+		ShowEXIF: model.VisibilityHide, ShowTitle: model.VisibilityShow, ShowDescription: model.VisibilityHide,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: id, OriginalPath: "custom/photo.jpg", Filename: "photo.jpg", SortOrder: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/galleries/2/options/reset", nil)
+	req.Header.Set("X-Curator-Async", "true")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Gallery options reset") {
+		t.Fatalf("reset response = %d %q", rec.Code, rec.Body.String())
+	}
+	g, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.SortMode != model.SortDefault || g.SortDirection != model.SortDirectionDefault ||
+		g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit || g.ShowDescription != model.VisibilityInherit {
+		t.Fatalf("reset options = %#v", g)
+	}
+	if g.Title != "Custom" || g.Slug != "custom" || g.Status != model.GalleryPublished || g.ParentID == nil || *g.ParentID != parentID {
+		t.Fatalf("reset changed gallery identity or placement: %#v", g)
+	}
+	item, err := srv.store.Item(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.SortOrder != 0 {
+		t.Fatalf("item sort order = %d, want 0", item.SortOrder)
 	}
 }
 

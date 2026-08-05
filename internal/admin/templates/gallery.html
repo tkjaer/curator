@@ -7,60 +7,91 @@
 </nav>
 <div class="page-head gallery-page-head">
   <h1>{{.Gallery.Title}}</h1>
-  <div class="settings-links public-url-row">
-    <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
-    {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
-    <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
-  </div>
 </div>
 
 <section class="gallery-settings">
   <div class="settings-row">
-  <form class="setting-control listing-setting" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
-    <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    <label><span>Visibility</span>
-      <select name="status">
-        {{range .Statuses}}<option value="{{.}}"{{if eq . (printf "%s" $.Data.Gallery.Status)}} selected{{end}}>{{.}}</option>{{end}}
-      </select>
-    </label>
-  </form>
+    <form class="setting-control listing-setting" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/status">
+      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+      <label><span>Visibility</span>
+        <select name="status">
+          {{range .Statuses}}<option value="{{.}}"{{if eq . (printf "%s" $.Data.Gallery.Status)}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </label>
+    </form>
+    <div class="settings-links public-url-row">
+      <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
+      {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
+      <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
+    </div>
+  </div>
   <details class="gallery-options">
-    <summary>Gallery options</summary>
+    <summary><span class="disclosure-title">Gallery options</span><span class="disclosure-meta">Identity, organization, display</span></summary>
     <div class="gallery-options-panel">
-      <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
-        <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-        <label><span>Placement</span>
-          <select name="parent">
-            <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
-            {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
-          </select>
-        </label>
-      </form>
-      <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
-        <span>Photo order</span>
-        <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
-          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-          <label><span>Ordering</span>
-            <select name="mode">
-              {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
-              <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>Default: {{.AutomaticOrder}}</option>
-              <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
-              <option value="date_added"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date_added")}} selected{{end}}>Date added</option>
-              <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
-            </select>
-          </label>
-          <label><span>Direction</span>
-            <select name="direction"{{if .CustomOrder}} disabled{{end}}>
-              <option value="default"{{if eq (printf "%s" .Gallery.SortDirection) "default"}} selected{{end}}>Default: {{.AutomaticDirection}}</option>
-              <option value="asc"{{if eq (printf "%s" .Gallery.SortDirection) "asc"}} selected{{end}}>Ascending</option>
-              <option value="desc"{{if eq (printf "%s" .Gallery.SortDirection) "desc"}} selected{{end}}>Descending</option>
-            </select>
-          </label>
-        </form>
-      </div>
-      <div class="setting-control exif-setting">
-        <span>Photo details</span>
-        <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/presentation">
+      <section class="gallery-option-section identity-setting gallery-option-wide">
+        <h3>Identity</h3>
+        <div class="identity-grid">
+          <div>
+            {{if .LightroomManaged}}
+            <label><span>Title</span><input type="text" value="{{.Gallery.Title}}" disabled></label>
+            <p class="field-note">Managed by Lightroom. Rename the collection there.</p>
+            {{else}}
+            <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/title">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <label><span>Title</span><input type="text" name="title" value="{{.Gallery.Title}}" required></label>
+            </form>
+            {{end}}
+          </div>
+          <div class="identity-url">
+            <div class="option-label-row"><label for="gallery-url-name">URL name</label></div>
+            <form class="url-name-form" data-async method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/slug">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <input id="gallery-url-name" type="text" name="slug" value="{{.Gallery.Slug}}" aria-describedby="url-name-format url-name-warning" required>
+              <button type="submit" class="secondary-button">Update URL</button>
+              <p class="field-note url-format-note" id="url-name-format"><strong>Allowed:</strong> a-z, 0-9, and hyphens. Other characters become hyphens.</p>
+              <p class="url-warning" id="url-name-warning"><span><strong>Changing this breaks existing and descendant links.</strong> No redirects are kept.</span>{{if .LightroomManaged}}<span>Republish from Lightroom to refresh its website link.</span>{{end}}</p>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section class="gallery-option-section organization-setting">
+        <h3>Organization</h3>
+        <div class="option-section-content organization-controls">
+          <form class="setting-control" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/move">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <label><span>Placement</span>
+              <select name="parent">
+                <option value=""{{if eq $.Data.CurrentParentID 0}} selected{{end}}>(top level)</option>
+                {{range .MoveTargets}}<option value="{{.ID}}"{{if eq .ID $.Data.CurrentParentID}} selected{{end}}>{{.Label}}</option>{{end}}
+              </select>
+            </label>
+          </form>
+          <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
+            <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
+              <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+              <label><span>Ordering</span>
+                <select name="mode">
+                  {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
+                  <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>Default: {{.AutomaticOrder}}</option>
+                  <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
+                  <option value="date_added"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date_added")}} selected{{end}}>Date added</option>
+                  <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
+                </select>
+              </label>
+              <label><span>Direction</span>
+                <select name="direction"{{if .CustomOrder}} disabled{{end}}>
+                  <option value="default"{{if eq (printf "%s" .Gallery.SortDirection) "default"}} selected{{end}}>Default: {{.AutomaticDirection}}</option>
+                  <option value="asc"{{if eq (printf "%s" .Gallery.SortDirection) "asc"}} selected{{end}}>Ascending</option>
+                  <option value="desc"{{if eq (printf "%s" .Gallery.SortDirection) "desc"}} selected{{end}}>Descending</option>
+                </select>
+              </label>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section class="gallery-option-section exif-setting">
+        <h3>Photo display</h3>
+        <form class="option-section-content" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/presentation">
           <input type="hidden" name="_csrf" value="{{$.CSRF}}">
           <label><span>Title</span>
             <select name="show_title">
@@ -84,17 +115,29 @@
             </select>
           </label>
         </form>
-      </div>
+      </section>
+      <section class="gallery-option-section reset-options">
+        <h3>Reset options</h3>
+        <div class="option-section-content option-action-content">
+          <p>Use site defaults for ordering and photo display.</p>
+          <form data-async method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/options/reset" onsubmit="return confirm('Reset ordering and photo display to the site defaults?')">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <button type="submit" class="secondary-button">Reset to defaults</button>
+          </form>
+        </div>
+      </section>
+      <section class="gallery-option-section gallery-danger">
+        <h3>Delete gallery</h3>
+        <div class="option-section-content option-action-content danger-content">
+          <p>Delete this gallery and everything inside it. This cannot be undone.</p>
+          <form method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" onsubmit="return confirm('Delete this gallery and everything inside it?')">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <button class="danger">Delete gallery</button>
+          </form>
+        </div>
+      </section>
     </div>
   </details>
-  <details class="settings-menu">
-    <summary aria-label="More gallery actions" title="More gallery actions">&hellip;</summary>
-    <form method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/delete" onsubmit="return confirm('Delete this gallery and everything inside it?')">
-      <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <button class="danger">Delete gallery</button>
-    </form>
-  </details>
-  </div>
 </section>
 
 <details class="organization-panel">
@@ -470,7 +513,11 @@
       if (!failed) {
         applyItemPresentation(form, element, values, result.resolvedCamera, result.resolvedLens);
         applyAction(form, element);
-        if (form.closest(".gallery-settings") &&
+        if (form.action.endsWith("/title") || form.action.endsWith("/slug")) {
+          await refreshFromServer([".breadcrumbs", ".gallery-page-head", ".gallery-options-panel"]);
+        } else if (form.action.endsWith("/options/reset")) {
+          await refreshFromServer([".gallery-options-panel", "#photo-list", ".arrange-control"]);
+        } else if (form.closest(".gallery-settings") &&
             (form.action.endsWith("/status") || form.action.endsWith("/move"))) {
           await refreshFromServer([".public-url-row", "#access-settings"]);
         }
@@ -490,11 +537,34 @@
     }
   }
 
+  function normalizeURLName(value, keepTrailingSeparator) {
+    var normalized = value.toLowerCase().trimStart().replace(/[^a-z0-9]+/g, "-").replace(/^-+/, "");
+    return keepTrailingSeparator ? normalized : normalized.replace(/-+$/, "");
+  }
+
   document.addEventListener("submit", function (event) {
     var form = event.target.closest("form[data-async]");
     if (!form) return;
     event.preventDefault();
+    if (form.classList.contains("url-name-form")) {
+      var input = form.elements.slug;
+      input.value = normalizeURLName(input.value, false);
+      if (!input.value || !confirm('Update this gallery URL to "' + input.value + '"? The old URL and descendant gallery URLs will stop working. No redirects will be created.')) return;
+    }
     submit(form);
+  });
+
+  document.addEventListener("input", function (event) {
+    if (event.target.id !== "gallery-url-name") return;
+    var input = event.target;
+    var cursor = input.selectionStart;
+    var normalizedBeforeCursor = normalizeURLName(input.value.slice(0, cursor), true);
+    input.value = normalizeURLName(input.value, true);
+    input.setSelectionRange(normalizedBeforeCursor.length, normalizedBeforeCursor.length);
+  });
+
+  document.addEventListener("focusout", function (event) {
+    if (event.target.id === "gallery-url-name") event.target.value = normalizeURLName(event.target.value, false);
   });
 
   document.addEventListener("change", function (event) {
@@ -664,10 +734,6 @@
   document.addEventListener("pointercancel", function (event) { finishPhotoDrag(event.pointerId); });
 
   document.addEventListener("click", function (event) {
-    var galleryOptions = document.querySelector(".gallery-options");
-    if (galleryOptions && galleryOptions.open && !galleryOptions.contains(event.target)) {
-      galleryOptions.open = false;
-    }
     if (photoEditor && photoEditor.open && event.target === photoEditor) {
       photoEditor.close();
       return;
