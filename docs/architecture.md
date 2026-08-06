@@ -83,6 +83,15 @@ site files. Those names remain available to galleries nested below a parent.
 - **Vanilla JS**, self-hosted, used only for progressive enhancement
   (lightbox, navigation). The site works without it.
 
+### Admin UI conventions
+
+- Settings cards with a title and description use `settings-card-heading`; the
+  shared heading includes the divider, spacing, and type scale.
+- Settings actions use `settings-action-card`, with the action placed below the
+  shared heading block.
+- Standard form controls are 40 pixels high. Deliberately compact toolbar
+  controls use the shared 36-pixel compact size. Context controls width.
+
 ## Deployment and access control
 
 The public site is static, so password protection is enforced by the web server

@@ -5,7 +5,7 @@
 </div>
 
 <section class="card settings-wide-card access-admin-card">
-  <div class="settings-panel-heading"><h2>Admin sign-in</h2><p>Protect the Curator administration interface.</p></div>
+  <div class="settings-card-heading"><h2>Admin sign-in</h2><p>Protect the Curator administration interface.</p></div>
   <form method="post" action="{{$.BasePath}}/settings/password">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     {{if $.AuthEnabled}}<label class="field"><span>Current password</span><input type="password" name="current_password" autocomplete="current-password"></label>{{else}}<p>No admin password is set. The administration interface is currently open.</p>{{end}}

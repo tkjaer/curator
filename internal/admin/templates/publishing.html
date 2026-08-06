@@ -17,20 +17,20 @@
 
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
-      <div class="settings-panel-heading"><h2>Deployment</h2><p>Send the generated site to its web server after a successful build.</p></div>
+      <div class="settings-card-heading"><h2>Deployment</h2><p>Send the generated site to its web server after a successful build.</p></div>
       <label class="choice-row"><input type="checkbox" name="rsync_enabled"{{if .RsyncEnabled}} checked{{end}}> <span><strong>Deploy with rsync</strong><small>Uses the system's existing SSH and rsync configuration.</small></span></label>
       <label class="field"><span>Rsync destination</span><input name="rsync_target" value="{{.RsyncTarget}}" placeholder="user@host:/srv/site" autocomplete="off" spellcheck="false"></label>
       <label class="choice-row"><input type="checkbox" name="rsync_delete"{{if .RsyncDelete}} checked{{end}}> <span><strong>Remove stale remote files</strong><small>Delete files that are no longer in the generated site.</small></span></label>
     </section>
 
     <section class="settings-panel">
-      <div class="settings-panel-heading"><h2>Atom feed</h2><p>Publish new galleries for feed readers.</p></div>
+      <div class="settings-card-heading"><h2>Atom feed</h2><p>Publish new galleries for feed readers.</p></div>
       <label class="choice-row"><input type="checkbox" name="feed_enabled"{{if .FeedEnabled}} checked{{end}}{{if not .BaseURL}} disabled{{end}}> <span><strong>Generate /feed.xml</strong><small>Include published galleries in the site feed.</small></span></label>
       {{if .BaseURL}}<p class="field-help">Links use <strong>{{.BaseURL}}</strong>. <a href="{{$.BasePath}}/settings">Change the Base URL</a>.</p>{{else}}<p class="field-help">Set a <a href="{{$.BasePath}}/settings">Base URL under Site settings</a> to enable the feed.</p>{{end}}
     </section>
 
     <section class="settings-panel">
-      <div class="settings-panel-heading"><h2>Protected galleries</h2><p>Generate access-control files for the deployed web server.</p></div>
+      <div class="settings-card-heading"><h2>Protected galleries</h2><p>Generate access-control files for the deployed web server.</p></div>
       <label class="field"><span>Web server</span>
         <select name="webserver">
           <option value="nginx"{{if eq .Webserver "nginx"}} selected{{end}}>nginx</option>
@@ -43,7 +43,7 @@
 </form>
 
 <section class="card settings-action-card settings-wide-card rsync-preview">
-  <div><h2>Preview remote changes</h2><p>Dry-run rsync against the saved destination with stale-file removal simulated. Nothing is uploaded or deleted.</p></div>
+  <div class="settings-card-heading"><h2>Preview remote changes</h2><p>Dry-run rsync against the saved destination with stale-file removal simulated. Nothing is uploaded or deleted.</p></div>
   <form method="post" action="{{$.BasePath}}/settings/publishing/preview">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button class="secondary-button"{{if not .RsyncTarget}} disabled{{end}}>Preview changes</button>
@@ -59,7 +59,7 @@
 </section>
 
 <section class="card settings-wide-card">
-  <div class="settings-panel-heading"><h2>Lightroom Classic</h2><p>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</p></div>
+  <div class="settings-card-heading"><h2>Lightroom Classic</h2><p>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</p></div>
   {{if .GeneratedPublishToken}}
   <label class="field"><span>Publishing token (shown once)</span>
     <span class="input-action"><input id="publishing-token" value="{{.GeneratedPublishToken}}" readonly autocomplete="off"><button class="secondary-button" type="button" id="copy-publishing-token">Copy</button></span>
