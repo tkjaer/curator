@@ -15,6 +15,11 @@ The admin supports gallery hierarchies, contact-sheet review and ordering,
 photo metadata overrides and tags, block-based story editing, presentation
 defaults, access users, facets, themes, and publishing.
 
+Photo tags can be entered in Curator or imported from embedded and sidecar XMP,
+IPTC keywords, and Lightroom Classic. Curator tracks each assignment source so
+metadata refreshes and Lightroom republishes do not erase tags entered in the
+admin.
+
 ## Screenshots
 
 ![Curator gallery administration dashboard](docs/images/admin-galleries.png)
