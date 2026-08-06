@@ -16,7 +16,7 @@
   </div>
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
-      <div class="settings-panel-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
+      <div class="settings-card-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
       <label class="choice-row"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> <span><strong>Use Lightroom profile names as a fallback</strong><small>Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
       <div class="mapping-heading">
         <div><h3>Camera-to-lens mappings</h3><p>Useful for fixed-lens cameras when embedded EXIF has no lens.</p></div>
@@ -36,7 +36,7 @@
     </section>
 
     <section class="settings-panel" id="public-browse-pages">
-      <div class="settings-panel-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
+      <div class="settings-card-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
       <div class="choice-list">
         {{range .Facets}}
         <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
@@ -45,7 +45,7 @@
     </section>
 
     <section class="settings-panel">
-      <div class="settings-panel-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
+      <div class="settings-card-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
       <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
       <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
       <p class="field-help">Photos are ordered newest first.</p>
@@ -53,8 +53,7 @@
   </div>
 </form>
 <section class="card xmp-profiles settings-wide-card">
-  <h2>Detected Lightroom profiles</h2>
-  <p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p>
+  <div class="settings-card-heading"><h2>Detected Lightroom profiles</h2><p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p></div>
   {{if .XMPProfiles}}
   <table>
     <thead><tr><th>Profile</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
@@ -68,9 +67,9 @@
   <p>No Lightroom XMP lens profiles found.</p>
   {{end}}
 </section>
-<form class="card settings-action-card settings-wide-card metadata-rescan" method="post" action="{{$.BasePath}}/rescan">
+<form class="card settings-action-card settings-wide-card" method="post" action="{{$.BasePath}}/rescan">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <div><strong>Refresh source metadata</strong><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
+  <div class="settings-card-heading"><h2>Refresh source metadata</h2><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
   <button class="secondary-button">Refresh metadata</button>
 </form>
 <template id="mapping-row-template">

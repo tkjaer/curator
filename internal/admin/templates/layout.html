@@ -20,6 +20,8 @@
     --reset-soft: #f1f2ef;
     --danger-soft: #fff1ef;
     --shadow: 0 1px 2px #2021240a, 0 8px 24px #2021240a;
+    --control-height: 40px;
+    --compact-control-height: 36px;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.55 "Avenir Next", Avenir, "Trebuchet MS", sans-serif; }
@@ -61,10 +63,10 @@
   .gallery-tree-toggle:hover { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .gallery-tree-spacer { height: 28px; }
   form.inline { display: inline; }
-  input, select, textarea, button { min-height: 40px; border: 1px solid #c9cdc7; border-radius: 5px; font: inherit; }
+  input, select, textarea, button { min-height: var(--control-height); border: 1px solid #c9cdc7; border-radius: 5px; font: inherit; }
   input, select, textarea { max-width: 100%; padding: .55rem .7rem; color: var(--ink); background: var(--surface); }
-  select { padding: .6rem 2rem .6rem .75rem; }
-  input:not([type="checkbox"]):not([type="file"]), select { width: min(100%, 460px); }
+  select { padding: 0 2rem 0 .75rem; }
+  input:not([type="checkbox"]):not([type="file"]), select { width: min(100%, 460px); height: var(--control-height); }
   textarea { width: 100%; resize: vertical; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: 3px solid #3157d526; }
   input[type="checkbox"] { width: 17px; min-height: 17px; accent-color: var(--accent); vertical-align: -.2em; }
@@ -108,9 +110,9 @@
   .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   .settings-panel { min-width: 0; padding: 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
   .settings-panel-wide { grid-column: 1 / -1; }
-  .settings-panel-heading { margin-bottom: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
-  .settings-panel-heading h2, .settings-action-card h2 { margin: 0; font-size: 1.08rem; }
-  .settings-panel-heading p, .settings-action-card p { margin: .25rem 0 0; font-size: .82rem; }
+  .settings-card-heading { margin-bottom: 1rem; padding-bottom: .8rem; border-bottom: 1px solid var(--line); }
+  .settings-card-heading h2 { margin: 0; font-size: 1.08rem; }
+  .settings-card-heading p { margin: .25rem 0 0; font-size: .82rem; }
   .settings-panel .field { margin: .8rem 0; }
   .settings-panel input:not([type="checkbox"]), .settings-panel select { width: 100%; }
   .settings-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
@@ -125,6 +127,8 @@
   .choice-row strong { font-size: .88rem; }
   .choice-row small { margin-top: .08rem; color: var(--muted); font-size: .75rem; }
   .settings-action-card { display: grid; gap: 1rem; }
+  .settings-action-card > .settings-card-heading { margin-bottom: 0; }
+  .settings-action-card > button { justify-self: start; }
   .settings-action-narrow { max-width: 470px; margin-top: 1rem; }
   .settings-wide-card { width: 100%; max-width: 960px; }
   .override-reset-list { display: grid; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
@@ -146,7 +150,7 @@
   .grid-choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: .5rem; margin: .6rem 0 1rem; }
   .grid-choices label { padding: .5rem; background: var(--canvas); border-radius: 4px; overflow-wrap: anywhere; }
   .xmp-profiles { margin-top: 2rem; }
-  .xmp-profiles > p { margin: -.25rem 0 1rem; }
+  .xmp-profiles > p { margin: 0; }
   .mapping-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2rem 0 .75rem; }
   .mapping-heading h3, .mapping-heading p { margin: 0; }
   .mapping-heading p { font-size: .82rem; }
@@ -161,8 +165,6 @@
   button.secondary-button:hover { background: var(--surface-muted); border-color: var(--line); }
   .mapping-remove { width: 40px; padding: 0; color: var(--muted); background: transparent; border-color: var(--line); font-size: 1.35rem; }
   .mapping-remove:hover { color: var(--danger); background: transparent; border-color: #ddb8b4; }
-  .metadata-rescan { display: flex; max-width: 900px; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 0; }
-  .metadata-rescan p { margin: 0; }
   .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px, 1fr)); gap: 1.15rem .7rem; }
   .thumbs figure { position: relative; overflow: visible; margin: 0; }
   .thumbs img { display: block; width: 100%; height: 100%; object-fit: contain; background: var(--surface-muted); }
@@ -217,7 +219,7 @@
   .settings-row .public-url-row { min-height: 36px; margin-left: auto; }
   .setting-control { min-width: 0; }
   .setting-control > span, .settings-row form > label > span, .add-block label > span { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
-  .listing-setting select { width: 150px; height: 36px; min-height: 36px; padding: .35rem .55rem; }
+  .listing-setting select { width: 150px; height: var(--compact-control-height); min-height: var(--compact-control-height); }
   .listing-setting select, .listing-setting option { text-transform: capitalize; }
   .toggle-form { display: flex; height: 36px; align-items: center; white-space: nowrap; }
   .toggle-form label { font-size: .82rem; font-weight: 600; }
@@ -238,7 +240,6 @@
   .gallery-options-panel form { display: grid; gap: .75rem; }
   .gallery-options-panel form label > span, .identity-setting > label > span { display: block; margin-bottom: .4rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
   .gallery-options-panel select { width: 100%; }
-  .gallery-options-panel input, .gallery-options-panel select { height: 40px; min-height: 40px; }
   .identity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
   .identity-grid > * { min-width: 0; }
   .identity-url { grid-column: 2 / 4; }
@@ -281,7 +282,7 @@
   .organization-content { max-width: 760px; padding: .75rem 1rem 1rem; }
   .compact-form { display: grid; grid-template-columns: minmax(200px, 1fr) 150px auto; gap: .75rem; align-items: end; margin-top: 1rem; }
   .compact-form .field { margin: 0; }
-  .compact-form input, .compact-form select { width: 100%; height: 40px; }
+  .compact-form input, .compact-form select { width: 100%; }
   .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2.5rem 0 1rem; }
   .section-heading h2 { margin: 0; }
   .section-heading h2 > span { color: var(--muted); font-size: .85rem; font-weight: 500; }
@@ -413,7 +414,7 @@
     .photo-editor-section { padding: 1rem; }
     .photo-editor-footer { flex-wrap: wrap; }
     .photo-editor-footer .save-state { width: 100%; min-height: 0; }
-    .xmp-profiles table { display: block; overflow: visible; }
+    .xmp-profiles table { display: block; overflow: visible; white-space: normal; }
     .xmp-profiles thead { display: none; }
     .xmp-profiles tbody, .xmp-profiles tr, .xmp-profiles td { display: block; width: 100%; }
     .xmp-profiles tr { padding: .65rem 0; border-bottom: 1px solid var(--line); }
@@ -429,8 +430,6 @@
     .mapping-row label:nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
     .mapping-row .mapping-remove { grid-column: 2; grid-row: 1; }
     .mapping-evidence { align-items: flex-start; flex-direction: column; grid-row: 3; }
-    .metadata-rescan { align-items: stretch; flex-direction: column; }
-    .metadata-rescan button { align-self: flex-start; }
     .override-reset-row, .override-reset-all { align-items: stretch; flex-direction: column; }
     .override-reset-row button, .override-reset-all button { width: 100%; }
     .settings-form > .settings-save-row { position: static; align-items: stretch; flex-direction: column; }

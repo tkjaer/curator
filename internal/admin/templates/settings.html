@@ -16,7 +16,7 @@
   </div>
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
-      <div class="settings-panel-heading"><h2>Identity and appearance</h2><p>The name, address, and theme visitors see.</p></div>
+      <div class="settings-card-heading"><h2>Identity and appearance</h2><p>The name, address, and theme visitors see.</p></div>
       <div class="settings-field-grid">
         <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
         {{$cur := .Theme}}
@@ -31,7 +31,7 @@
     </section>
 
     <section class="settings-panel">
-      <div class="settings-panel-heading"><h2>New galleries</h2><p>Starting behavior for galleries created in Curator or Lightroom.</p></div>
+      <div class="settings-card-heading"><h2>New galleries</h2><p>Starting behavior for galleries created in Curator or Lightroom.</p></div>
       <label class="field"><span>Photo ordering</span>
         <select name="default_gallery_order">
           <option value="date"{{if eq .DefaultOrder "date"}} selected{{end}}>Date taken</option>
@@ -49,7 +49,7 @@
     </section>
 
     <section class="settings-panel">
-      <div class="settings-panel-heading"><h2>Photo details</h2><p>What inherited gallery presentation shows by default.</p></div>
+      <div class="settings-card-heading"><h2>Photo details</h2><p>What inherited gallery presentation shows by default.</p></div>
       <div class="choice-list">
         <label class="choice-row"><input type="checkbox" name="default_gallery_show_title"{{if .DefaultShowTitle}} checked{{end}}> <span><strong>Titles</strong><small>Show imported or edited photo titles.</small></span></label>
         <label class="choice-row"><input type="checkbox" name="default_gallery_show_description"{{if .DefaultShowDescription}} checked{{end}}> <span><strong>Descriptions</strong><small>Show longer descriptive text.</small></span></label>
@@ -59,7 +59,7 @@
     </section>
 
     <section class="settings-panel settings-panel-wide">
-      <div class="settings-panel-heading"><h2>Copyright</h2><p>Optional attribution added to the generated site footer.</p></div>
+      <div class="settings-card-heading"><h2>Copyright</h2><p>Optional attribution added to the generated site footer.</p></div>
       <div class="settings-field-grid settings-field-grid-copyright">
         <label class="field"><span>Copyright holder</span><input name="copyright_holder" value="{{.CopyrightHolder}}" placeholder="Name or organization"></label>
         <label class="field"><span>Start year</span><input type="number" name="copyright_start_year" value="{{.CopyrightYear}}" min="1" max="{{.CurrentYear}}" inputmode="numeric" placeholder="{{.CurrentYear}}"></label>
@@ -70,7 +70,7 @@
 </form>
 
 <section class="card settings-action-card settings-wide-card">
-  <div><h2>Gallery overrides</h2><p>Return gallery-specific choices to the photo detail defaults above.</p></div>
+  <div class="settings-card-heading"><h2>Gallery overrides</h2><p>Return gallery-specific choices to the photo detail defaults above.</p></div>
   <form class="override-reset-list" method="post" action="{{$.BasePath}}/settings/gallery-presentation/reset">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <div class="override-reset-row"><span><strong>Titles</strong><small>Reset title visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="title">Reset titles</button></div>
