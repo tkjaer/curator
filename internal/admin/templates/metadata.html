@@ -41,7 +41,15 @@
         {{range .Facets}}
         <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
         {{end}}
+        <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
       </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="settings-card-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
+      <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
+      <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
+      <p class="field-help">Photos are ordered newest first.</p>
     </section>
 
     <section class="settings-panel settings-panel-wide" id="public-tags">
@@ -59,14 +67,6 @@
         <p class="field-help">Add tags to photos before configuring a selected set.</p>
         {{end}}
       </div>
-      <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Enable tag browse indexes</strong><small>Generate public tag pages and link visible labels to them.</small></span></label>
-    </section>
-
-    <section class="settings-panel">
-      <div class="settings-card-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
-      <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
-      <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
-      <p class="field-help">Photos are ordered newest first.</p>
     </section>
   </div>
 </form>
