@@ -243,6 +243,9 @@ func TestUpdateItemEXIF(t *testing.T) {
 	}
 	it.ISO = "400"
 	it.Focal = "50 mm"
+	it.Width = 851
+	it.Height = 1280
+	it.Aspect = model.AspectPortrait
 	if err := st.UpdateItemEXIF(ctx, it); err != nil {
 		t.Fatal(err)
 	}
@@ -252,7 +255,8 @@ func TestUpdateItemEXIF(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Camera != "Canon EOS R5" || got.EmbeddedCamera != "Canon EOS R5" || got.EmbeddedLens != "RF 50mm F1.2" ||
-		got.LightroomLens != "Catalog lens" || got.XMPLens != "Adobe fallback" || got.ISO != "400" || got.Focal != "50 mm" {
+		got.LightroomLens != "Catalog lens" || got.XMPLens != "Adobe fallback" || got.ISO != "400" || got.Focal != "50 mm" ||
+		got.Width != 851 || got.Height != 1280 || got.Aspect != model.AspectPortrait {
 		t.Errorf("EXIF not updated: %+v", got)
 	}
 

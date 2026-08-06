@@ -16,6 +16,8 @@ import (
 	"github.com/tkjaer/curator/internal/slug"
 )
 
+const derivativeProcessingVersion = "2"
+
 // galleryPhotos loads a gallery's published items, generates their derivatives,
 // and returns the photo views used for layout and rendering (as an ordered
 // slice and keyed by item id). Protected galleries keep their derivatives under
@@ -178,7 +180,7 @@ func hashFile(path string) (string, error) {
 }
 
 func deriveHash(fileHash, preset string) string {
-	sum := sha256.Sum256([]byte(fileHash + ":" + preset))
+	sum := sha256.Sum256([]byte(fileHash + ":" + preset + ":" + derivativeProcessingVersion))
 	return hex.EncodeToString(sum[:])[:16]
 }
 

@@ -306,10 +306,10 @@ func (s *Store) SetItemLightroomLens(ctx context.Context, id int64, source, effe
 func (s *Store) UpdateItemEXIF(ctx context.Context, it model.Item) error {
 	normalizeItemCamera(&it)
 	_, err := s.DB.ExecContext(ctx,
-		`UPDATE items SET exif = ?, camera = ?, embedded_camera = ?, manual_camera = ?, lens = ?, embedded_lens = ?, sidecar_lens = ?, xmp_lens = ?, aperture = ?, shutter = ?,
+		`UPDATE items SET width = ?, height = ?, aspect = ?, exif = ?, camera = ?, embedded_camera = ?, manual_camera = ?, lens = ?, embedded_lens = ?, sidecar_lens = ?, xmp_lens = ?, aperture = ?, shutter = ?,
 		        iso = ?, focal = ?, taken_at = ?, updated_at = datetime('now')
 		  WHERE id = ?`,
-		it.EXIF, it.Camera, it.EmbeddedCamera, it.ManualCamera, it.Lens, it.EmbeddedLens, it.SidecarLens, it.XMPLens, it.Aperture, it.Shutter, it.ISO, it.Focal,
+		it.Width, it.Height, it.Aspect, it.EXIF, it.Camera, it.EmbeddedCamera, it.ManualCamera, it.Lens, it.EmbeddedLens, it.SidecarLens, it.XMPLens, it.Aperture, it.Shutter, it.ISO, it.Focal,
 		timeToNull(it.TakenAt), it.ID)
 	return err
 }

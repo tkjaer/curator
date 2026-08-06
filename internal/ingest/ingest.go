@@ -64,10 +64,10 @@ func ImportDir(ctx context.Context, st *store.Store, cfg config.Config, galleryI
 	return count, nil
 }
 
-// Rescan re-reads EXIF metadata from every item's original file and rewrites
-// the stored fields. It returns how many items were updated and how many were
-// skipped because their original could not be read. It does not add or remove
-// items.
+// Rescan re-reads dimensions and EXIF metadata from every item's original file
+// and rewrites the stored fields. It returns how many items were updated and
+// how many were skipped because their original could not be read. It does not
+// add or remove items.
 func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, skipped int, err error) {
 	items, err := st.AllItems(ctx)
 	if err != nil {
@@ -82,11 +82,20 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 		return 0, 0, err
 	}
 	for _, it := range items {
-		meta, err := exif.Extract(filepath.Join(cfg.OriginalsDir(), it.OriginalPath))
+		originalPath := filepath.Join(cfg.OriginalsDir(), it.OriginalPath)
+		width, height, err := imaging.Dimensions(originalPath)
 		if err != nil {
 			skipped++
 			continue
 		}
+		meta, err := exif.Extract(originalPath)
+		if err != nil {
+			skipped++
+			continue
+		}
+		it.Width = width
+		it.Height = height
+		it.Aspect = model.ClassifyAspect(width, height)
 		it.EXIF = meta.Raw
 		it.EmbeddedCamera = meta.Camera
 		it.Camera = ResolveCamera(it.EmbeddedCamera, it.ManualCamera)

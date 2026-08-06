@@ -2,6 +2,8 @@ package build
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"os"
@@ -565,6 +567,16 @@ func TestBuildSweepsOrphanedDerivatives(t *testing.T) {
 	}
 	if len(after) == 0 {
 		t.Error("remaining item's derivatives were swept incorrectly")
+	}
+}
+
+func TestDerivativeHashIncludesProcessingVersion(t *testing.T) {
+	fileHash := "source-hash"
+	preset := "display"
+	legacy := sha256.Sum256([]byte(fileHash + ":" + preset))
+	legacyHash := hex.EncodeToString(legacy[:])[:16]
+	if got := deriveHash(fileHash, preset); got == legacyHash {
+		t.Fatalf("deriveHash = %q, still matches the pre-orientation cache key", got)
 	}
 }
 
