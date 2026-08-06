@@ -20,6 +20,8 @@
     --reset-soft: #f1f2ef;
     --danger-soft: #fff1ef;
     --shadow: 0 1px 2px #2021240a, 0 8px 24px #2021240a;
+    --control-height: 40px;
+    --compact-control-height: 36px;
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--canvas); color: var(--ink); font: 15px/1.55 "Avenir Next", Avenir, "Trebuchet MS", sans-serif; }
@@ -61,10 +63,10 @@
   .gallery-tree-toggle:hover { color: var(--ink); background: var(--surface-muted); border-color: var(--line); }
   .gallery-tree-spacer { height: 28px; }
   form.inline { display: inline; }
-  input, select, textarea, button { min-height: 40px; border: 1px solid #c9cdc7; border-radius: 5px; font: inherit; }
+  input, select, textarea, button { min-height: var(--control-height); border: 1px solid #c9cdc7; border-radius: 5px; font: inherit; }
   input, select, textarea { max-width: 100%; padding: .55rem .7rem; color: var(--ink); background: var(--surface); }
-  select { padding: .6rem 2rem .6rem .75rem; }
-  input:not([type="checkbox"]):not([type="file"]), select { width: min(100%, 460px); }
+  select { padding: 0 2rem 0 .75rem; }
+  input:not([type="checkbox"]):not([type="file"]), select { width: min(100%, 460px); height: var(--control-height); }
   textarea { width: 100%; resize: vertical; }
   input:focus, select:focus, textarea:focus { border-color: var(--accent); outline: 3px solid #3157d526; }
   input[type="checkbox"] { width: 17px; min-height: 17px; accent-color: var(--accent); vertical-align: -.2em; }
@@ -217,7 +219,7 @@
   .settings-row .public-url-row { min-height: 36px; margin-left: auto; }
   .setting-control { min-width: 0; }
   .setting-control > span, .settings-row form > label > span, .add-block label > span { display: block; margin-bottom: .25rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
-  .listing-setting select { width: 150px; height: 36px; min-height: 36px; padding: .35rem .55rem; }
+  .listing-setting select { width: 150px; height: var(--compact-control-height); min-height: var(--compact-control-height); }
   .listing-setting select, .listing-setting option { text-transform: capitalize; }
   .toggle-form { display: flex; height: 36px; align-items: center; white-space: nowrap; }
   .toggle-form label { font-size: .82rem; font-weight: 600; }
@@ -238,7 +240,6 @@
   .gallery-options-panel form { display: grid; gap: .75rem; }
   .gallery-options-panel form label > span, .identity-setting > label > span { display: block; margin-bottom: .4rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
   .gallery-options-panel select { width: 100%; }
-  .gallery-options-panel input, .gallery-options-panel select { height: 40px; min-height: 40px; }
   .identity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
   .identity-grid > * { min-width: 0; }
   .identity-url { grid-column: 2 / 4; }
@@ -281,7 +282,7 @@
   .organization-content { max-width: 760px; padding: .75rem 1rem 1rem; }
   .compact-form { display: grid; grid-template-columns: minmax(200px, 1fr) 150px auto; gap: .75rem; align-items: end; margin-top: 1rem; }
   .compact-form .field { margin: 0; }
-  .compact-form input, .compact-form select { width: 100%; height: 40px; }
+  .compact-form input, .compact-form select { width: 100%; }
   .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2.5rem 0 1rem; }
   .section-heading h2 { margin: 0; }
   .section-heading h2 > span { color: var(--muted); font-size: .85rem; font-weight: 500; }
