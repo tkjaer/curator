@@ -290,6 +290,7 @@ type galleryData struct {
 	LensSuggestions      []store.LensSuggestion
 	TagSuggestions       []model.Tag
 	ItemTags             map[int64]string
+	ItemImportedTags     map[int64]string
 	Statuses             []string
 	ItemStatuses         []string
 	CoverID              int64
@@ -360,7 +361,7 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	itemTagValues, err := s.store.GalleryItemUserTags(ctx, id)
+	itemTagValues, err := s.store.GalleryItemManualTags(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -368,6 +369,15 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	itemTags := make(map[int64]string, len(itemTagValues))
 	for itemID, values := range itemTagValues {
 		itemTags[itemID] = strings.Join(values, ", ")
+	}
+	itemImportedTagValues, err := s.store.GalleryItemImportedTags(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	itemImportedTags := make(map[int64]string, len(itemImportedTagValues))
+	for itemID, values := range itemImportedTagValues {
+		itemImportedTags[itemID] = strings.Join(values, ", ")
 	}
 	var cover int64
 	if g.CoverItemID != nil {
@@ -381,6 +391,7 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		LensSuggestions:    lensSuggestions,
 		TagSuggestions:     tagSuggestions,
 		ItemTags:           itemTags,
+		ItemImportedTags:   itemImportedTags,
 		Statuses:           []string{"draft", "unlisted", "published", "protected"},
 		ItemStatuses:       []string{"draft", "unlisted", "published"},
 		CoverID:            cover,

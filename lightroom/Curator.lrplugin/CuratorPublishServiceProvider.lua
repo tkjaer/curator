@@ -254,11 +254,12 @@ function provider.processRenderedPhotos(_, exportContext)
             progress:setCaption("Uploading " .. LrPathUtils.leafName(pathOrMessage))
             local caption = rendition.photo:getFormattedMetadata("caption") or ""
             local lens, lensError = Keywords.lensName(rendition.photo)
+            local tags = Keywords.tags(rendition.photo)
             if lensError then
                 rendition:uploadFailed(lensError)
             else
                 local photoExternalID = collectionExternalID .. ":" .. tostring(rendition.photo.localIdentifier)
-                local result, err = API.upload(settings, galleryID, photoExternalID, pathOrMessage, caption, lens, function(portion)
+                local result, err = API.upload(settings, galleryID, photoExternalID, pathOrMessage, caption, lens, tags, function(portion)
                     if renditionCount > 0 then
                         progress:setPortionComplete(0.5 + (((index - 1) + portion) / renditionCount) * 0.5)
                     end

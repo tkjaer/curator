@@ -300,7 +300,7 @@ func TestSyncPhotoReplacesExistingItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	upload := func(externalID, caption, lens string) (int, int64, string) {
+	upload := func(externalID, caption, lens string, tags []string) (int, int64, string) {
 		t.Helper()
 		var body bytes.Buffer
 		writer := multipart.NewWriter(&body)
@@ -316,6 +316,11 @@ func TestSyncPhotoReplacesExistingItem(t *testing.T) {
 		}
 		if err := writer.WriteField("lens", lens); err != nil {
 			t.Fatal(err)
+		}
+		for _, tag := range tags {
+			if err := writer.WriteField("tag", tag); err != nil {
+				t.Fatal(err)
+			}
 		}
 		if err := writer.Close(); err != nil {
 			t.Fatal(err)
@@ -335,8 +340,11 @@ func TestSyncPhotoReplacesExistingItem(t *testing.T) {
 		return rec.Code, response.ID, response.URL
 	}
 
-	firstStatus, firstID, firstURL := upload("collection-1:photo-9", "First", "Voigtlander 40mm f/1.2")
-	secondStatus, secondID, _ := upload("collection-1:photo-9", "Updated", "")
+	firstStatus, firstID, firstURL := upload("collection-1:photo-9", "First", "Voigtlander 40mm f/1.2", []string{"Travel", "Shared"})
+	if err := st.ReplaceItemUserTags(ctx, firstID, []string{"Curator", "Shared"}); err != nil {
+		t.Fatal(err)
+	}
+	secondStatus, secondID, _ := upload("collection-1:photo-9", "Updated", "", []string{"Updated"})
 	if firstStatus != http.StatusCreated || secondStatus != http.StatusOK || firstID != secondID {
 		t.Fatalf("statuses = %d, %d; ids = %d, %d", firstStatus, secondStatus, firstID, secondID)
 	}
@@ -350,7 +358,14 @@ func TestSyncPhotoReplacesExistingItem(t *testing.T) {
 	if len(items) != 1 || items[0].Caption != "Updated" || items[0].Filename != "photo.jpg" || items[0].LightroomLens != "" {
 		t.Fatalf("synchronized items = %#v", items)
 	}
-	_, thirdID, _ := upload("collection-1:photo-10", "Another photo with the same filename", "Voigtlander 40mm f/1.2")
+	tags, err := st.ItemUserTags(ctx, firstID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 3 || tags[0].Value != "curator" || tags[1].Value != "shared" || tags[2].Value != "updated" {
+		t.Fatalf("synchronized tags = %#v", tags)
+	}
+	_, thirdID, _ := upload("collection-1:photo-10", "Another photo with the same filename", "Voigtlander 40mm f/1.2", nil)
 	items, err = st.ItemsByGallery(context.Background(), gallery.ID)
 	if err != nil {
 		t.Fatal(err)

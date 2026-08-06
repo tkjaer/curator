@@ -188,7 +188,7 @@ BLOCK_ITEMS                    # items shown by a grid block, ordered
 
 TAG / TAG_MAP
   tag: id, namespace (user | camera | lens | aspect | …), value
-  tag_map: tag_id, item_id
+  tag_map: tag_id, item_id, source (manual | metadata | lightroom)
 ```
 
 Key points:
@@ -259,14 +259,21 @@ gallery that still inherits it. Existing EXIF choices are preserved as
 explicit overrides when this model is introduced. The settings UI can reset
 all gallery presentation overrides to inheritance in one operation.
 
-Photo tags are owner-managed values in the `user` tag namespace. Input is
-trimmed, deduplicated, and stored as canonical lowercase values. Public tag
-visibility is a site-wide setting rather than a per-gallery override. When
-enabled, tags appear with individual photos in story views and lightboxes, but
-not in grid captions. A separate Metadata setting enables the tag browse facet.
-Builds expose tags only for published items in published galleries; draft,
-unlisted, and protected content never contributes tags to public HTML or browse
-indexes.
+Photo tags use the `user` tag namespace. Input is trimmed, deduplicated, and
+stored as canonical lowercase values. Assignments retain their source:
+Curator's admin, imported image metadata, or Lightroom. Initial import, media
+replacement, and metadata refresh read `dc:subject` from embedded and sidecar
+XMP plus IPTC keyword datasets. Lightroom sends assigned keyword names while
+excluding the reserved `Curator Lens` hierarchy. Refreshing one source replaces
+only that source's assignments, so tags entered in Curator are not erased by a
+later import or Lightroom publish.
+
+Public tag visibility is a site-wide setting rather than a per-gallery
+override. When enabled, the merged tags appear with individual photos in story
+views and lightboxes, but not in grid captions. A separate Metadata setting
+enables the tag browse facet. Builds expose tags only for published items in
+published galleries; draft, unlisted, and protected content never contributes
+tags to public HTML or browse indexes.
 
 Each build resolves the effective lens from the current metadata policy: the
 per-photo Curator manual override first, then a direct child of Lightroom's

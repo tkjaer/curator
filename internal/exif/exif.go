@@ -24,6 +24,7 @@ import (
 type Data struct {
 	Title       string
 	Description string
+	Keywords    []string
 	TakenAt     *time.Time
 	Camera      string
 	Lens        string
@@ -62,6 +63,7 @@ func Extract(path string) (Data, error) {
 		return Data{
 			Title:       firstText(sidecarText.Title, embeddedText.Title, iptcText.ObjectName, iptcText.Headline),
 			Description: firstText(sidecarText.Description, embeddedText.Description, iptcText.Caption),
+			Keywords:    mergeKeywords(sidecarText.Keywords, embeddedText.Keywords, iptcText.Keywords),
 			SidecarLens: sidecarLens,
 			XMPLens:     sidecarProfile,
 		}, nil
@@ -70,6 +72,7 @@ func Extract(path string) (Data, error) {
 	d := Data{
 		Title:       firstText(sidecarText.Title, embeddedText.Title, iptcText.ObjectName, iptcText.Headline, exifText(x, exif.XPTitle)),
 		Description: firstText(sidecarText.Description, embeddedText.Description, iptcText.Caption, str(x, exif.ImageDescription), exifText(x, exif.XPComment)),
+		Keywords:    mergeKeywords(sidecarText.Keywords, embeddedText.Keywords, iptcText.Keywords),
 		Camera:      camera(str(x, exif.Make), str(x, exif.Model)),
 		Lens:        str(x, exif.LensModel),
 		SidecarLens: sidecarLens,
@@ -159,12 +162,14 @@ func parseXMPLens(data []byte) string {
 type textMetadata struct {
 	Title       string
 	Description string
+	Keywords    []string
 }
 
 type iptcMetadata struct {
 	ObjectName string
 	Headline   string
 	Caption    string
+	Keywords   []string
 }
 
 func parseXMPText(data []byte) textMetadata {
@@ -173,6 +178,7 @@ func parseXMPText(data []byte) textMetadata {
 		lang  string
 	}
 	var title, description []candidate
+	var keywords []string
 	var field string
 	var lang string
 	decoder := xml.NewDecoder(bytes.NewReader(data))
@@ -184,7 +190,7 @@ func parseXMPText(data []byte) textMetadata {
 		switch value := token.(type) {
 		case xml.StartElement:
 			switch value.Name.Local {
-			case "title", "description":
+			case "title", "description", "subject":
 				field = value.Name.Local
 			}
 			for _, attr := range value.Attr {
@@ -195,6 +201,8 @@ func parseXMPText(data []byte) textMetadata {
 					title = append(title, candidate{value: attr.Value})
 				case "description":
 					description = append(description, candidate{value: attr.Value})
+				case "subject":
+					keywords = append(keywords, attr.Value)
 				}
 			}
 		case xml.CharData:
@@ -204,8 +212,10 @@ func parseXMPText(data []byte) textMetadata {
 			}
 			if field == "title" {
 				title = append(title, candidate{value: text, lang: lang})
-			} else {
+			} else if field == "description" {
 				description = append(description, candidate{value: text, lang: lang})
+			} else {
+				keywords = append(keywords, text)
 			}
 		case xml.EndElement:
 			if value.Name.Local == "li" {
@@ -229,7 +239,7 @@ func parseXMPText(data []byte) textMetadata {
 		}
 		return ""
 	}
-	return textMetadata{Title: pick(title), Description: pick(description)}
+	return textMetadata{Title: pick(title), Description: pick(description), Keywords: keywords}
 }
 
 func embeddedTextMetadata(path string) (textMetadata, iptcMetadata) {
@@ -321,6 +331,10 @@ func parseIPTCDatasets(data []byte) iptcMetadata {
 		value := normalizeText(string(data[5 : 5+size]))
 		if record == 2 {
 			switch dataset {
+			case 25:
+				if value != "" {
+					metadata.Keywords = append(metadata.Keywords, value)
+				}
 			case 5:
 				metadata.ObjectName = firstText(metadata.ObjectName, value)
 			case 105:
@@ -332,6 +346,14 @@ func parseIPTCDatasets(data []byte) iptcMetadata {
 		data = data[5+size:]
 	}
 	return metadata
+}
+
+func mergeKeywords(groups ...[]string) []string {
+	var keywords []string
+	for _, group := range groups {
+		keywords = append(keywords, group...)
+	}
+	return keywords
 }
 
 func firstText(values ...string) string {

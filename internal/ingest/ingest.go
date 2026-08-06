@@ -114,6 +114,9 @@ func Rescan(ctx context.Context, st *store.Store, cfg config.Config) (updated, s
 		if err := st.FillItemTextMetadata(ctx, it.ID, meta.Title, meta.Description); err != nil {
 			return updated, skipped, err
 		}
+		if err := st.ReplaceItemImportedTags(ctx, it.ID, store.TagSourceMetadata, meta.Keywords); err != nil {
+			return updated, skipped, err
+		}
 		updated++
 	}
 	return updated, skipped, nil
@@ -140,11 +143,19 @@ func ImportUploadIDWithSidecar(ctx context.Context, st *store.Store, cfg config.
 // ImportUploadIDWithSidecarAt imports an image using a distinct storage name
 // while retaining filename as its user-facing name.
 func ImportUploadIDWithSidecarAt(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) (int64, error) {
-	item, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
+	item, keywords, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
 	if err != nil {
 		return 0, err
 	}
-	return st.CreateItem(ctx, item)
+	itemID, err := st.CreateItem(ctx, item)
+	if err != nil {
+		return 0, err
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, store.TagSourceMetadata, keywords); err != nil {
+		_ = st.DeleteItem(ctx, itemID)
+		return 0, err
+	}
+	return itemID, nil
 }
 
 // ReplaceUploadWithSidecar replaces an item's source media while preserving
@@ -160,7 +171,7 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	if err != nil {
 		return err
 	}
-	item, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
+	item, keywords, err := importUploadItem(ctx, st, cfg, galleryID, galleryPath, filename, storageName, r, sidecar)
 	if err != nil {
 		return err
 	}
@@ -184,6 +195,9 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	if err := st.FillItemTextMetadata(ctx, item.ID, item.Title, item.Description); err != nil {
 		return err
 	}
+	if err := st.ReplaceItemImportedTags(ctx, item.ID, store.TagSourceMetadata, keywords); err != nil {
+		return err
+	}
 	if oldItem.OriginalPath != item.OriginalPath {
 		oldPath := filepath.Join(cfg.OriginalsDir(), filepath.FromSlash(oldItem.OriginalPath))
 		_ = os.Remove(oldPath)
@@ -192,45 +206,45 @@ func ReplaceUploadWithSidecarAt(ctx context.Context, st *store.Store, cfg config
 	return nil
 }
 
-func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) (model.Item, error) {
+func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, galleryPath, filename, storageName string, r, sidecar io.Reader) (model.Item, []string, error) {
 	if !IsImage(filename) {
-		return model.Item{}, fmt.Errorf("unsupported file type: %s", filename)
+		return model.Item{}, nil, fmt.Errorf("unsupported file type: %s", filename)
 	}
 
 	destDir := filepath.Join(cfg.OriginalsDir(), filepath.FromSlash(galleryPath))
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
-		return model.Item{}, err
+		return model.Item{}, nil, err
 	}
 	name := filepath.Base(filename)
 	storedName := filepath.Base(storageName)
 	dest := filepath.Join(destDir, storedName)
 	if err := writeFile(dest, r); err != nil {
-		return model.Item{}, fmt.Errorf("write %s: %w", storedName, err)
+		return model.Item{}, nil, fmt.Errorf("write %s: %w", storedName, err)
 	}
 	sidecarDest := strings.TrimSuffix(dest, filepath.Ext(dest)) + ".xmp"
 	if sidecar != nil {
 		if err := writeFile(sidecarDest, sidecar); err != nil {
-			return model.Item{}, fmt.Errorf("write %s sidecar: %w", name, err)
+			return model.Item{}, nil, fmt.Errorf("write %s sidecar: %w", name, err)
 		}
 	} else if err := os.Remove(sidecarDest); err != nil && !os.IsNotExist(err) {
-		return model.Item{}, fmt.Errorf("remove stale %s sidecar: %w", name, err)
+		return model.Item{}, nil, fmt.Errorf("remove stale %s sidecar: %w", name, err)
 	}
 
 	w, h, err := imaging.Dimensions(dest)
 	if err != nil {
-		return model.Item{}, fmt.Errorf("read %s: %w", name, err)
+		return model.Item{}, nil, fmt.Errorf("read %s: %w", name, err)
 	}
 	meta, err := exif.Extract(dest)
 	if err != nil {
-		return model.Item{}, fmt.Errorf("exif %s: %w", name, err)
+		return model.Item{}, nil, fmt.Errorf("exif %s: %w", name, err)
 	}
 	settings, err := st.Settings(ctx)
 	if err != nil {
-		return model.Item{}, err
+		return model.Item{}, nil, err
 	}
 	policy, err := LensPolicyFromSettings(settings)
 	if err != nil {
-		return model.Item{}, err
+		return model.Item{}, nil, err
 	}
 
 	return model.Item{
@@ -255,7 +269,7 @@ func importUploadItem(ctx context.Context, st *store.Store, cfg config.Config, g
 		ISO:            meta.ISO,
 		Focal:          meta.Focal,
 		TakenAt:        meta.TakenAt,
-	}, nil
+	}, meta.Keywords, nil
 }
 
 // ResolveCamera chooses a manual camera name over the imported EXIF value.

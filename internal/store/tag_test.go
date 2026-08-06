@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -70,6 +71,48 @@ func TestReplaceItemUserTagsPreservesOtherNamespaces(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("camera tag associations = %d, want 1", count)
+	}
+}
+
+func TestReplaceItemImportedTagsPreservesManualAssignments(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, itemIDs := makeGalleryWithItems(t, st, 1)
+	itemID := itemIDs[0]
+
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"curator", "shared"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"XMP", "shared"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"curator", "shared", "xmp"})
+
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"updated"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"curator", "shared", "updated"})
+	manual, err := st.ItemManualTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manual) != 2 || manual[0].Value != "curator" || manual[1].Value != "shared" {
+		t.Fatalf("manual tags = %#v", manual)
+	}
+}
+
+func assertTagValues(t *testing.T, st *Store, ctx context.Context, itemID int64, want []string) {
+	t.Helper()
+	tags, err := st.ItemUserTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(tags))
+	for index, tag := range tags {
+		got[index] = tag.Value
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("tags = %v, want %v", got, want)
 	}
 }
 

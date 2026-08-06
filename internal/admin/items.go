@@ -46,7 +46,7 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
-	tags, err := s.store.ItemUserTags(r.Context(), it.ID)
+	tags, err := s.store.ItemManualTags(r.Context(), it.ID)
 	if err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return

@@ -54,6 +54,11 @@ Caption changes trigger Lightroom republish. Successful publishes record public
 gallery and lightbox URLs when Curator has a Base URL and the gallery is public.
 Transport activity is written to Lightroom's `Curator.log` without credentials.
 
+Assigned Lightroom keywords are synchronized as lowercase photo tags. Curator
+tracks Lightroom and admin assignments separately, so republishing replaces the
+Lightroom keyword set without removing tags entered in Curator. The reserved
+`Curator Lens` keyword and all of its descendants are excluded from photo tags.
+
 ## Lens keywords
 
 For manual or adapted lenses, create this Lightroom keyword hierarchy:
