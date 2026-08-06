@@ -62,7 +62,7 @@ output/                  # generated, disposable, fully rebuildable
 │   ├── img/…            # image derivatives
 │   └── assets/…         # theme css/js, self-hosted
 ├── feed.xml
-└── nginx-locations.conf # auth_basic includes for protected galleries
+└── curator-auth.conf    # auth_basic locations for protected galleries
 ```
 
 Originals are never written into `output/`. Derivatives are a pure function of
@@ -78,8 +78,8 @@ site files. Those names remain available to galleries nested below a parent.
   site and the admin UI.
 - **SQLite** via a pure-Go driver (`modernc.org/sqlite`) — keeps the
   single-binary, no-cgo property.
-- **libvips** (via `govips`) for image derivatives, with the option of a
-  pure-Go imaging fallback. No RAW decoding.
+- **Pure-Go imaging** for JPEG and PNG decoding, EXIF orientation, and
+  high-quality derivative scaling. No RAW decoding or system image libraries.
 - **Vanilla JS**, self-hosted, used only for progressive enhancement
   (lightbox, navigation). The site works without it.
 
@@ -177,7 +177,7 @@ ITEM
 
 DERIVATIVE
   id, item_id, preset (thumb | display | w800 | w1600 | …),
-  width, height, path, hash   # hash = hash(original + preset params)
+  width, height, path, hash   # hash = hash(original + preset name + processing version)
 
 BLOCK                          # ordered content within a gallery
   id, gallery_id, type (heading | text | quote | image | grid),
@@ -216,8 +216,8 @@ in-story grids.
 ## Image derivatives
 
 For each item, Curator generates a thumbnail, a display size, and a few
-responsive widths from the original. Derivative filenames come from
-`hash(original bytes + preset)`, so:
+responsive widths from the original. Derivative filenames come from the
+original bytes, preset name, and an internal processing version, so:
 
 - Unchanged images cost nothing on rebuild.
 - Replacing an image produces new derivative files; a later sweep removes
@@ -334,26 +334,18 @@ Lightroom renders JPEGs, Curator owns originals and stored metadata, and public
 delivery remains entirely static without giving the plugin direct SQLite
 access.
 
-Builds are incremental. Editing anything marks the affected gallery dirty and
-bumps a content version; publishing rebuilds the dirty set and regenerates only
-derivatives whose hash changed. A build ledger records, per output artifact, a
-source hash so unchanged pages and images are skipped, and an interrupted build
-can safely resume.
-
-Some changes intentionally trigger a wider rebuild — publish/unpublish and
-top-level renames can affect navigation across the whole site — which is an
-accepted trade-off for a simpler ledger. Routine edits (reordering, captions,
-replacing an image, highlighting) stay local and fast.
-
-Navigation is rendered from a small emitted sitemap so that most edits do not
-dirty every page.
+Builds regenerate the static HTML, browse pages, feed, access-control files, and
+theme assets on each run. Image derivatives are content-addressed and reused
+when their generated files already exist, avoiding repeated image decoding and
+resizing. At the end of a successful build, Curator removes generated files
+that are no longer referenced by the current site.
 
 ```
-Edit in admin ─▶ mark gallery dirty, bump version
-Publish ─▶ compute dirty set (galleries, ancestors' nav, affected facet pages)
-        ─▶ rebuild dirty pages
-        ─▶ regenerate only changed derivatives
-        ─▶ write output, update ledger
+Edit in admin ─▶ update SQLite metadata
+Publish ─▶ render current static pages
+  ─▶ reuse existing image derivatives where possible
+  ─▶ write current assets and access-control files
+  ─▶ remove stale generated output
 ```
 
 ## Themes
@@ -378,8 +370,8 @@ themes/<name>/
 └── static/                  # favicon, self-hosted fonts, etc.
 ```
 
-Curator ships one polished default theme that serves as the reference
-implementation of this contract.
+Curator ships two themes: `default`, the reference implementation of the theme
+contract, and `folio`, a more editorial presentation.
 
 ### Front-end approach
 
@@ -402,14 +394,20 @@ Single binary; everything lives under `internal/`.
 
 ```
 internal/
-├── store      # SQLite access and models
-├── imaging    # derivative generation (libvips)
-├── ingest     # import, EXIF extraction, facet tagging
-├── render     # view models and page rendering (grid, story, facet)
-├── build      # dirty-set computation, ledger, orchestration
-├── admin      # HTTP handlers and templates for the CMS UI
-├── theme      # theme loading, manifest, options
-└── publish    # output targets (local dir; optional rsync helper)
+├── admin       # HTTP handlers and templates for the CMS UI
+├── build       # static rendering, derivatives, facets, feed, and auth output
+├── config      # content-root and output paths
+├── deploy      # rsync deployment and dry runs
+├── exif        # embedded and XMP metadata extraction
+├── htpasswd    # Apache-compatible password hashing
+├── imaging     # pure-Go decoding, orientation, scaling, and JPEG output
+├── ingest      # import and metadata normalization
+├── model       # shared domain types
+├── publishapi  # Lightroom publishing API and token handling
+├── render      # public theme view models and justified layout
+├── slug        # URL slug normalization
+├── store       # SQLite access and migrations
+└── theme       # theme loading, manifests, templates, and assets
 ```
 
 ## Coding principles
@@ -419,7 +417,7 @@ internal/
 - Comments explain *why*, not *what*. Clear names and small functions over
   narration.
 - Small, well-named packages with narrow surfaces.
-- Pure, testable core logic where it matters: justified layout, dirty-set
-  computation, and facet grouping should test without a database or filesystem.
+- Pure, testable core logic where it matters: justified layout, visibility
+  grouping, and facet grouping should test without a database or filesystem.
 - Idiomatic Go: wrap errors with context; add concurrency only where it clearly
   pays (derivative generation).

@@ -15,9 +15,9 @@ galleries, and Lightroom keeps their photos synchronized.
 
 Creating a published collection or collection set synchronizes the Curator
 hierarchy, including empty nodes. New galleries use the defaults under
-Curator's Site settings. Enable **Publish new galleries immediately** to make
-Lightroom collections visible on the next static build, and **Show EXIF in new
-gallery lightboxes** to enable metadata by default.
+Curator's Site settings. Enable **Publish immediately** to make Lightroom
+collections visible on the next static build, and **EXIF** to show camera
+details in their lightboxes by default.
 
 For headless setup, `curator create-publish-token -content /path/to/content`
 rotates the same credential and prints it once. Restart `curator serve` after
