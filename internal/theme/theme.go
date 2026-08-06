@@ -72,6 +72,34 @@ func (t *Theme) Assets() (fs.FS, error) {
 	return fs.Sub(t.fsys, "assets")
 }
 
+// ContentVersion returns a deterministic version of the complete theme,
+// including its manifest, templates, and assets.
+func (t *Theme) ContentVersion() (string, error) {
+	hash := sha256.New()
+	err := fs.WalkDir(t.fsys, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return walkErr
+		}
+		if _, err := io.WriteString(hash, path+"\x00"); err != nil {
+			return err
+		}
+		file, err := t.fsys.Open(path)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(hash, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
 // AssetVersion returns a deterministic version for cache-busting asset URLs.
 func (t *Theme) AssetVersion() (string, error) {
 	assets, err := t.Assets()

@@ -614,9 +614,9 @@ func TestBuildStatusIDsDistinguishBuilds(t *testing.T) {
 		t.Fatal("first build did not begin")
 	}
 	first := status.snapshot().BuildID
-	status.finish(build.Report{FeedUpdated: true}, nil)
-	if !status.snapshot().FeedUpdated {
-		t.Fatal("Atom feed update missing from build status")
+	status.finish(build.Report{FeedUpdated: true, Unchanged: true}, nil)
+	if snapshot := status.snapshot(); !snapshot.FeedUpdated || !snapshot.Unchanged {
+		t.Fatal("build report fields missing from build status")
 	}
 	if !status.begin() {
 		t.Fatal("second build did not begin")

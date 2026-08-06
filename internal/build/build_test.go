@@ -95,14 +95,35 @@ func TestBuildProducesSite(t *testing.T) {
 	if !strings.Contains(string(page), "Visible title") || !strings.Contains(string(page), "Visible description") {
 		t.Fatal("inherited title and description defaults were not rendered")
 	}
+	unchanged, err := New(st, th, cfg).BuildReport(ctx)
+	if err != nil {
+		t.Fatalf("unchanged rebuild: %v", err)
+	}
+	if !unchanged.Unchanged {
+		t.Fatal("unchanged rebuild was not skipped")
+	}
+	if err := os.Remove(filepath.Join(cfg.OutputDir, "index.html")); err != nil {
+		t.Fatal(err)
+	}
+	recovered, err := New(st, th, cfg).BuildReport(ctx)
+	if err != nil {
+		t.Fatalf("rebuild missing output: %v", err)
+	}
+	if recovered.Unchanged {
+		t.Fatal("missing output did not invalidate build")
+	}
 	if err := st.SetSetting(ctx, "site.default_gallery_show_title", "false"); err != nil {
 		t.Fatal(err)
 	}
 	if err := st.SetSetting(ctx, "site.default_gallery_show_description", "false"); err != nil {
 		t.Fatal(err)
 	}
-	if err := New(st, th, cfg).Build(ctx); err != nil {
+	changed, err := New(st, th, cfg).BuildReport(ctx)
+	if err != nil {
 		t.Fatalf("rebuild with hidden metadata: %v", err)
+	}
+	if changed.Unchanged {
+		t.Fatal("settings change did not invalidate build")
 	}
 	page, err = os.ReadFile(galleryPage)
 	if err != nil {

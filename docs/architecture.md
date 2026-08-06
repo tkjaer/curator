@@ -342,15 +342,24 @@ Lightroom renders JPEGs, Curator owns originals and stored metadata, and public
 delivery remains entirely static without giving the plugin direct SQLite
 access.
 
-Builds regenerate the static HTML, browse pages, feed, access-control files, and
-theme assets on each run. Image derivatives are content-addressed and reused
+Builds record a content revision for each output directory. If no public-output
+input or theme file has changed since the last successful build, Curator keeps
+the existing output without loading galleries, hashing originals, computing
+layouts, or executing templates. Database triggers invalidate this fast path
+for gallery, item, story, tag, facet, preset, access, and settings changes.
+
+Changed builds regenerate the static HTML, browse pages, feed, access-control
+files, and theme assets. Image derivatives are content-addressed and reused
 when their generated files already exist, avoiding repeated image decoding and
-resizing. At the end of a successful build, Curator removes generated files
-that are no longer referenced by the current site.
+resizing. Replacing source media through Curator invalidates those derivatives;
+after direct filesystem edits under `originals/`, use **Refresh source
+metadata** before publishing. At the end of a successful build, Curator removes
+generated files that are no longer referenced by the current site.
 
 ```
 Edit in admin ─▶ update SQLite metadata
-Publish ─▶ render current static pages
+Publish ─▶ skip when content and theme are unchanged
+  ─▶ otherwise render current static pages
   ─▶ reuse existing image derivatives where possible
   ─▶ write current assets and access-control files
   ─▶ remove stale generated output

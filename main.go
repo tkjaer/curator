@@ -227,6 +227,11 @@ func cmdBuild(args []string) error {
 	if !*quiet {
 		fmt.Fprintln(os.Stderr) // finish the progress line
 	}
+	if report.Unchanged {
+		fmt.Printf("site unchanged; kept existing output in %s → %s\n",
+			report.Duration.Round(time.Millisecond), cfg.OutputDir)
+		return nil
+	}
 	feedSummary := ""
 	if report.FeedUpdated {
 		feedSummary = "; Atom feed updated"
@@ -289,12 +294,16 @@ func cmdPublish(args []string) error {
 			return err
 		}
 		fmt.Fprintln(os.Stderr)
-		feedSummary := ""
-		if report.FeedUpdated {
-			feedSummary = "; Atom feed updated"
+		if report.Unchanged {
+			fmt.Printf("site unchanged; kept existing output in %s\n", report.Duration.Round(time.Millisecond))
+		} else {
+			feedSummary := ""
+			if report.FeedUpdated {
+				feedSummary = "; Atom feed updated"
+			}
+			fmt.Printf("built %d galleries, %d photos%s in %s\n",
+				report.Galleries, report.Photos, feedSummary, report.Duration.Round(time.Millisecond))
 		}
-		fmt.Printf("built %d galleries, %d photos%s in %s\n",
-			report.Galleries, report.Photos, feedSummary, report.Duration.Round(time.Millisecond))
 	}
 
 	if err := deploy.Rsync(ctx, cfg.OutputDir, deploy.Options{
