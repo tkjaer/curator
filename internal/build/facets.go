@@ -36,17 +36,64 @@ func (b *Builder) loadFacets(ctx context.Context) error {
 	return nil
 }
 
-// accumulate records a published photo under each enabled facet's value.
-func (b *Builder) accumulate(it model.Item, pv render.PhotoView) {
+// accumulate records a published photo under each enabled facet's values.
+func (b *Builder) accumulate(it model.Item, pv render.PhotoView, tags []string) {
 	for _, f := range b.facets {
+		if f.Namespace == "tag" {
+			for _, value := range tags {
+				b.accumulateFacet(f.Namespace, value, it, pv)
+			}
+			continue
+		}
 		v := facetValue(it, f.Namespace)
 		if v == "" {
 			continue
 		}
-		b.facetGroups[f.Namespace][v] = append(b.facetGroups[f.Namespace][v], facetPhoto{
-			Photo: pv, TakenAt: it.TakenAt, Filename: it.Filename,
-		})
+		b.accumulateFacet(f.Namespace, v, it, pv)
 	}
+}
+
+func (b *Builder) accumulateFacet(namespace, value string, it model.Item, pv render.PhotoView) {
+	b.facetGroups[namespace][value] = append(b.facetGroups[namespace][value], facetPhoto{
+		Photo: pv, TakenAt: it.TakenAt, Filename: it.Filename,
+	})
+}
+
+func (b *Builder) facetEnabled(namespace string) bool {
+	for _, facet := range b.facets {
+		if facet.Namespace == namespace {
+			return true
+		}
+	}
+	return false
+}
+
+func visibleUserTags(tags []string, settings map[string]string) []string {
+	mode := settings["metadata.tag_visibility"]
+	selected := make(map[string]bool)
+	for _, value := range strings.Split(settings["metadata.tag_selection"], "\n") {
+		if value = strings.TrimSpace(value); value != "" {
+			selected[strings.ToLower(value)] = true
+		}
+	}
+
+	visible := make([]string, 0, len(tags))
+	for _, value := range tags {
+		isSelected := selected[strings.ToLower(value)]
+		show := true
+		switch mode {
+		case "hide_all":
+			show = false
+		case "show_selected":
+			show = isSelected
+		case "hide_selected":
+			show = !isSelected
+		}
+		if show {
+			visible = append(visible, value)
+		}
+	}
+	return visible
 }
 
 func facetValue(it model.Item, namespace string) string {

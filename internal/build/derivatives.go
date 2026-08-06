@@ -28,6 +28,13 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 	if err != nil {
 		return nil, nil, err
 	}
+	itemTags := map[int64][]string{}
+	if g.Status == model.GalleryPublished {
+		itemTags, err = b.Store.GalleryItemUserTags(ctx, g.ID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
 
 	imgPrefix := generatedRoot + "/img"
 	if g.Status == model.GalleryProtected {
@@ -56,7 +63,15 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 			pv.Exif = exifView(it)
 		}
 		if g.Status == model.GalleryPublished {
-			b.accumulate(it, pv)
+			visibleTags := visibleUserTags(itemTags[it.ID], b.settings)
+			for _, value := range visibleTags {
+				tag := render.TagView{Label: value}
+				if b.facetEnabled("tag") {
+					tag.Href = b.browseValueURL("tag", value)
+				}
+				pv.Tags = append(pv.Tags, tag)
+			}
+			b.accumulate(it, pv, visibleTags)
 		}
 		views = append(views, pv)
 		byItem[it.ID] = pv

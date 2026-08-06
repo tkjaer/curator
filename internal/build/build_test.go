@@ -580,6 +580,102 @@ func TestDerivativeHashIncludesProcessingVersion(t *testing.T) {
 	}
 }
 
+func TestBuildPublishesOnlyVisibleTagsFromPublicPhotos(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "metadata.tag_visibility", "hide_selected"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "metadata.tag_selection", "HiddenTagZX"); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetFacetEnabled(ctx, "tag", true); err != nil {
+		t.Fatal(err)
+	}
+
+	createTaggedItem := func(slug string, galleryStatus model.GalleryStatus, itemStatus model.ItemStatus, tags ...string) {
+		t.Helper()
+		galleryID, err := st.CreateGallery(ctx, model.Gallery{Slug: slug, Title: slug, Type: model.GalleryGrid, Status: galleryStatus})
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(slug, "photo.jpg")
+		if itemStatus == model.ItemPublished {
+			writeSourceImage(t, filepath.Join(cfg.OriginalsDir(), path), len(slug))
+		}
+		itemID, err := st.CreateItem(ctx, model.Item{
+			GalleryID: galleryID, OriginalPath: path, Filename: "photo.jpg",
+			Width: 600, Height: 400, Aspect: model.AspectLandscape, Status: itemStatus,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := st.ReplaceItemUserTags(ctx, itemID, tags); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	createTaggedItem("public-tags", model.GalleryPublished, model.ItemPublished, "VisibleTagZX", "HiddenTagZX")
+	createTaggedItem("draft-photo", model.GalleryPublished, model.ItemDraft, "DraftTagZX")
+	createTaggedItem("unlisted-tags", model.GalleryUnlisted, model.ItemPublished, "UnlistedTagZX")
+	createTaggedItem("protected-tags", model.GalleryProtected, model.ItemPublished, "ProtectedTagZX")
+
+	th, err := theme.Load(os.DirFS("../../themes/default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatalf("build: %v", err)
+	}
+
+	publicPage, err := os.ReadFile(filepath.Join(cfg.OutputDir, "public-tags", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(publicPage), `class="fig-tags"`) {
+		t.Fatalf("grid gallery rendered a visible tag label:\n%s", publicPage)
+	}
+	if !strings.Contains(string(publicPage), `class="lightbox-tags-source" hidden`) || !strings.Contains(string(publicPage), "visibletagzx") {
+		t.Fatalf("grid gallery does not contain the permitted lightbox tag source:\n%s", publicPage)
+	}
+
+	tagIndex, err := os.ReadFile(filepath.Join(cfg.OutputDir, "browse", "tag", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(tagIndex), "visibletagzx") {
+		t.Fatalf("tag index does not contain visible tag:\n%s", tagIndex)
+	}
+	allPublicHTML := string(publicPage) + string(tagIndex)
+	for _, hidden := range []string{"hiddentagzx", "drafttagzx", "unlistedtagzx", "protectedtagzx"} {
+		if strings.Contains(allPublicHTML, hidden) {
+			t.Errorf("public tag output leaked %q", hidden)
+		}
+		if _, err := os.Stat(filepath.Join(cfg.OutputDir, "browse", "tag", strings.ToLower(hidden), "index.html")); !os.IsNotExist(err) {
+			t.Errorf("browse page for %q exists or returned unexpected error: %v", hidden, err)
+		}
+	}
+	for _, gallery := range []string{"unlisted-tags", "protected-tags"} {
+		page, err := os.ReadFile(filepath.Join(cfg.OutputDir, gallery, "index.html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(page), "tagzx") {
+			t.Errorf("%s gallery leaked user tags", gallery)
+		}
+	}
+}
+
 func TestBuildEmitsNginxAuth(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))

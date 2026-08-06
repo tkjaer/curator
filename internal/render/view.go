@@ -66,8 +66,15 @@ type PhotoView struct {
 	Srcset      []Source
 	Href        string
 	Exif        *ExifView
+	Tags        []TagView
 	FlexBasis   float64
 	RowHeight   int
+}
+
+// TagView is a visible user tag. Href is empty when tag browse indexes are disabled.
+type TagView struct {
+	Label string
+	Href  string
 }
 
 // GridRow is one row of a justified grid. Center is set for rows that do not
@@ -116,12 +123,13 @@ type FacetLink struct {
 
 // SiteView is the site-wide context available to every page.
 type SiteView struct {
-	Title     string
-	BaseURL   string
-	FeedURL   string
-	Copyright string
-	Nav       []NavNode
-	Facets    []FacetLink
+	Title        string
+	BaseURL      string
+	AssetVersion string
+	FeedURL      string
+	Copyright    string
+	Nav          []NavNode
+	Facets       []FacetLink
 }
 
 // GalleryView is the model passed to a gallery template. Grid galleries use

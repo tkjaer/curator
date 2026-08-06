@@ -3,6 +3,7 @@
 package theme
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -69,6 +70,37 @@ func (t *Theme) Render(w io.Writer, name string, data any) error {
 // Assets returns the theme's assets directory as a filesystem.
 func (t *Theme) Assets() (fs.FS, error) {
 	return fs.Sub(t.fsys, "assets")
+}
+
+// AssetVersion returns a deterministic version for cache-busting asset URLs.
+func (t *Theme) AssetVersion() (string, error) {
+	assets, err := t.Assets()
+	if err != nil {
+		return "", err
+	}
+	hash := sha256.New()
+	err = fs.WalkDir(assets, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return walkErr
+		}
+		if _, err := io.WriteString(hash, path+"\x00"); err != nil {
+			return err
+		}
+		file, err := assets.Open(path)
+		if err != nil {
+			return err
+		}
+		_, copyErr := io.Copy(hash, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil))[:12], nil
 }
 
 // Defaults returns the manifest's option defaults keyed by option key.

@@ -130,11 +130,16 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	b.settings = settings
 	visible, children, roots, protected := groupVisible(galleries)
 	b.report.Galleries = len(visible)
+	assetVersion, err := b.Theme.AssetVersion()
+	if err != nil {
+		return Report{}, err
+	}
 
 	b.site = render.SiteView{
-		Title:     settings["site.title"],
-		BaseURL:   strings.TrimRight(settings["site.base_url"], "/"),
-		Copyright: copyrightLine(settings, time.Now().Year()),
+		Title:        settings["site.title"],
+		BaseURL:      strings.TrimRight(settings["site.base_url"], "/"),
+		AssetVersion: assetVersion,
+		Copyright:    copyrightLine(settings, time.Now().Year()),
 	}
 	if settings["site.feed_enabled"] == "true" && b.site.BaseURL != "" {
 		b.site.FeedURL = b.site.BaseURL + "/feed.xml"

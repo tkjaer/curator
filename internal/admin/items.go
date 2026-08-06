@@ -24,6 +24,7 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	highlighted := r.FormValue("highlight") == "on"
 	manualCamera := strings.TrimSpace(r.FormValue("manual_camera"))
 	manualLens := strings.TrimSpace(r.FormValue("manual_lens"))
+	tagValues := strings.Split(r.FormValue("tags"), ",")
 
 	settings, err := s.store.Settings(r.Context())
 	if err != nil {
@@ -41,10 +42,23 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
+	if err := s.store.ReplaceItemUserTags(r.Context(), it.ID, tagValues); err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	tags, err := s.store.ItemUserTags(r.Context(), it.ID)
+	if err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	normalizedTags := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		normalizedTags = append(normalizedTags, tag.Value)
+	}
 	if r.Header.Get("X-Curator-Async") == "true" {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"message": "Photo updated", "redirect": s.galleryLink(it.GalleryID), "resolvedCamera": effectiveCamera, "resolvedLens": effectiveLens,
+			"message": "Photo updated", "redirect": s.galleryLink(it.GalleryID), "resolvedCamera": effectiveCamera, "resolvedLens": effectiveLens, "tags": strings.Join(normalizedTags, ", "),
 		})
 		return
 	}

@@ -140,6 +140,9 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := srv.store.ReplaceItemUserTags(ctx, itemID, []string{`A "tag" <unsafe>`}); err != nil {
+		t.Fatal(err)
+	}
 
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(galleryID, 10), nil))
@@ -152,6 +155,7 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`data-item-id="` + strconv.FormatInt(itemID, 10) + `"`,
 		`data-title="A &#34;title&#34; &lt;unsafe&gt;"`,
 		`data-description="&lt;b&gt;Description&lt;/b&gt;"`,
+		`data-tags="a &#34;tag&#34; &lt;unsafe&gt;"`,
 		`data-embedded-camera="Frontier"`,
 		`data-manual-camera="A &#34;manual&#34; &lt;camera&gt;"`,
 		`data-manual-lens="A &#34;manual&#34; &lt;lens&gt;"`,
@@ -165,6 +169,9 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 		`name="manual_lens" list="lens-suggestions"`,
 		`<datalist id="lens-suggestions">`,
 		`<option value="A &#34;manual&#34; &lt;lens&gt;" label="1 photo"></option>`,
+		`data-photo-editor-panel="tags" hidden`,
+		`name="tags" list="tag-suggestions"`,
+		`<option value="a &#34;tag&#34; &lt;unsafe&gt;"></option>`,
 		`.cover-label[hidden] { display: none; }`,
 	} {
 		if !strings.Contains(body, want) {
@@ -234,9 +241,9 @@ func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	update := func(manualCamera, manualLens string) *httptest.ResponseRecorder {
+	update := func(manualCamera, manualLens, tags string) *httptest.ResponseRecorder {
 		t.Helper()
-		form := url.Values{"status": {string(model.ItemPublished)}, "manual_camera": {manualCamera}, "manual_lens": {manualLens}}
+		form := url.Values{"status": {string(model.ItemPublished)}, "manual_camera": {manualCamera}, "manual_lens": {manualLens}, "tags": {tags}}
 		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/update", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("X-Curator-Async", "true")
@@ -245,12 +252,22 @@ func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 		return rec
 	}
 
-	rec := update("  Leica M6  ", "  Manual lens  ")
+	rec := update("  Leica M6  ", "  Manual lens  ", " night, Night, Kodak   Portra 400 ")
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedCamera":"Leica M6"`) {
 		t.Fatalf("manual update response = %q", body)
 	}
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Manual lens"`) {
 		t.Fatalf("manual update response = %q", body)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, `"tags":"kodak portra 400, night"`) {
+		t.Fatalf("tag update response = %q", body)
+	}
+	tags, err := srv.store.ItemUserTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 2 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night" {
+		t.Fatalf("stored tags = %#v", tags)
 	}
 	it, err := srv.store.Item(ctx, itemID)
 	if err != nil {
@@ -260,12 +277,19 @@ func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 		t.Fatalf("manual update stored %+v", it)
 	}
 
-	rec = update("", "")
+	rec = update("", "", "")
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedCamera":"Frontier"`) {
 		t.Fatalf("clear response = %q", body)
 	}
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedLens":"Detected lens"`) {
 		t.Fatalf("clear response = %q", body)
+	}
+	tags, err = srv.store.ItemUserTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 0 {
+		t.Fatalf("tags after clear = %#v, want none", tags)
 	}
 	it, err = srv.store.Item(ctx, itemID)
 	if err != nil {
@@ -480,6 +504,12 @@ func TestRsyncCleanupCanBePreviewedBeforeEnablingDeployment(t *testing.T) {
 	if strings.Contains(body, "old <photo>.jpg") || !strings.Contains(decoded, "*deleting old <photo>.jpg") ||
 		!strings.Contains(decoded, ">f+++++++++ new.jpg") {
 		t.Fatalf("preview output not safely rendered: %s", body)
+	}
+	deployment := strings.Index(body, `id="deployment-settings"`)
+	preview := strings.Index(body, `class="deployment-preview"`)
+	feed := strings.Index(body, `<h2>Atom feed</h2>`)
+	if deployment < 0 || preview < deployment || feed < preview || !strings.Contains(body, `form="rsync-preview-form"`) || !strings.Contains(body, `id="rsync-preview-form"`) {
+		t.Fatalf("preview is not contained by the deployment panel: %s", body)
 	}
 }
 
@@ -1148,6 +1178,9 @@ func TestLensMetadataSettings(t *testing.T) {
 		"mapping_camera":             {"FUJIFILM XF10"},
 		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
 		"facet_camera":               {"on"},
+		"tag_visibility":             {"hide_selected"},
+		"selected_tag":               {"Private", "private", "Public"},
+		"tag_browse_enabled":         {"on"},
 		"facet_pagination_enabled":   {"on"},
 		"facet_page_size":            {"60"},
 	}
@@ -1172,11 +1205,14 @@ func TestLensMetadataSettings(t *testing.T) {
 	if settings["metadata.facet_pagination_enabled"] != "true" || settings["metadata.facet_page_size"] != "60" {
 		t.Fatalf("pagination settings = %q, %q", settings["metadata.facet_pagination_enabled"], settings["metadata.facet_page_size"])
 	}
+	if settings["metadata.tag_visibility"] != "hide_selected" || settings["metadata.tag_selection"] != "Private\nPublic" {
+		t.Fatalf("tag settings = %q, %q", settings["metadata.tag_visibility"], settings["metadata.tag_selection"])
+	}
 	facets, err := srv.store.FacetConfigs(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(facets) < 2 || !facets[0].Enabled || facets[1].Enabled {
+	if len(facets) < 3 || !facets[0].Enabled || facets[1].Enabled || !facets[2].Enabled {
 		t.Fatalf("public browse pages = %+v", facets)
 	}
 
@@ -1186,6 +1222,8 @@ func TestLensMetadataSettings(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
+		!strings.Contains(rec.Body.String(), `<option value="hide_selected" selected>Show all except selected</option>`) ||
+		!strings.Contains(rec.Body.String(), `name="tag_browse_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_pagination_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_page_size" value="60"`) ||
 		!strings.Contains(rec.Body.String(), `<strong>Camera</strong><small>Generate a public Camera browse page.</small>`) {
