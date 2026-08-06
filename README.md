@@ -6,14 +6,14 @@ rendered as static HTML and images, with access-control configuration when
 needed.
 
 Curator supports hierarchical grid and story galleries, unlisted and protected
-content, automatic image resizing, EXIF facets, Atom feeds, embedded themes,
-and publishing from Lightroom Classic.
+content, simple photo tags, automatic image resizing, EXIF facets, Atom feeds,
+embedded themes, and publishing from Lightroom Classic.
 
 Initial setup and Curator-specific settings live in the admin UI. Galleries and
 photos can then be managed there or published day to day from Lightroom Classic.
 The admin supports gallery hierarchies, contact-sheet review and ordering,
-photo metadata overrides, block-based story editing, presentation defaults,
-access users, facets, themes, and publishing.
+photo metadata overrides and tags, block-based story editing, presentation
+defaults, access users, facets, themes, and publishing.
 
 ## Screenshots
 

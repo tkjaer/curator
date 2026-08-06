@@ -259,6 +259,15 @@ gallery that still inherits it. Existing EXIF choices are preserved as
 explicit overrides when this model is introduced. The settings UI can reset
 all gallery presentation overrides to inheritance in one operation.
 
+Photo tags are owner-managed values in the `user` tag namespace. Input is
+trimmed, deduplicated, and stored as canonical lowercase values. Public tag
+visibility is a site-wide setting rather than a per-gallery override. When
+enabled, tags appear with individual photos in story views and lightboxes, but
+not in grid captions. A separate Metadata setting enables the tag browse facet.
+Builds expose tags only for published items in published galleries; draft,
+unlisted, and protected content never contributes tags to public HTML or browse
+indexes.
+
 Each build resolves the effective lens from the current metadata policy: the
 per-photo Curator manual override first, then a direct child of Lightroom's
 `Curator Lens` keyword, embedded EXIF, a standard adjacent XMP sidecar
@@ -270,10 +279,9 @@ another build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
-`/browse/camera/` and `/browse/camera/x-t5/`. Facets are
-implemented as tags in a dedicated namespace, so manual tags and EXIF facets
-share one browse/render path. Photos on value pages are ordered newest first,
-with undated photos last.
+`/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in
+dedicated namespaces, so user tags and EXIF facets share one browse/render
+path. Photos on value pages are ordered newest first, with undated photos last.
 By default, value pages are split into static pages of 100 photos; the Metadata
 settings can change that size or disable pagination. Page one keeps the value's
 canonical URL, later pages live below `/page/<number>/`, and progressive loading
