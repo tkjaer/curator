@@ -43,7 +43,7 @@
 </form>
 
 <section class="card settings-action-card settings-wide-card rsync-preview">
-  <div><strong>Preview remote changes</strong><p>Dry-run rsync against the saved destination with stale-file removal simulated. Nothing is uploaded or deleted.</p></div>
+  <div><h2>Preview remote changes</h2><p>Dry-run rsync against the saved destination with stale-file removal simulated. Nothing is uploaded or deleted.</p></div>
   <form method="post" action="{{$.BasePath}}/settings/publishing/preview">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
     <button class="secondary-button"{{if not .RsyncTarget}} disabled{{end}}>Preview changes</button>
@@ -59,8 +59,7 @@
 </section>
 
 <section class="card settings-wide-card">
-  <h2>Lightroom Classic</h2>
-  <p><span>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</span></p>
+  <div class="settings-panel-heading"><h2>Lightroom Classic</h2><p>{{if .PublishTokenConfigured}}A publishing token is configured. Rotating it immediately disconnects clients using the previous token.{{else}}Create a dedicated token for the Curator Lightroom Publish Service.{{end}}</p></div>
   {{if .GeneratedPublishToken}}
   <label class="field"><span>Publishing token (shown once)</span>
     <span class="input-action"><input id="publishing-token" value="{{.GeneratedPublishToken}}" readonly autocomplete="off"><button class="secondary-button" type="button" id="copy-publishing-token">Copy</button></span>

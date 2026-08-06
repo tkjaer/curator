@@ -53,8 +53,7 @@
   </div>
 </form>
 <section class="card xmp-profiles settings-wide-card">
-  <h2>Detected Lightroom profiles</h2>
-  <p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p>
+  <div class="settings-panel-heading"><h2>Detected Lightroom profiles</h2><p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p></div>
   {{if .XMPProfiles}}
   <table>
     <thead><tr><th>Profile</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
@@ -68,9 +67,9 @@
   <p>No Lightroom XMP lens profiles found.</p>
   {{end}}
 </section>
-<form class="card settings-action-card settings-wide-card metadata-rescan" method="post" action="{{$.BasePath}}/rescan">
+<form class="card settings-action-card settings-wide-card" method="post" action="{{$.BasePath}}/rescan">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <div><strong>Refresh source metadata</strong><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
+  <div><h2>Refresh source metadata</h2><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
   <button class="secondary-button">Refresh metadata</button>
 </form>
 <template id="mapping-row-template">
