@@ -166,6 +166,7 @@ func normalizeTagValues(values []string) []string {
 	seen := make(map[string]bool, len(values))
 	normalized := make([]string, 0, len(values))
 	for _, value := range values {
+		value = strings.ReplaceAll(value, "-", " ")
 		value = strings.ToLower(strings.Join(strings.Fields(value), " "))
 		if value == "" || seen[value] {
 			continue

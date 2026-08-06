@@ -259,8 +259,9 @@ gallery that still inherits it. Existing EXIF choices are preserved as
 explicit overrides when this model is introduced. The settings UI can reset
 all gallery presentation overrides to inheritance in one operation.
 
-Photo tags use the `user` tag namespace. Input is trimmed, deduplicated, and
-stored as canonical lowercase values. Assignments retain their source:
+Photo tags use the `user` tag namespace. Input is lowercased, hyphens and
+whitespace are normalized to single spaces, and duplicate values are removed.
+Assignments retain their source:
 Curator's admin, imported image metadata, or Lightroom. Initial import, media
 replacement, and metadata refresh read `dc:subject` from embedded and sidecar
 XMP plus IPTC keyword datasets. Lightroom sends assigned keyword names while

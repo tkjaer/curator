@@ -13,15 +13,15 @@ func TestReplaceItemUserTagsNormalizesAndReplaces(t *testing.T) {
 	_, itemIDs := makeGalleryWithItems(t, st, 1)
 	itemID := itemIDs[0]
 
-	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night ", "Kodak   Portra 400", "Night", ""}); err != nil {
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night-life ", "Night Life", "Kodak   Portra 400", ""}); err != nil {
 		t.Fatal(err)
 	}
 	tags, err := st.ItemUserTags(ctx, itemID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 2 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night" {
-		t.Fatalf("tags = %#v, want kodak portra 400 and night", tags)
+	if len(tags) != 2 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night life" {
+		t.Fatalf("tags = %#v, want kodak portra 400 and night life", tags)
 	}
 
 	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"Stockholm"}); err != nil {
@@ -36,7 +36,7 @@ func TestReplaceItemUserTagsNormalizesAndReplaces(t *testing.T) {
 	}
 
 	var orphanCount int
-	if err := st.DB.QueryRowContext(ctx, `SELECT count(*) FROM tags WHERE namespace = 'user' AND value IN ('night', 'kodak portra 400')`).Scan(&orphanCount); err != nil {
+	if err := st.DB.QueryRowContext(ctx, `SELECT count(*) FROM tags WHERE namespace = 'user' AND value IN ('night life', 'kodak portra 400')`).Scan(&orphanCount); err != nil {
 		t.Fatal(err)
 	}
 	if orphanCount != 0 {
@@ -116,7 +116,7 @@ func assertTagValues(t *testing.T, st *Store, ctx context.Context, itemID int64,
 	}
 }
 
-func TestLowercaseUserTagsMigrationMergesCaseVariants(t *testing.T) {
+func TestUserTagMigrationMergesCanonicalVariants(t *testing.T) {
 	ctx := context.Background()
 	st, err := Open(filepath.Join(t.TempDir(), "curator.db"))
 	if err != nil {
@@ -131,7 +131,7 @@ func TestLowercaseUserTagsMigrationMergesCaseVariants(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, file := range files {
-		if file.version > 20 {
+		if file.version >= 20 {
 			break
 		}
 		if err := st.applyMigration(ctx, file); err != nil {
@@ -139,21 +139,23 @@ func TestLowercaseUserTagsMigrationMergesCaseVariants(t *testing.T) {
 		}
 	}
 
-	_, itemIDs := makeGalleryWithItems(t, st, 2)
-	upper, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'Night')`)
+	_, itemIDs := makeGalleryWithItems(t, st, 3)
+	first, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'Tag-Name')`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	lower, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'night')`)
+	second, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'tag name')`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	upperID, _ := upper.LastInsertId()
-	lowerID, _ := lower.LastInsertId()
-	if _, err := st.DB.ExecContext(ctx, `INSERT INTO tag_map (tag_id, item_id) VALUES (?, ?), (?, ?)`, upperID, itemIDs[0], lowerID, itemIDs[1]); err != nil {
+	third, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'TAG   NAME')`)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if err := st.SetSetting(ctx, "metadata.tag_selection", "Night"); err != nil {
+	firstID, _ := first.LastInsertId()
+	secondID, _ := second.LastInsertId()
+	thirdID, _ := third.LastInsertId()
+	if _, err := st.DB.ExecContext(ctx, `INSERT INTO tag_map (tag_id, item_id) VALUES (?, ?), (?, ?), (?, ?)`, firstID, itemIDs[0], secondID, itemIDs[1], thirdID, itemIDs[2]); err != nil {
 		t.Fatal(err)
 	}
 
@@ -168,11 +170,11 @@ func TestLowercaseUserTagsMigrationMergesCaseVariants(t *testing.T) {
 	if err := st.DB.QueryRowContext(ctx, `SELECT count(*) FROM tag_map JOIN tags ON tags.id = tag_map.tag_id WHERE tags.namespace = 'user'`).Scan(&mappingCount); err != nil {
 		t.Fatal(err)
 	}
-	settings, err := st.Settings(ctx)
-	if err != nil {
+	var source string
+	if err := st.DB.QueryRowContext(ctx, `SELECT min(source) FROM tag_map`).Scan(&source); err != nil {
 		t.Fatal(err)
 	}
-	if tagCount != 1 || value != "night" || mappingCount != 2 || settings["metadata.tag_selection"] != "night" {
-		t.Fatalf("migrated tags: count=%d value=%q mappings=%d selection=%q", tagCount, value, mappingCount, settings["metadata.tag_selection"])
+	if tagCount != 1 || value != "tag name" || mappingCount != 3 || source != "manual" {
+		t.Fatalf("migrated tags: count=%d value=%q mappings=%d source=%q", tagCount, value, mappingCount, source)
 	}
 }
