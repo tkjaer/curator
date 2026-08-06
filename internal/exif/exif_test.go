@@ -8,14 +8,15 @@ import (
 	"image/jpeg"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
 func TestParseXMPTextPrefersDefaultLanguage(t *testing.T) {
-	xmp := []byte(`<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title><rdf:Alt><rdf:li xml:lang="sv">Svensk titel</rdf:li><rdf:li xml:lang="x-default"> Default title </rdf:li></rdf:Alt></dc:title><dc:description><rdf:Alt><rdf:li xml:lang="x-default">First line&#13;&#10;Second line</rdf:li></rdf:Alt></dc:description></rdf:Description>`)
+	xmp := []byte(`<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title><rdf:Alt><rdf:li xml:lang="sv">Svensk titel</rdf:li><rdf:li xml:lang="x-default"> Default title </rdf:li></rdf:Alt></dc:title><dc:description><rdf:Alt><rdf:li xml:lang="x-default">First line&#13;&#10;Second line</rdf:li></rdf:Alt></dc:description><dc:subject><rdf:Bag><rdf:li>Travel</rdf:li><rdf:li>Night</rdf:li></rdf:Bag></dc:subject></rdf:Description>`)
 
 	got := parseXMPText(xmp)
-	if got.Title != "Default title" || got.Description != "First line\nSecond line" {
+	if got.Title != "Default title" || got.Description != "First line\nSecond line" || !reflect.DeepEqual(got.Keywords, []string{"Travel", "Night"}) {
 		t.Fatalf("XMP text = %+v", got)
 	}
 }
@@ -25,13 +26,14 @@ func TestExtractTextMetadataPreference(t *testing.T) {
 	path := filepath.Join(dir, "photo.jpg")
 	embeddedXMP := []byte(`<rdf:Description xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Embedded title</dc:title><dc:description>Embedded description</dc:description></rdf:Description>`)
 	iptc := append(iptcDataset(2, 5, "IPTC object name"), iptcDataset(2, 120, "IPTC caption")...)
+	iptc = append(iptc, iptcDataset(2, 25, "IPTC keyword")...)
 	writeMetadataJPEG(t, path, embeddedXMP, iptc)
 
 	meta, err := Extract(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if meta.Title != "Embedded title" || meta.Description != "Embedded description" {
+	if meta.Title != "Embedded title" || meta.Description != "Embedded description" || !reflect.DeepEqual(meta.Keywords, []string{"IPTC keyword"}) {
 		t.Fatalf("embedded metadata = title %q, description %q", meta.Title, meta.Description)
 	}
 

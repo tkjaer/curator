@@ -154,7 +154,7 @@ function API.setPhotoOrder(settings, galleryID, photoIDs)
     return decodeResponse(responseBody, responseHeaders, url)
 end
 
-function API.upload(settings, galleryID, externalID, path, caption, lens, progressCallback)
+function API.upload(settings, galleryID, externalID, path, caption, lens, tags, progressCallback)
     if API.serverURL(settings) == "" then return nil, "Curator server URL is required" end
     if API.token(settings) == "" then return nil, "Curator publishing token is required" end
     galleryID = tostring(galleryID or "")
@@ -170,6 +170,9 @@ function API.upload(settings, galleryID, externalID, path, caption, lens, progre
         { name = "caption", value = caption or "" },
         { name = "lens", value = lens or "" },
     }
+    for _, tag in ipairs(tags or {}) do
+        table.insert(parts, { name = "tag", value = tag })
+    end
     local target = "/sync/galleries/" .. galleryID .. "/photos/" .. tostring(externalID)
     local url = endpoint(settings, target)
     local body, responseHeaders = LrHttp.postMultipart(url, parts, headers(settings), 60, progressCallback)

@@ -62,7 +62,7 @@ output/                  # generated, disposable, fully rebuildable
 │   ├── img/…            # image derivatives
 │   └── assets/…         # theme css/js, self-hosted
 ├── feed.xml
-└── nginx-locations.conf # auth_basic includes for protected galleries
+└── curator-auth.conf    # auth_basic locations for protected galleries
 ```
 
 Originals are never written into `output/`. Derivatives are a pure function of
@@ -78,8 +78,8 @@ site files. Those names remain available to galleries nested below a parent.
   site and the admin UI.
 - **SQLite** via a pure-Go driver (`modernc.org/sqlite`) — keeps the
   single-binary, no-cgo property.
-- **libvips** (via `govips`) for image derivatives, with the option of a
-  pure-Go imaging fallback. No RAW decoding.
+- **Pure-Go imaging** for JPEG and PNG decoding, EXIF orientation, and
+  high-quality derivative scaling. No RAW decoding or system image libraries.
 - **Vanilla JS**, self-hosted, used only for progressive enhancement
   (lightbox, navigation). The site works without it.
 
@@ -177,7 +177,7 @@ ITEM
 
 DERIVATIVE
   id, item_id, preset (thumb | display | w800 | w1600 | …),
-  width, height, path, hash   # hash = hash(original + preset params)
+  width, height, path, hash   # hash = hash(original + preset name + processing version)
 
 BLOCK                          # ordered content within a gallery
   id, gallery_id, type (heading | text | quote | image | grid),
@@ -188,7 +188,7 @@ BLOCK_ITEMS                    # items shown by a grid block, ordered
 
 TAG / TAG_MAP
   tag: id, namespace (user | camera | lens | aspect | …), value
-  tag_map: tag_id, item_id
+  tag_map: tag_id, item_id, source (manual | metadata | lightroom)
 ```
 
 Key points:
@@ -216,8 +216,8 @@ in-story grids.
 ## Image derivatives
 
 For each item, Curator generates a thumbnail, a display size, and a few
-responsive widths from the original. Derivative filenames come from
-`hash(original bytes + preset)`, so:
+responsive widths from the original. Derivative filenames come from the
+original bytes, preset name, and an internal processing version, so:
 
 - Unchanged images cost nothing on rebuild.
 - Replacing an image produces new derivative files; a later sweep removes
@@ -259,6 +259,23 @@ gallery that still inherits it. Existing EXIF choices are preserved as
 explicit overrides when this model is introduced. The settings UI can reset
 all gallery presentation overrides to inheritance in one operation.
 
+Photo tags use the `user` tag namespace. Input is lowercased, hyphens and
+whitespace are normalized to single spaces, and duplicate values are removed.
+Assignments retain their source:
+Curator's admin, imported image metadata, or Lightroom. Initial import, media
+replacement, and metadata refresh read `dc:subject` from embedded and sidecar
+XMP plus IPTC keyword datasets. Lightroom sends assigned keyword names while
+excluding the reserved `Curator Lens` hierarchy. Refreshing one source replaces
+only that source's assignments, so tags entered in Curator are not erased by a
+later import or Lightroom publish.
+
+Public tag visibility is a site-wide setting rather than a per-gallery
+override. When enabled, the merged tags appear with individual photos in story
+views and lightboxes, but not in grid captions. A separate Metadata setting
+enables the tag browse facet. Builds expose tags only for published items in
+published galleries; draft, unlisted, and protected content never contributes
+tags to public HTML or browse indexes.
+
 Each build resolves the effective lens from the current metadata policy: the
 per-photo Curator manual override first, then a direct child of Lightroom's
 `Curator Lens` keyword, embedded EXIF, a standard adjacent XMP sidecar
@@ -270,10 +287,9 @@ another build, not a reread of the original files.
 
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
-`/browse/camera/` and `/browse/camera/x-t5/`. Facets are
-implemented as tags in a dedicated namespace, so manual tags and EXIF facets
-share one browse/render path. Photos on value pages are ordered newest first,
-with undated photos last.
+`/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in
+dedicated namespaces, so user tags and EXIF facets share one browse/render
+path. Photos on value pages are ordered newest first, with undated photos last.
 By default, value pages are split into static pages of 100 photos; the Metadata
 settings can change that size or disable pagination. Page one keeps the value's
 canonical URL, later pages live below `/page/<number>/`, and progressive loading
@@ -326,26 +342,18 @@ Lightroom renders JPEGs, Curator owns originals and stored metadata, and public
 delivery remains entirely static without giving the plugin direct SQLite
 access.
 
-Builds are incremental. Editing anything marks the affected gallery dirty and
-bumps a content version; publishing rebuilds the dirty set and regenerates only
-derivatives whose hash changed. A build ledger records, per output artifact, a
-source hash so unchanged pages and images are skipped, and an interrupted build
-can safely resume.
-
-Some changes intentionally trigger a wider rebuild — publish/unpublish and
-top-level renames can affect navigation across the whole site — which is an
-accepted trade-off for a simpler ledger. Routine edits (reordering, captions,
-replacing an image, highlighting) stay local and fast.
-
-Navigation is rendered from a small emitted sitemap so that most edits do not
-dirty every page.
+Builds regenerate the static HTML, browse pages, feed, access-control files, and
+theme assets on each run. Image derivatives are content-addressed and reused
+when their generated files already exist, avoiding repeated image decoding and
+resizing. At the end of a successful build, Curator removes generated files
+that are no longer referenced by the current site.
 
 ```
-Edit in admin ─▶ mark gallery dirty, bump version
-Publish ─▶ compute dirty set (galleries, ancestors' nav, affected facet pages)
-        ─▶ rebuild dirty pages
-        ─▶ regenerate only changed derivatives
-        ─▶ write output, update ledger
+Edit in admin ─▶ update SQLite metadata
+Publish ─▶ render current static pages
+  ─▶ reuse existing image derivatives where possible
+  ─▶ write current assets and access-control files
+  ─▶ remove stale generated output
 ```
 
 ## Themes
@@ -370,8 +378,8 @@ themes/<name>/
 └── static/                  # favicon, self-hosted fonts, etc.
 ```
 
-Curator ships one polished default theme that serves as the reference
-implementation of this contract.
+Curator ships two themes: `default`, the reference implementation of the theme
+contract, and `folio`, a more editorial presentation.
 
 ### Front-end approach
 
@@ -394,14 +402,20 @@ Single binary; everything lives under `internal/`.
 
 ```
 internal/
-├── store      # SQLite access and models
-├── imaging    # derivative generation (libvips)
-├── ingest     # import, EXIF extraction, facet tagging
-├── render     # view models and page rendering (grid, story, facet)
-├── build      # dirty-set computation, ledger, orchestration
-├── admin      # HTTP handlers and templates for the CMS UI
-├── theme      # theme loading, manifest, options
-└── publish    # output targets (local dir; optional rsync helper)
+├── admin       # HTTP handlers and templates for the CMS UI
+├── build       # static rendering, derivatives, facets, feed, and auth output
+├── config      # content-root and output paths
+├── deploy      # rsync deployment and dry runs
+├── exif        # embedded and XMP metadata extraction
+├── htpasswd    # Apache-compatible password hashing
+├── imaging     # pure-Go decoding, orientation, scaling, and JPEG output
+├── ingest      # import and metadata normalization
+├── model       # shared domain types
+├── publishapi  # Lightroom publishing API and token handling
+├── render      # public theme view models and justified layout
+├── slug        # URL slug normalization
+├── store       # SQLite access and migrations
+└── theme       # theme loading, manifests, templates, and assets
 ```
 
 ## Coding principles
@@ -411,7 +425,7 @@ internal/
 - Comments explain *why*, not *what*. Clear names and small functions over
   narration.
 - Small, well-named packages with narrow surfaces.
-- Pure, testable core logic where it matters: justified layout, dirty-set
-  computation, and facet grouping should test without a database or filesystem.
+- Pure, testable core logic where it matters: justified layout, visibility
+  grouping, and facet grouping should test without a database or filesystem.
 - Idiomatic Go: wrap errors with context; add concurrency only where it clearly
   pays (derivative generation).

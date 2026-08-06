@@ -288,6 +288,9 @@ type galleryData struct {
 	Items                []model.Item
 	CameraSuggestions    []store.CameraSuggestion
 	LensSuggestions      []store.LensSuggestion
+	TagSuggestions       []model.Tag
+	ItemTags             map[int64]string
+	ItemImportedTags     map[int64]string
 	Statuses             []string
 	ItemStatuses         []string
 	CoverID              int64
@@ -353,6 +356,29 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	tagSuggestions, err := s.store.UserTags(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	itemTagValues, err := s.store.GalleryItemManualTags(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	itemTags := make(map[int64]string, len(itemTagValues))
+	for itemID, values := range itemTagValues {
+		itemTags[itemID] = strings.Join(values, ", ")
+	}
+	itemImportedTagValues, err := s.store.GalleryItemImportedTags(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	itemImportedTags := make(map[int64]string, len(itemImportedTagValues))
+	for itemID, values := range itemImportedTagValues {
+		itemImportedTags[itemID] = strings.Join(values, ", ")
+	}
 	var cover int64
 	if g.CoverItemID != nil {
 		cover = *g.CoverItemID
@@ -363,6 +389,9 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		Items:              items,
 		CameraSuggestions:  cameraSuggestions,
 		LensSuggestions:    lensSuggestions,
+		TagSuggestions:     tagSuggestions,
+		ItemTags:           itemTags,
+		ItemImportedTags:   itemImportedTags,
 		Statuses:           []string{"draft", "unlisted", "published", "protected"},
 		ItemStatuses:       []string{"draft", "unlisted", "published"},
 		CoverID:            cover,
@@ -647,6 +676,10 @@ type metadataSettingsData struct {
 	Mappings            []lensMappingRow
 	XMPProfiles         []xmpProfileRow
 	Facets              []model.FacetConfig
+	TagSuggestions      []model.Tag
+	SelectedTags        map[string]bool
+	TagVisibility       string
+	TagBrowseEnabled    bool
 	PaginationEnabled   bool
 	PageSize            int
 }
@@ -879,6 +912,30 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	tagSuggestions, err := s.store.UserTags(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	selectedTags := make(map[string]bool)
+	for _, value := range strings.Split(settings["metadata.tag_selection"], "\n") {
+		if value = strings.TrimSpace(value); value != "" {
+			selectedTags[value] = true
+		}
+	}
+	tagVisibility := settings["metadata.tag_visibility"]
+	if tagVisibility != "hide_all" && tagVisibility != "show_selected" && tagVisibility != "hide_selected" {
+		tagVisibility = "show_all"
+	}
+	var metadataFacets []model.FacetConfig
+	tagBrowseEnabled := false
+	for _, facet := range facets {
+		if facet.Namespace == "tag" {
+			tagBrowseEnabled = facet.Enabled
+			continue
+		}
+		metadataFacets = append(metadataFacets, facet)
+	}
 
 	suggestions := cameraLensSuggestions(clues)
 	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
@@ -909,7 +966,11 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		UseLightroomProfile: useLightroomProfile,
 		Mappings:            rows,
 		XMPProfiles:         xmpProfileRows(profileUsages, mappings, useLightroomProfile),
-		Facets:              facets,
+		Facets:              metadataFacets,
+		TagSuggestions:      tagSuggestions,
+		SelectedTags:        selectedTags,
+		TagVisibility:       tagVisibility,
+		TagBrowseEnabled:    tagBrowseEnabled,
 		PaginationEnabled:   settings["metadata.facet_pagination_enabled"] != "false",
 		PageSize:            pageSize,
 	})
@@ -1106,6 +1167,36 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
 		return
 	}
+	tagVisibility := r.FormValue("tag_visibility")
+	if tagVisibility == "" {
+		tagVisibility = settings["metadata.tag_visibility"]
+		if tagVisibility == "" {
+			tagVisibility = "show_all"
+		}
+	}
+	if tagVisibility != "show_all" && tagVisibility != "hide_all" && tagVisibility != "show_selected" && tagVisibility != "hide_selected" {
+		s.redirect(w, r, s.link("settings", "metadata"), "Choose a valid tag visibility mode")
+		return
+	}
+	seenTags := make(map[string]bool)
+	selectedTags := make([]string, 0, len(r.Form["selected_tag"]))
+	for _, value := range r.Form["selected_tag"] {
+		value = strings.TrimSpace(value)
+		key := strings.ToLower(value)
+		if value == "" || seenTags[key] {
+			continue
+		}
+		seenTags[key] = true
+		selectedTags = append(selectedTags, value)
+	}
+	if err := s.store.SetSetting(ctx, "metadata.tag_visibility", tagVisibility); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save tag visibility")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "metadata.tag_selection", strings.Join(selectedTags, "\n")); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save tag visibility")
+		return
+	}
 	facets, err := s.store.FacetConfigs(ctx)
 	if err != nil {
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
@@ -1113,6 +1204,9 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 	}
 	for _, facet := range facets {
 		enabled := r.FormValue("facet_"+facet.Namespace) == "on"
+		if facet.Namespace == "tag" {
+			enabled = r.FormValue("tag_browse_enabled") == "on"
+		}
 		if err := s.store.SetFacetEnabled(ctx, facet.Namespace, enabled); err != nil {
 			s.redirect(w, r, s.link("settings", "metadata"), "Could not save public browse pages")
 			return

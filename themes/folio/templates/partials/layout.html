@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{if eq .Title .Site.Title}}{{.Site.Title}}{{else}}{{.Title}} &middot; {{.Site.Title}}{{end}}</title>
-<link rel="stylesheet" href="{{.Site.BaseURL}}/_curator/assets/theme.css">
+<link rel="stylesheet" href="{{.Site.BaseURL}}/_curator/assets/theme.css{{with .Site.AssetVersion}}?v={{.}}{{end}}">
 {{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
 {{end}}<style>:root{
 {{if .Options.accent}}  --accent: {{.Options.accent}};
@@ -24,7 +24,7 @@
 {{define "site-foot"}}</main>
 <footer class="site-footer"><span>{{if .Site.Copyright}}{{.Site.Copyright}}{{else}}{{.Site.Title}}{{end}}</span><a href="#top">Back to top</a></footer>
 {{template "lightbox" .}}
-<script src="{{.Site.BaseURL}}/_curator/assets/theme.js" defer></script>
+<script src="{{.Site.BaseURL}}/_curator/assets/theme.js{{with .Site.AssetVersion}}?v={{.}}{{end}}" defer></script>
 </body>
 </html>
 {{end}}

@@ -7,6 +7,7 @@ import (
 	"image/jpeg"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/tkjaer/curator/internal/config"
@@ -67,7 +68,7 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if err := jpeg.Encode(&imageData, image.NewRGBA(image.Rect(0, 0, 10, 10)), nil); err != nil {
 		t.Fatal(err)
 	}
-	sidecar := `<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="http://ns.adobe.com/exif/1.0/aux/" xmlns:dc="http://purl.org/dc/elements/1.1/" aux:Lens="Voigtlander 15mm f/4.5" dc:title="Flickr title" dc:description="Flickr description"/>`
+	sidecar := `<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="http://ns.adobe.com/exif/1.0/aux/" xmlns:dc="http://purl.org/dc/elements/1.1/" aux:Lens="Voigtlander 15mm f/4.5" dc:title="Flickr title" dc:description="Flickr description" dc:subject="Travel"/>`
 	if err := ImportUploadWithSidecar(ctx, st, cfg, galleryID, "manual", "photo.jpg", &imageData, bytes.NewBufferString(sidecar)); err != nil {
 		t.Fatal(err)
 	}
@@ -87,8 +88,12 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	if string(storedSidecar) != sidecar {
 		t.Fatal("stored sidecar was modified during import")
 	}
+	assertItemTags(t, st, ctx, items[0].ID, []string{"travel"})
 
 	it := items[0]
+	if err := st.ReplaceItemUserTags(ctx, it.ID, []string{"Curator"}); err != nil {
+		t.Fatal(err)
+	}
 	if err := st.UpdateItemPresentation(ctx, it.ID, it.Title, it.Description, it.Caption, it.Status, it.Highlighted, "Leica M6", "Leica M6", "Manual override", "Manual override"); err != nil {
 		t.Fatal(err)
 	}
@@ -116,6 +121,22 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	}
 	if it.ManualCamera != "Leica M6" || it.Camera != "Leica M6" || it.ManualLens != "Manual override" || it.Lens != "Manual override" {
 		t.Fatalf("replacement lost manual metadata: %+v", it)
+	}
+	assertItemTags(t, st, ctx, it.ID, []string{"curator"})
+}
+
+func assertItemTags(t *testing.T, st *store.Store, ctx context.Context, itemID int64, want []string) {
+	t.Helper()
+	tags, err := st.ItemUserTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(tags))
+	for index, tag := range tags {
+		got[index] = tag.Value
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("tags = %v, want %v", got, want)
 	}
 }
 

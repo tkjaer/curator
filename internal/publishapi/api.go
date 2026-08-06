@@ -90,7 +90,7 @@ func (a *API) handleCapabilities(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"name":         "Curator Publish API",
 		"version":      1,
-		"capabilities": []string{"galleries:list", "galleries:create", "galleries:sync", "photos:upload", "photos:sync", "photos:delete", "photos:order", "build:trigger"},
+		"capabilities": []string{"galleries:list", "galleries:create", "galleries:sync", "photos:upload", "photos:sync", "photos:tags", "photos:delete", "photos:order", "build:trigger"},
 	})
 }
 
@@ -418,6 +418,10 @@ func (a *API) handleUpsertPhoto(w http.ResponseWriter, r *http.Request) {
 	caption := strings.TrimSpace(r.FormValue("caption"))
 	if err := a.store.UpdateItemFields(r.Context(), itemID, caption, model.ItemPublished, false); err != nil {
 		writeError(w, http.StatusInternalServerError, "photo synchronized but caption could not be saved")
+		return
+	}
+	if err := a.store.ReplaceItemImportedTags(r.Context(), itemID, store.TagSourceLightroom, r.MultipartForm.Value["tag"]); err != nil {
+		writeError(w, http.StatusInternalServerError, "photo synchronized but tags could not be saved")
 		return
 	}
 	item, err := a.store.Item(r.Context(), itemID)

@@ -41,6 +41,7 @@
         {{range .Facets}}
         <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
         {{end}}
+        <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
       </div>
     </section>
 
@@ -49,6 +50,23 @@
       <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
       <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
       <p class="field-help">Photos are ordered newest first.</p>
+    </section>
+
+    <section class="settings-panel settings-panel-wide" id="public-tags">
+      <div class="settings-card-heading"><h2>Photo tags</h2><p>Choose which user tags visitors can see across the public site.</p></div>
+      <label class="field"><span>Visible tags</span><select name="tag_visibility" id="tag-visibility">
+        <option value="show_all"{{if eq .TagVisibility "show_all"}} selected{{end}}>Show all</option>
+        <option value="hide_all"{{if eq .TagVisibility "hide_all"}} selected{{end}}>Hide all</option>
+        <option value="show_selected"{{if eq .TagVisibility "show_selected"}} selected{{end}}>Show only selected</option>
+        <option value="hide_selected"{{if eq .TagVisibility "hide_selected"}} selected{{end}}>Show all except selected</option>
+      </select></label>
+      <div class="choice-list" id="tag-selection">
+        {{range .TagSuggestions}}
+        <label class="choice-row"><input type="checkbox" name="selected_tag" value="{{.Value}}"{{if index $.Data.SelectedTags .Value}} checked{{end}}> <span><strong>{{.Value}}</strong></span></label>
+        {{else}}
+        <p class="field-help">Add tags to photos before configuring a selected set.</p>
+        {{end}}
+      </div>
     </section>
   </div>
 </form>
@@ -83,11 +101,22 @@
 (function () {
   var pagination = document.getElementById("facet-pagination-enabled");
   var pageSize = document.getElementById("facet-page-size");
+  var tagVisibility = document.getElementById("tag-visibility");
+  var tagSelection = document.getElementById("tag-selection");
   function updatePagination() {
     pageSize.disabled = !pagination.checked;
   }
   pagination.addEventListener("change", updatePagination);
   updatePagination();
+
+  function updateTagSelection() {
+    var selective = tagVisibility.value === "show_selected" || tagVisibility.value === "hide_selected";
+    tagSelection.hidden = !selective;
+    tagSelection.style.display = selective ? "" : "none";
+    tagSelection.querySelectorAll("input").forEach(function (input) { input.disabled = !selective; });
+  }
+  tagVisibility.addEventListener("change", updateTagSelection);
+  updateTagSelection();
 
   var list = document.getElementById("mapping-list");
   var add = document.getElementById("add-mapping");

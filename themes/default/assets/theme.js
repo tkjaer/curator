@@ -9,6 +9,7 @@
   const imageButton = dialog.querySelector(".lb-image-button");
   const caption = dialog.querySelector(".lb-caption");
   const exif = dialog.querySelector(".lb-exif");
+  const tags = dialog.querySelector(".lb-tags");
   if (!img || !imageButton) return;
   const links = [];
   const indexByID = new Map();
@@ -143,6 +144,11 @@
     img.alt = link.dataset.title || link.dataset.caption || link.dataset.description || "";
     caption.textContent = [...new Set([link.dataset.title, link.dataset.description, link.dataset.caption].filter(Boolean))].join(" · ");
     if (exif) exif.textContent = link.dataset.exif || "";
+    if (tags) {
+      tags.replaceChildren();
+      const source = link.closest("figure")?.querySelector(".lightbox-tags-source");
+      if (source) tags.append(...Array.from(source.children, (tag) => tag.cloneNode(true)));
+    }
   }
 
   function openAt(i) {

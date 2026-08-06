@@ -21,10 +21,11 @@ func loadDefault(t *testing.T) *Theme {
 
 func sampleSite() render.SiteView {
 	return render.SiteView{
-		Title:   "My Photos",
-		BaseURL: "",
-		Nav:     []render.NavNode{{Title: "Trips", Href: "/trips/"}},
-		Facets:  []render.FacetLink{{Label: "Cameras", Href: "/browse/camera/"}},
+		Title:        "My Photos",
+		BaseURL:      "",
+		AssetVersion: "asset-test",
+		Nav:          []render.NavNode{{Title: "Trips", Href: "/trips/"}},
+		Facets:       []render.FacetLink{{Label: "Cameras", Href: "/browse/camera/"}},
 	}
 }
 
@@ -49,6 +50,7 @@ func samplePhotos() []render.PhotoView {
 	}
 	photos[0].Title = "Harbor light"
 	photos[0].Description = "Boats at dusk"
+	photos[0].Tags = []render.TagView{{Label: "night", Href: "/browse/tag/night/"}, {Label: "stockholm"}}
 	return photos
 }
 
@@ -70,13 +72,21 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", "theme.js", `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`, `data-zoom-src="/_curator/img/a-2400.jpg"`} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", `theme.css?v=asset-test`, `theme.js?v=asset-test`, `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`, `data-zoom-src="/_curator/img/a-2400.jpg"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}
 	}
 	if strings.Contains(out, `href="/trips/"`) {
 		t.Error("global navigation included gallery links")
+	}
+	if strings.Contains(out, `class="fig-tags"`) {
+		t.Error("grid gallery rendered visible photo tags")
+	}
+	for _, want := range []string{`class="lightbox-tags-source" hidden`, `href="/browse/tag/night/">night</a>`, `<div class="lb-tags" aria-label="Photo tags"></div>`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("grid gallery missing lightbox tag source %q", want)
+		}
 	}
 	if strings.Contains(out, "<no value>") {
 		t.Errorf("template produced <no value>:\n%s", out)
@@ -108,6 +118,27 @@ func TestRenderStoryWithGrid(t *testing.T) {
 	}
 }
 
+func TestRenderStoryImageTags(t *testing.T) {
+	th := loadDefault(t)
+	photo := samplePhotos()[0]
+	view := render.GalleryView{
+		Title: "Tagged story", Type: "story",
+		Blocks:  []render.BlockView{{Type: "image", Photo: &photo}},
+		Options: th.Manifest.Defaults(), Site: sampleSite(),
+	}
+
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-story", view); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{`href="/browse/tag/night/">night</a>`, `<span>stockholm</span>`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("story image missing %q", want)
+		}
+	}
+}
+
 func TestManifestOptions(t *testing.T) {
 	th := loadDefault(t)
 	defaults := th.Manifest.Defaults()
@@ -131,13 +162,14 @@ func TestFolioTheme(t *testing.T) {
 		t.Fatalf("folio assets: %v", err)
 	}
 
-	rows := render.Justify(samplePhotos(), 1000, 340, 12, false)
+	photos := samplePhotos()
+	rows := render.Justify(photos, 1000, 340, 12, false)
 	views := []struct {
 		name string
 		view render.GalleryView
 	}{
 		{"gallery-grid", render.GalleryView{Title: "Modern Grid", Type: "grid", Rows: rows, Options: th.Manifest.Defaults(), Site: sampleSite()}},
-		{"gallery-story", render.GalleryView{Title: "Modern Story", Type: "story", Blocks: []render.BlockView{{Type: "text", HTML: "<p>Editorial copy.</p>"}, {Type: "grid", Rows: rows}}, Options: th.Manifest.Defaults(), Site: sampleSite()}},
+		{"gallery-story", render.GalleryView{Title: "Modern Story", Type: "story", Blocks: []render.BlockView{{Type: "text", HTML: "<p>Editorial copy.</p>"}, {Type: "image", Photo: &photos[0]}, {Type: "grid", Rows: rows}}, Options: th.Manifest.Defaults(), Site: sampleSite()}},
 	}
 	for _, test := range views {
 		var buf bytes.Buffer
@@ -151,6 +183,16 @@ func TestFolioTheme(t *testing.T) {
 		for _, want := range []string{`data-zoom-src="/_curator/img/a-2400.jpg"`, `class="lb-image-button"`} {
 			if !strings.Contains(out, want) {
 				t.Errorf("%s missing %q", test.name, want)
+			}
+		}
+		if test.name == "gallery-grid" && strings.Contains(out, `class="fig-tags"`) {
+			t.Errorf("%s rendered visible photo tags", test.name)
+		}
+		if test.name == "gallery-story" {
+			for _, want := range []string{`href="/browse/tag/night/">night</a>`, `<span>stockholm</span>`} {
+				if !strings.Contains(out, want) {
+					t.Errorf("%s missing %q", test.name, want)
+				}
 			}
 		}
 	}
@@ -168,8 +210,8 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 				t.Fatal(err)
 			}
 			for file, wants := range map[string][]string{
-				"theme.css": {".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
-				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`},
+				"theme.css": {".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
+				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`},
 			} {
 				content, err := fs.ReadFile(assets, file)
 				if err != nil {

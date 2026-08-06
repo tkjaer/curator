@@ -2,11 +2,34 @@ package build
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 	"time"
 
 	"github.com/tkjaer/curator/internal/config"
 )
+
+func TestVisibleUserTags(t *testing.T) {
+	tags := []string{"Night", "Private", "Stockholm"}
+	tests := []struct {
+		name     string
+		settings map[string]string
+		want     []string
+	}{
+		{name: "show all", settings: map[string]string{"metadata.tag_visibility": "show_all"}, want: tags},
+		{name: "default shows all", settings: nil, want: tags},
+		{name: "hide all", settings: map[string]string{"metadata.tag_visibility": "hide_all"}, want: []string{}},
+		{name: "show selected", settings: map[string]string{"metadata.tag_visibility": "show_selected", "metadata.tag_selection": "night\nSTOCKHOLM"}, want: []string{"Night", "Stockholm"}},
+		{name: "hide selected", settings: map[string]string{"metadata.tag_visibility": "hide_selected", "metadata.tag_selection": "PRIVATE"}, want: []string{"Night", "Stockholm"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := visibleUserTags(tags, tt.settings); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("visible tags = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestSortFacetPhotosNewestFirst(t *testing.T) {
 	old := time.Date(2024, time.January, 1, 0, 0, 0, 0, time.UTC)

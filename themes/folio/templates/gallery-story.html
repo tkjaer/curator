@@ -11,7 +11,8 @@
            sizes="(max-width: 900px) 100vw, 900px"
            width="{{.Photo.Width}}" height="{{.Photo.Height}}" alt="{{.Photo.Alt}}" loading="lazy" decoding="async">
     </a>
-    {{if or .Photo.Title .Photo.Description .Photo.Caption}}<figcaption>{{with .Photo.Title}}<span class="fig-title">{{.}}</span>{{end}}{{with .Photo.Description}}<span class="fig-description">{{.}}</span>{{end}}{{with .Photo.Caption}}<span class="fig-caption">{{.}}</span>{{end}}</figcaption>{{end}}
+    {{template "lightbox-tags-source" .Photo.Tags}}
+    {{if or .Photo.Title .Photo.Description .Photo.Caption .Photo.Tags}}<figcaption>{{with .Photo.Title}}<span class="fig-title">{{.}}</span>{{end}}{{with .Photo.Description}}<span class="fig-description">{{.}}</span>{{end}}{{with .Photo.Caption}}<span class="fig-caption">{{.}}</span>{{end}}{{template "tags" .Photo.Tags}}</figcaption>{{end}}
   </figure>
   {{else}}<div class="prose">{{.HTML}}</div>
   {{end}}
