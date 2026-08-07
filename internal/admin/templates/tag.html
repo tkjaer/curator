@@ -20,16 +20,18 @@
       <a href="{{$.BasePath}}/galleries/{{.GalleryID}}?photo={{.ID}}&amp;tab=tags&amp;return_tag={{$.Data.Tag.ID}}" aria-label="Edit {{.Filename}} in {{.GalleryTitle}}">
         <span class="tag-photo-media">
           <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" loading="lazy">
-        {{if or (ne .ItemStatus "published") (ne .GalleryStatus "published") .Manual .Lightroom}}
+        {{if or (ne .ItemStatus "published") (ne .GalleryStatus "published")}}
           <span class="tag-photo-flags">
             {{if ne .ItemStatus "published"}}<span class="tag-photo-flag">Photo {{.ItemStatus}}</span>{{end}}
             {{if ne .GalleryStatus "published"}}<span class="tag-photo-flag">Gallery {{.GalleryStatus}}</span>{{end}}
-            {{if .Manual}}<span class="tag-photo-flag">Curator{{if .Metadata}} + metadata{{end}}</span>{{end}}
-            {{if .Lightroom}}<span class="tag-photo-flag">Lightroom{{if or .Manual .Metadata}} + other{{end}}</span>{{end}}
           </span>
         {{end}}
         </span>
-        <span class="tag-photo-name">{{.Filename}}</span>
+        <span class="tag-photo-caption">
+          <span class="tag-photo-name">{{.Filename}}</span>
+          {{if .Manual}}<span class="tag-photo-source">Curator{{if .Metadata}} + metadata{{end}}</span>{{end}}
+          {{if .Lightroom}}<span class="tag-photo-source">Lightroom{{if or .Manual .Metadata}} + other{{end}}</span>{{end}}
+        </span>
       </a>
     </article>
   {{end}}
