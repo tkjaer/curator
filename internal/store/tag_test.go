@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/tkjaer/curator/internal/model"
 )
 
 func TestReplaceItemUserTagsNormalizesAndReplaces(t *testing.T) {
@@ -98,6 +100,68 @@ func TestReplaceItemImportedTagsPreservesManualAssignments(t *testing.T) {
 	}
 	if len(manual) != 2 || manual[0].Value != "curator" || manual[1].Value != "shared" {
 		t.Fatalf("manual tags = %#v", manual)
+	}
+}
+
+func TestTagUsagesCountsEffectiveAssignments(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	publishedGallery, err := st.CreateGallery(ctx, model.Gallery{Slug: "published", Title: "Published", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	draftGallery, err := st.CreateGallery(ctx, model.Gallery{Slug: "draft", Title: "Draft", Status: model.GalleryDraft})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishedItem, err := st.CreateItem(ctx, model.Item{GalleryID: publishedGallery, OriginalPath: "published.jpg", Filename: "published.jpg", Status: model.ItemPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	draftItem, err := st.CreateItem(ctx, model.Item{GalleryID: draftGallery, OriginalPath: "draft.jpg", Filename: "draft.jpg", Status: model.ItemPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := st.ReplaceItemUserTags(ctx, publishedItem, []string{"shared", "manual only"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, publishedItem, TagSourceMetadata, []string{"shared", "suppressed"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemEditableTags(ctx, publishedItem, []string{"shared", "manual only"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, draftItem, TagSourceLightroom, []string{"shared", "lightroom only"}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := st.TagUsages(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []TagUsage{
+		{Value: "lightroom only", PhotoCount: 1, LightroomCount: 1},
+		{Value: "manual only", PhotoCount: 1, PublishedCount: 1, ManualCount: 1},
+		{Value: "shared", PhotoCount: 2, PublishedCount: 1, ManualCount: 1, MetadataCount: 1, LightroomCount: 1},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("tag usages = %#v, want %#v", got, want)
+	}
+	for index := range want {
+		want[index].ID = got[index].ID
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("tag usages = %#v, want %#v", got, want)
+	}
+
+	items, err := st.TagUsageItems(ctx, got[2].ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 || items[0].ID != draftItem || !items[0].Lightroom || items[0].Manual || items[0].Metadata ||
+		items[1].ID != publishedItem || !items[1].Manual || !items[1].Metadata || items[1].Lightroom {
+		t.Fatalf("shared tag items = %#v", items)
 	}
 }
 
