@@ -5,6 +5,7 @@ package build
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/fs"
@@ -13,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tkjaer/curator/internal/config"
@@ -27,8 +29,15 @@ import (
 const contentWidth = 1200
 
 const (
-	generatedRoot = "_curator"
-	browseRoot    = "browse"
+	generatedRoot      = "_curator"
+	browseRoot         = "browse"
+	buildFormatVersion = "1"
+)
+
+var (
+	executableVersionOnce sync.Once
+	executableVersion     string
+	executableVersionErr  error
 )
 
 // Progress reports how far along a build is. Total is 0 for stages without a
@@ -46,6 +55,7 @@ type Report struct {
 	Generated   int // image derivatives written this build
 	Reused      int // derivatives already on disk
 	FeedUpdated bool
+	Unchanged   bool
 	Duration    time.Duration
 }
 
@@ -91,12 +101,37 @@ func (b *Builder) Build(ctx context.Context) error {
 	return err
 }
 
-// BuildReport writes the full static site to the configured output directory and
-// returns a summary report.
+// BuildReport updates the static site when its inputs changed and returns a
+// summary report.
 func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	start := time.Now()
 	b.report = Report{}
 	b.processed = 0
+	outputDir, err := filepath.Abs(b.Cfg.OutputDir)
+	if err != nil {
+		return Report{}, err
+	}
+	revision, err := b.Store.BuildRevision(ctx)
+	if err != nil {
+		return Report{}, err
+	}
+	themeVersion, err := b.Theme.ContentVersion()
+	if err != nil {
+		return Report{}, err
+	}
+	binaryVersion, err := currentExecutableVersion()
+	if err != nil {
+		return Report{}, err
+	}
+	fingerprint := fmt.Sprintf("%x", sha256.Sum256([]byte(buildFormatVersion+"\x00"+derivativeProcessingVersion+"\x00"+themeVersion+"\x00"+binaryVersion)))
+	previous, found, err := b.Store.BuildState(ctx, outputDir)
+	if err != nil {
+		return Report{}, err
+	}
+	if found && previous.ContentRevision == revision && previous.Fingerprint == fingerprint && fileExists(filepath.Join(outputDir, "index.html")) {
+		return Report{Galleries: previous.Galleries, Photos: previous.Photos, Unchanged: true, Duration: time.Since(start)}, nil
+	}
+
 	settings, err := b.Store.Settings(ctx)
 	if err != nil {
 		return Report{}, err
@@ -211,9 +246,29 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	if err := b.sweep(); err != nil {
 		return Report{}, err
 	}
+	if err := b.Store.SetBuildState(ctx, outputDir, store.BuildState{
+		ContentRevision: revision,
+		Fingerprint:     fingerprint,
+		Galleries:       b.report.Galleries,
+		Photos:          b.report.Photos,
+	}); err != nil {
+		return Report{}, err
+	}
 
 	b.report.Duration = time.Since(start)
 	return b.report, nil
+}
+
+func currentExecutableVersion() (string, error) {
+	executableVersionOnce.Do(func() {
+		path, err := os.Executable()
+		if err != nil {
+			executableVersionErr = err
+			return
+		}
+		executableVersion, executableVersionErr = hashFile(path)
+	})
+	return executableVersion, executableVersionErr
 }
 
 func copyrightLine(settings map[string]string, currentYear int) string {

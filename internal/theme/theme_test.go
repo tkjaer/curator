@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"github.com/tkjaer/curator/internal/render"
 )
@@ -147,6 +148,47 @@ func TestManifestOptions(t *testing.T) {
 	}
 	if len(th.Manifest.RequiresPresets) == 0 {
 		t.Error("expected requiresPresets to be declared")
+	}
+}
+
+func TestContentVersionIncludesTemplates(t *testing.T) {
+	files := fstest.MapFS{
+		"manifest.json":          {Data: []byte(`{"name":"test","version":"1","engine":"go-html-template"}`)},
+		"templates/gallery.html": {Data: []byte(`{{define "gallery"}}first{{end}}`)},
+		"assets/theme.css":       {Data: []byte(`body { color: black; }`)},
+	}
+	first, err := Load(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstContent, err := first.ContentVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstAssets, err := first.AssetVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	files["templates/gallery.html"] = &fstest.MapFile{Data: []byte(`{{define "gallery"}}second{{end}}`)}
+	second, err := Load(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondContent, err := second.ContentVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondAssets, err := second.AssetVersion()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if firstContent == secondContent {
+		t.Fatal("template change did not alter theme content version")
+	}
+	if firstAssets != secondAssets {
+		t.Fatal("template change altered asset-only version")
 	}
 }
 

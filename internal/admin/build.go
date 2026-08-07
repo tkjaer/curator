@@ -123,6 +123,7 @@ type buildStatusJSON struct {
 	Generated     int    `json:"generated"`
 	Reused        int    `json:"reused"`
 	FeedUpdated   bool   `json:"feedUpdated"`
+	Unchanged     bool   `json:"unchanged"`
 	DurationMs    int64  `json:"durationMs"`
 	RsyncTarget   string `json:"rsyncTarget"`
 	RsyncStatus   string `json:"rsyncStatus"`
@@ -146,6 +147,7 @@ func (b *buildStatus) snapshot() buildStatusJSON {
 		Generated:     b.report.Generated,
 		Reused:        b.report.Reused,
 		FeedUpdated:   b.report.FeedUpdated,
+		Unchanged:     b.report.Unchanged,
 		DurationMs:    b.report.Duration.Milliseconds(),
 		RsyncTarget:   b.rsyncTarget,
 		RsyncStatus:   b.rsyncStatus,

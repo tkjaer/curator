@@ -157,6 +157,8 @@
         bar.style.width = "100%";
         stage.textContent = "";
         if (s.error) summary.textContent = (s.rsyncStatus === "failed" ? "Rsync failed: " : "Publish failed: ") + s.error;
+        else if (s.unchanged) summary.textContent = "Site content unchanged. Existing output published in " +
+          (s.durationMs / 1000).toFixed(1) + "s";
         else summary.textContent = "Published " + s.galleries + " galleries, " + s.photos +
           " photos (" + s.generated + " generated, " + s.reused + " reused" +
           (s.feedUpdated ? "; Atom feed updated" : "") + ") in " +
