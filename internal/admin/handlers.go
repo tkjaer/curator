@@ -337,6 +337,115 @@ type itemChoice struct {
 	Filename string
 }
 
+type tagReviewRow struct {
+	store.TagUsage
+	Public bool
+	Source string
+}
+
+type tagsData struct {
+	Tags []tagReviewRow
+}
+
+type tagData struct {
+	Tag   tagReviewRow
+	Items []store.TagUsageItem
+}
+
+func (s *Server) tagReviewRows(ctx context.Context) ([]tagReviewRow, bool, error) {
+	usages, err := s.store.TagUsages(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	facets, err := s.store.FacetConfigs(ctx)
+	if err != nil {
+		return nil, false, err
+	}
+	browsePages := false
+	for _, facet := range facets {
+		if facet.Namespace == "tag" {
+			browsePages = facet.Enabled
+			break
+		}
+	}
+	selected := make(map[string]bool)
+	for _, value := range strings.Split(settings["metadata.tag_selection"], "\n") {
+		if value = strings.TrimSpace(value); value != "" {
+			selected[strings.ToLower(value)] = true
+		}
+	}
+	rows := make([]tagReviewRow, 0, len(usages))
+	for _, usage := range usages {
+		visible := true
+		switch settings["metadata.tag_visibility"] {
+		case "hide_all":
+			visible = false
+		case "show_selected":
+			visible = selected[strings.ToLower(usage.Value)]
+		case "hide_selected":
+			visible = !selected[strings.ToLower(usage.Value)]
+		}
+		var sources []string
+		if usage.ManualCount > 0 {
+			sources = append(sources, "Curator")
+		}
+		if usage.MetadataCount > 0 {
+			sources = append(sources, "Metadata")
+		}
+		if usage.LightroomCount > 0 {
+			sources = append(sources, "Lightroom")
+		}
+		rows = append(rows, tagReviewRow{
+			TagUsage: usage,
+			Public:   browsePages && visible && usage.PublishedCount > 0,
+			Source:   strings.Join(sources, ", "),
+		})
+	}
+	return rows, browsePages, nil
+}
+
+func (s *Server) handleTags(w http.ResponseWriter, r *http.Request) {
+	rows, _, err := s.tagReviewRows(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.render(w, r, "tags", "Tags", "", tagsData{Tags: rows})
+}
+
+func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	rows, _, err := s.tagReviewRows(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var selected tagReviewRow
+	for _, row := range rows {
+		if row.ID == id {
+			selected = row
+			break
+		}
+	}
+	if selected.ID == 0 {
+		http.Redirect(w, r, s.link("tags"), http.StatusSeeOther)
+		return
+	}
+	items, err := s.store.TagUsageItems(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	s.render(w, r, "tag", selected.Value, "", tagData{Tag: selected, Items: items})
+}
+
 type accessUserGrant struct {
 	ID       int64
 	Username string

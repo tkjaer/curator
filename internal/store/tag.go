@@ -19,6 +19,120 @@ const (
 	userTagSource      = "manual"
 )
 
+// TagUsage summarizes effective assignments for one user tag.
+type TagUsage struct {
+	ID             int64
+	Value          string
+	PhotoCount     int
+	PublishedCount int
+	ManualCount    int
+	MetadataCount  int
+	LightroomCount int
+}
+
+// TagUsageItem is one photo carrying an effective user tag.
+type TagUsageItem struct {
+	ID            int64
+	GalleryID     int64
+	GalleryTitle  string
+	OriginalPath  string
+	Filename      string
+	ItemStatus    model.ItemStatus
+	GalleryStatus model.GalleryStatus
+	Manual        bool
+	Metadata      bool
+	Lightroom     bool
+}
+
+// TagUsages returns effective user tags with distinct photo and source counts.
+func (s *Store) TagUsages(ctx context.Context) ([]TagUsage, error) {
+	rows, err := s.DB.QueryContext(ctx, `
+		WITH effective AS (
+			SELECT DISTINCT tags.id AS tag_id, tags.value, tag_map.item_id, tag_map.source
+			  FROM tags JOIN tag_map ON tag_map.tag_id = tags.id
+			 WHERE tags.namespace = ?
+			   AND NOT EXISTS (
+			       SELECT 1 FROM tag_suppressions
+			        WHERE tag_suppressions.item_id = tag_map.item_id
+			          AND tag_suppressions.source = tag_map.source
+			          AND tag_suppressions.value = tags.value COLLATE NOCASE
+			   )
+		), assignments AS (
+			SELECT tag_id, value, item_id,
+			       max(source = 'manual') AS manual,
+			       max(source = 'metadata') AS metadata,
+			       max(source = 'lightroom') AS lightroom
+			  FROM effective
+			 GROUP BY tag_id, value, item_id
+		)
+		SELECT assignments.tag_id, assignments.value, count(*),
+		       sum(items.status = 'published' AND galleries.status = 'published'),
+		       sum(assignments.manual), sum(assignments.metadata), sum(assignments.lightroom)
+		  FROM assignments
+		  JOIN items ON items.id = assignments.item_id
+		  JOIN galleries ON galleries.id = items.gallery_id
+		 GROUP BY assignments.tag_id, assignments.value
+		 ORDER BY assignments.value COLLATE NOCASE`, userTagNamespace)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var usages []TagUsage
+	for rows.Next() {
+		var usage TagUsage
+		if err := rows.Scan(&usage.ID, &usage.Value, &usage.PhotoCount, &usage.PublishedCount,
+			&usage.ManualCount, &usage.MetadataCount, &usage.LightroomCount); err != nil {
+			return nil, err
+		}
+		usages = append(usages, usage)
+	}
+	return usages, rows.Err()
+}
+
+// TagUsageItems returns photos carrying one effective user tag.
+func (s *Store) TagUsageItems(ctx context.Context, tagID int64) ([]TagUsageItem, error) {
+	rows, err := s.DB.QueryContext(ctx, `
+		WITH effective AS (
+			SELECT tag_map.item_id, tag_map.source
+			  FROM tags JOIN tag_map ON tag_map.tag_id = tags.id
+			 WHERE tags.id = ? AND tags.namespace = ?
+			   AND NOT EXISTS (
+			       SELECT 1 FROM tag_suppressions
+			        WHERE tag_suppressions.item_id = tag_map.item_id
+			          AND tag_suppressions.source = tag_map.source
+			          AND tag_suppressions.value = tags.value COLLATE NOCASE
+			   )
+		), assignments AS (
+			SELECT item_id,
+			       max(source = 'manual') AS manual,
+			       max(source = 'metadata') AS metadata,
+			       max(source = 'lightroom') AS lightroom
+			  FROM effective GROUP BY item_id
+		)
+		SELECT items.id, items.gallery_id, galleries.title, items.original_path, items.filename,
+		       items.status, galleries.status, assignments.manual, assignments.metadata, assignments.lightroom
+		  FROM assignments
+		  JOIN items ON items.id = assignments.item_id
+		  JOIN galleries ON galleries.id = items.gallery_id
+		 ORDER BY galleries.title COLLATE NOCASE, items.filename COLLATE NOCASE`, tagID, userTagNamespace)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []TagUsageItem
+	for rows.Next() {
+		var item TagUsageItem
+		if err := rows.Scan(&item.ID, &item.GalleryID, &item.GalleryTitle, &item.OriginalPath, &item.Filename,
+			&item.ItemStatus, &item.GalleryStatus, &item.Manual, &item.Metadata, &item.Lightroom); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, rows.Err()
+}
+
 // ReplaceItemUserTags replaces an item's user tags with normalized values.
 func (s *Store) ReplaceItemUserTags(ctx context.Context, itemID int64, values []string) error {
 	return s.replaceItemTags(ctx, itemID, userTagSource, values)
