@@ -8,12 +8,12 @@
   </div>
   <div class="progress"><div class="progress-bar" id="build-bar"></div></div>
   <p id="build-summary"></p>
-  <p class="publish-rsync-detail" id="publish-rsync-detail" hidden></p>
+  <p class="publish-last" id="last-published" hidden></p>
 </div>
 <div class="page-head">
   <div>
     <h1>Galleries</h1>
-    <p>Organize, publish, and build your photo collection<span id="last-published" hidden></span></p>
+    <p>Organize, publish, and build your photo collection.</p>
   </div>
 </div>
 {{if .Galleries}}
@@ -115,7 +115,6 @@
   var summary = document.getElementById("build-summary");
   var buildStep = document.getElementById("publish-build-step");
   var rsyncStep = document.getElementById("publish-rsync-step");
-  var rsyncDetail = document.getElementById("publish-rsync-detail");
   var lastPublished = document.getElementById("last-published");
   var dismiss = document.getElementById("build-dismiss");
   var currentBuildKey = "";
@@ -144,7 +143,7 @@
     else if (magnitude >= 3600) { unit = "hour"; divisor = 3600; }
     else if (magnitude >= 60) { unit = "minute"; divisor = 60; }
     var relative = new Intl.RelativeTimeFormat(undefined, {numeric: "auto"}).format(Math.round(seconds / divisor), unit);
-    lastPublished.textContent = " · Last published " + relative;
+    lastPublished.textContent = "Last successful publish " + relative;
     lastPublished.title = "Last published " + published.toLocaleString();
     lastPublished.hidden = false;
   }
@@ -161,7 +160,6 @@
       box.hidden = false;
       dismiss.hidden = s.running;
       rsyncStep.hidden = !s.rsyncStatus;
-      rsyncDetail.hidden = !s.rsyncStatus;
       stepState(buildStep, s.rsyncStatus ? "complete" : (s.error ? "failed" : (s.running ? "running" : "complete")));
       if (s.rsyncStatus) stepState(rsyncStep, s.rsyncStatus);
       if (s.running) {
@@ -169,7 +167,6 @@
         bar.style.width = (s.rsyncStatus === "running" ? 100 : (s.total ? Math.round(s.done / s.total * 100) : 0)) + "%";
         summary.textContent = s.rsyncStatus === "running" ? "Build complete. Syncing generated site…" : "Building site…";
         if (s.pending) summary.textContent += " Another publish is queued.";
-        rsyncDetail.textContent = s.rsyncStatus ? "Destination: " + s.rsyncTarget : "";
         if (!timer) timer = setInterval(poll, 700);
       } else {
         bar.style.width = "100%";
@@ -181,8 +178,6 @@
           " photos (" + s.generated + " generated, " + s.reused + " reused" +
           (s.feedUpdated ? "; Atom feed updated" : "") + ") in " +
           (s.durationMs / 1000).toFixed(1) + "s";
-        rsyncDetail.textContent = s.rsyncStatus ?
-          (s.rsyncStatus === "complete" ? "Rsync complete · " : "Rsync failed · ") + s.rsyncTarget : "";
         if (timer) { clearInterval(timer); timer = null; }
       }
     }).catch(function () {});

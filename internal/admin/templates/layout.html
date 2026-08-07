@@ -190,6 +190,7 @@
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .build-status { position: relative; }
   .build-status-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .publish-last { margin: .35rem 0 0; color: var(--muted); font-size: .78rem; }
   .publish-steps { display: flex; gap: 1rem; margin-top: .6rem; color: var(--muted); font-size: .75rem; font-weight: 700; }
   .publish-steps span { display: inline-flex; align-items: center; gap: .35rem; }
   .publish-steps span::before { width: 7px; height: 7px; content: ""; background: var(--line); border-radius: 50%; }
@@ -198,7 +199,6 @@
   .publish-steps span[data-state="complete"]::before { background: var(--ink); }
   .publish-steps span[data-state="failed"] { color: var(--danger); }
   .publish-steps span[data-state="failed"]::before { background: var(--danger); }
-  .publish-rsync-detail { margin-top: -.25rem; color: var(--muted); font-size: .78rem; }
   .deployment-preview { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--line); }
   .deployment-preview-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; }
   .deployment-preview-heading h3, .deployment-preview-heading p { margin: 0; }
