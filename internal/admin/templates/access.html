@@ -39,11 +39,13 @@
 <p>No access users yet.</p>
 {{end}}
 
-<form class="card access-user-form" method="post" action="{{$.BasePath}}/access">
+<form class="card settings-wide-card access-user-form" method="post" action="{{$.BasePath}}/access">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
   <h3>New protected-gallery user</h3>
-  <label class="field"><span>Username</span><input name="username" required></label>
-  <label class="field"><span>Password</span><input type="password" name="password" required></label>
+  <div class="settings-field-grid">
+    <label class="field"><span>Username</span><input name="username" required></label>
+    <label class="field"><span>Password</span><input type="password" name="password" required></label>
+  </div>
   <button>Create user</button>
 </form>
 {{end}}

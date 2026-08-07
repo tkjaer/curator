@@ -105,7 +105,7 @@
   .settings-save-status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: .4rem; background: var(--line); border-radius: 50%; vertical-align: .05em; }
   .settings-save-status[data-dirty="true"] { color: var(--accent); }
   .settings-save-status[data-dirty="true"]::before { background: var(--accent); }
-  .settings-form { max-width: 960px; }
+  .settings-form { width: 100%; }
   .settings-form > .settings-save-row { width: 100%; margin: 0 0 1rem; border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); }
   .settings-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
   .settings-panel { min-width: 0; padding: 1.25rem; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
@@ -130,7 +130,7 @@
   .settings-action-card > .settings-card-heading { margin-bottom: 0; }
   .settings-action-card > button { justify-self: start; }
   .settings-action-narrow { max-width: 470px; margin-top: 1rem; }
-  .settings-wide-card { width: 100%; max-width: 960px; }
+  .settings-wide-card { width: 100%; max-width: none; }
   .override-reset-list { display: grid; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
   .override-reset-row, .override-reset-all { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem; }
   .override-reset-row + .override-reset-row, .override-reset-all { border-top: 1px solid var(--line); }
@@ -140,7 +140,7 @@
   .override-reset-row button, .override-reset-all button { flex: 0 0 auto; }
   .override-reset-all { background: var(--surface-muted); }
   .access-admin-card .settings-field-grid { margin: 1rem 0; }
-  .access-users-heading { max-width: 960px; margin-bottom: .75rem; }
+  .access-users-heading { margin-bottom: .75rem; }
   .access-users-heading p { margin: .2rem 0 0; }
   .access-user-form { margin-top: 1rem; }
   .access-user-form h3 { margin: 0 0 .75rem; }
