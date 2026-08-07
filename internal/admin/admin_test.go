@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -297,6 +298,88 @@ func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 	}
 	if it.EmbeddedCamera != "Frontier" || it.ManualCamera != "" || it.Camera != "Frontier" || it.ManualLens != "" || it.Lens != "Detected lens" {
 		t.Fatalf("cleared manual update stored %+v", it)
+	}
+}
+
+func TestItemUpdateEditsUploadedTagsButNotLightroomTags(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "photos", Title: "Photos"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	createItem := func(filename string) int64 {
+		t.Helper()
+		itemID, err := srv.store.CreateItem(ctx, model.Item{
+			GalleryID: galleryID, OriginalPath: "photos/" + filename, Filename: filename, Status: model.ItemPublished,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return itemID
+	}
+	update := func(itemID int64, tags string) *httptest.ResponseRecorder {
+		t.Helper()
+		form := url.Values{"status": {string(model.ItemPublished)}, "tags": {tags}}
+		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/update", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("X-Curator-Async", "true")
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+
+	uploadedID := createItem("uploaded.jpg")
+	if err := srv.store.ReplaceItemImportedTags(ctx, uploadedID, store.TagSourceMetadata, []string{"keep", "remove"}); err != nil {
+		t.Fatal(err)
+	}
+	if body := update(uploadedID, "keep; added").Body.String(); !strings.Contains(body, `"tags":"added, keep"`) {
+		t.Fatalf("uploaded update response = %q", body)
+	}
+	if err := srv.store.ReplaceItemImportedTags(ctx, uploadedID, store.TagSourceMetadata, []string{"keep", "remove", "new"}); err != nil {
+		t.Fatal(err)
+	}
+	assertAdminTagValues(t, srv, uploadedID, []string{"added", "keep", "new"})
+
+	lightroomID := createItem("lightroom.jpg")
+	if err := srv.store.SetExternalItem(ctx, "lightroom", "photo-1", lightroomID); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.ReplaceItemImportedTags(ctx, lightroomID, store.TagSourceLightroom, []string{"from lightroom"}); err != nil {
+		t.Fatal(err)
+	}
+	if body := update(lightroomID, "curator").Body.String(); !strings.Contains(body, `"tags":"curator"`) {
+		t.Fatalf("Lightroom update response = %q", body)
+	}
+	assertAdminTagValues(t, srv, lightroomID, []string{"curator", "from lightroom"})
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(galleryID, 10), nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`data-item-id="` + strconv.FormatInt(uploadedID, 10) + `" data-filename="uploaded.jpg" data-title="" data-description="" data-caption="" data-tags="added, keep, new" data-imported-tags="" data-lightroom-managed="false"`,
+		`data-item-id="` + strconv.FormatInt(lightroomID, 10) + `" data-filename="lightroom.jpg" data-title="" data-description="" data-caption="" data-tags="curator" data-imported-tags="from lightroom" data-lightroom-managed="true"`,
+		`<strong>From Lightroom:</strong>`,
+		`Edit keywords in Lightroom and republish.`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("gallery tag editor missing %q", want)
+		}
+	}
+}
+
+func assertAdminTagValues(t *testing.T, srv *Server, itemID int64, want []string) {
+	t.Helper()
+	tags, err := srv.store.ItemUserTags(context.Background(), itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := make([]string, len(tags))
+	for index, tag := range tags {
+		got[index] = tag.Value
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("tags = %v, want %v", got, want)
 	}
 }
 

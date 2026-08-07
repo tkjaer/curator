@@ -59,6 +59,43 @@ func TestExtractTextMetadataPreference(t *testing.T) {
 	}
 }
 
+func TestParseIPTCTextEncoding(t *testing.T) {
+	tests := []struct {
+		name string
+		iptc []byte
+		want string
+	}{
+		{
+			name: "legacy Windows-1252 without charset",
+			iptc: iptcDataset(2, 25, "Hammarby Sj\xf6stad"),
+			want: "Hammarby Sjöstad",
+		},
+		{
+			name: "UTF-8 without charset",
+			iptc: iptcDataset(2, 25, "Hammarby Sjöstad"),
+			want: "Hammarby Sjöstad",
+		},
+		{
+			name: "declared UTF-8",
+			iptc: append(iptcDataset(1, 90, "\x1b%G"), iptcDataset(2, 25, "Sjöstad")...),
+			want: "Sjöstad",
+		},
+		{
+			name: "normalized Unicode",
+			iptc: iptcDataset(2, 25, "Sjo\u0308stad"),
+			want: "Sjöstad",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got := parseIPTCDatasets(test.iptc)
+			if !reflect.DeepEqual(got.Keywords, []string{test.want}) {
+				t.Fatalf("IPTC keywords = %q, want %q", got.Keywords, test.want)
+			}
+		})
+	}
+}
+
 func iptcDataset(record, dataset byte, value string) []byte {
 	var buf bytes.Buffer
 	buf.Write([]byte{0x1c, record, dataset})

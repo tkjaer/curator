@@ -291,6 +291,7 @@ type galleryData struct {
 	TagSuggestions       []model.Tag
 	ItemTags             map[int64]string
 	ItemImportedTags     map[int64]string
+	ItemLightroomManaged map[int64]bool
 	Statuses             []string
 	ItemStatuses         []string
 	CoverID              int64
@@ -361,23 +362,35 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	itemTagValues, err := s.store.GalleryItemManualTags(ctx, id)
+	itemTagValues, err := s.store.GalleryItemUserTags(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	itemTags := make(map[int64]string, len(itemTagValues))
-	for itemID, values := range itemTagValues {
-		itemTags[itemID] = strings.Join(values, ", ")
+	itemManualTagValues, err := s.store.GalleryItemManualTags(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	itemImportedTagValues, err := s.store.GalleryItemImportedTags(ctx, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	itemLightroomManaged, err := s.store.GalleryExternalItemIDs(ctx, "lightroom", id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	itemTags := make(map[int64]string, len(itemTagValues))
 	itemImportedTags := make(map[int64]string, len(itemImportedTagValues))
-	for itemID, values := range itemImportedTagValues {
-		itemImportedTags[itemID] = strings.Join(values, ", ")
+	for _, item := range items {
+		if itemLightroomManaged[item.ID] {
+			itemTags[item.ID] = strings.Join(itemManualTagValues[item.ID], ", ")
+			itemImportedTags[item.ID] = strings.Join(itemImportedTagValues[item.ID], ", ")
+		} else {
+			itemTags[item.ID] = strings.Join(itemTagValues[item.ID], ", ")
+		}
 	}
 	var cover int64
 	if g.CoverItemID != nil {
@@ -385,19 +398,20 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := galleryData{
-		Gallery:            g,
-		Items:              items,
-		CameraSuggestions:  cameraSuggestions,
-		LensSuggestions:    lensSuggestions,
-		TagSuggestions:     tagSuggestions,
-		ItemTags:           itemTags,
-		ItemImportedTags:   itemImportedTags,
-		Statuses:           []string{"draft", "unlisted", "published", "protected"},
-		ItemStatuses:       []string{"draft", "unlisted", "published"},
-		CoverID:            cover,
-		Protected:          g.Status == model.GalleryProtected,
-		AutomaticOrder:     "Date taken",
-		AutomaticDirection: "Ascending",
+		Gallery:              g,
+		Items:                items,
+		CameraSuggestions:    cameraSuggestions,
+		LensSuggestions:      lensSuggestions,
+		TagSuggestions:       tagSuggestions,
+		ItemTags:             itemTags,
+		ItemImportedTags:     itemImportedTags,
+		ItemLightroomManaged: itemLightroomManaged,
+		Statuses:             []string{"draft", "unlisted", "published", "protected"},
+		ItemStatuses:         []string{"draft", "unlisted", "published"},
+		CoverID:              cover,
+		Protected:            g.Status == model.GalleryProtected,
+		AutomaticOrder:       "Date taken",
+		AutomaticDirection:   "Ascending",
 	}
 	data.LightroomManaged, err = s.store.IsExternalGallery(ctx, "lightroom", id)
 	if err != nil {

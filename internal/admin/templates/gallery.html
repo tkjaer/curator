@@ -210,7 +210,7 @@
 <div id="photo-list" aria-label="Gallery photos">
 <div class="thumbs">
   {{range .Items}}
-  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-filename="{{.Filename}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-tags="{{index $.Data.ItemTags .ID}}" data-imported-tags="{{index $.Data.ItemImportedTags .ID}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-embedded-camera="{{.EmbeddedCamera}}" data-manual-camera="{{.ManualCamera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-move-action="{{$.BasePath}}/items/{{.ID}}/move" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
+  <figure class="item{{if eq .ID $.Data.CoverID}} is-cover{{end}}" data-item-id="{{.ID}}" data-filename="{{.Filename}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}" data-tags="{{index $.Data.ItemTags .ID}}" data-imported-tags="{{index $.Data.ItemImportedTags .ID}}" data-lightroom-managed="{{index $.Data.ItemLightroomManaged .ID}}" data-status="{{.Status}}" data-highlighted="{{.Highlighted}}" data-camera="{{.Camera}}" data-embedded-camera="{{.EmbeddedCamera}}" data-manual-camera="{{.ManualCamera}}" data-lens="{{.Lens}}" data-manual-lens="{{.ManualLens}}" data-update-action="{{$.BasePath}}/items/{{.ID}}/update" data-move-action="{{$.BasePath}}/items/{{.ID}}/move" data-cover-action="{{$.BasePath}}/items/{{.ID}}/cover" data-delete-action="{{$.BasePath}}/items/{{.ID}}/delete">
     <button class="item-preview" type="button" data-open-photo-editor aria-label="Edit {{.Filename}}">
       <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" width="{{.Width}}" height="{{.Height}}" loading="lazy">
       <span class="item-badges"><span class="item-marker status-label"{{if eq (printf "%s" .Status) "published"}} hidden{{end}}>{{.Status}}</span><span class="item-marker cover-label"{{if ne .ID $.Data.CoverID}} hidden{{end}}>&#9733; Cover</span>{{if .Highlighted}}<span class="item-marker highlight-label">Highlight</span>{{end}}</span>
@@ -264,13 +264,13 @@
             </datalist>
           </section>
           <section class="photo-editor-section" id="photo-editor-tags" role="tabpanel" data-photo-editor-panel="tags" hidden>
-            <div class="photo-editor-section-heading"><h3>Tags</h3><p>Add simple tags to organize and describe this photo.</p></div>
-            <label class="field"><span>Tags</span><input type="text" name="tags" list="tag-suggestions" placeholder="night; stockholm; kodak portra 400"></label>
+            <div class="photo-editor-section-heading"><h3>Tags</h3><p data-photo-editor-tags-description>Add simple tags to organize and describe this photo.</p></div>
+            <label class="field"><span data-photo-editor-tags-label>Tags</span><input type="text" name="tags" list="tag-suggestions" placeholder="night; stockholm; kodak portra 400"></label>
             <datalist id="tag-suggestions">
               {{range $.Data.TagSuggestions}}<option value="{{.Value}}"></option>{{end}}
             </datalist>
             <p class="field-help">Separate tags with commas or semicolons.</p>
-            <p class="field-help" data-photo-editor-imported-tags hidden><strong>Imported:</strong> <span></span></p>
+            <p class="field-help" data-photo-editor-imported-tags hidden><strong>From Lightroom:</strong> <span></span>. Edit keywords in Lightroom and republish.</p>
           </section>
           <section class="photo-editor-section" id="photo-editor-publishing" role="tabpanel" data-photo-editor-panel="publishing" hidden>
             <div class="photo-editor-section-heading"><h3>Publishing</h3><p>Control where this photo appears in the gallery.</p></div>
@@ -640,8 +640,13 @@
     form.elements.manual_camera.value = item.dataset.manualCamera;
     form.elements.manual_lens.value = item.dataset.manualLens;
     form.elements.tags.value = item.dataset.tags;
+    var lightroomManaged = item.dataset.lightroomManaged === "true";
+    photoEditor.querySelector("[data-photo-editor-tags-label]").textContent = lightroomManaged ? "Curator tags" : "Tags";
+    photoEditor.querySelector("[data-photo-editor-tags-description]").textContent = lightroomManaged ?
+      "Add tags managed by Curator alongside Lightroom keywords." :
+      "Add, remove, or correct tags for this photo.";
     var importedTags = photoEditor.querySelector("[data-photo-editor-imported-tags]");
-    importedTags.hidden = !item.dataset.importedTags;
+    importedTags.hidden = !lightroomManaged || !item.dataset.importedTags;
     importedTags.querySelector("span").textContent = item.dataset.importedTags || "";
     form.elements.status.value = item.dataset.status;
     form.elements.highlight.checked = item.dataset.highlighted === "true";

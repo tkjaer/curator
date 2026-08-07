@@ -44,11 +44,26 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
-	if err := s.store.ReplaceItemUserTags(r.Context(), it.ID, tagValues); err != nil {
+	lightroomManaged, err := s.store.IsExternalItem(r.Context(), "lightroom", it.ID)
+	if err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return
 	}
-	tags, err := s.store.ItemManualTags(r.Context(), it.ID)
+	if lightroomManaged {
+		err = s.store.ReplaceItemUserTags(r.Context(), it.ID, tagValues)
+	} else {
+		err = s.store.ReplaceItemEditableTags(r.Context(), it.ID, tagValues)
+	}
+	if err != nil {
+		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
+		return
+	}
+	var tags []model.Tag
+	if lightroomManaged {
+		tags, err = s.store.ItemManualTags(r.Context(), it.ID)
+	} else {
+		tags, err = s.store.ItemUserTags(r.Context(), it.ID)
+	}
 	if err != nil {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not update photo")
 		return

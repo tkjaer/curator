@@ -13,15 +13,15 @@ func TestReplaceItemUserTagsNormalizesAndReplaces(t *testing.T) {
 	_, itemIDs := makeGalleryWithItems(t, st, 1)
 	itemID := itemIDs[0]
 
-	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night-life ", "Night Life", "Kodak   Portra 400", ""}); err != nil {
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night-life ", "Night Life", "Kodak   Portra 400", "Sjöstad", "Sjo\u0308stad", ""}); err != nil {
 		t.Fatal(err)
 	}
 	tags, err := st.ItemUserTags(ctx, itemID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 2 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night life" {
-		t.Fatalf("tags = %#v, want kodak portra 400 and night life", tags)
+	if len(tags) != 3 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night life" || tags[2].Value != "sjöstad" {
+		t.Fatalf("tags = %#v, want kodak portra 400, night life, and sjöstad", tags)
 	}
 
 	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"Stockholm"}); err != nil {
@@ -99,6 +99,50 @@ func TestReplaceItemImportedTagsPreservesManualAssignments(t *testing.T) {
 	if len(manual) != 2 || manual[0].Value != "curator" || manual[1].Value != "shared" {
 		t.Fatalf("manual tags = %#v", manual)
 	}
+}
+
+func TestReplaceItemEditableTagsPersistsMetadataRemovals(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, itemIDs := makeGalleryWithItems(t, st, 1)
+	itemID := itemIDs[0]
+
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "remove me", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"from metadata", "added in curator", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "shared ownership"})
+
+	manual, err := st.ItemManualTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manual) != 2 || manual[0].Value != "added in curator" || manual[1].Value != "shared ownership" {
+		t.Fatalf("manual tags = %#v", manual)
+	}
+
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "new metadata", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "shared ownership"})
+
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "second curator tag", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "remove me", "new metadata", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "second curator tag", "shared ownership"})
+
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "remove me", "second curator tag", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "remove me", "second curator tag", "shared ownership"})
 }
 
 func assertTagValues(t *testing.T, st *Store, ctx context.Context, itemID int64, want []string) {
