@@ -13,7 +13,7 @@
 <div class="page-head">
   <div>
     <h1>Galleries</h1>
-    <p>Organize, publish, and build your photo collection.</p>
+    <p>Organize, publish, and build your photo collection<span id="last-published" hidden></span></p>
   </div>
 </div>
 {{if .Galleries}}
@@ -116,6 +116,7 @@
   var buildStep = document.getElementById("publish-build-step");
   var rsyncStep = document.getElementById("publish-rsync-step");
   var rsyncDetail = document.getElementById("publish-rsync-detail");
+  var lastPublished = document.getElementById("last-published");
   var dismiss = document.getElementById("build-dismiss");
   var currentBuildKey = "";
   var dismissKey = "curator-dismissed-build:" + base;
@@ -131,8 +132,25 @@
   function stageName(name) {
     return {images: "Images", render: "Pages", finishing: "Finishing", Rsync: "Rsync"}[name] || name;
   }
+  function showLastPublished(value) {
+    if (!value) return;
+    var published = new Date(value);
+    if (isNaN(published.getTime())) return;
+    var seconds = Math.round((published.getTime() - Date.now()) / 1000);
+    var magnitude = Math.abs(seconds);
+    var unit = "second";
+    var divisor = 1;
+    if (magnitude >= 86400) { unit = "day"; divisor = 86400; }
+    else if (magnitude >= 3600) { unit = "hour"; divisor = 3600; }
+    else if (magnitude >= 60) { unit = "minute"; divisor = 60; }
+    var relative = new Intl.RelativeTimeFormat(undefined, {numeric: "auto"}).format(Math.round(seconds / divisor), unit);
+    lastPublished.textContent = " · Last published " + relative;
+    lastPublished.title = "Last published " + published.toLocaleString();
+    lastPublished.hidden = false;
+  }
   function poll() {
     fetch(base + "/build/status").then(function (r) { return r.json(); }).then(function (s) {
+      showLastPublished(s.lastPublished);
       if (!s.everRun) { box.hidden = true; return; }
       currentBuildKey = s.buildInstance + ":" + s.buildId;
       if (sessionStorage.getItem(dismissKey) === currentBuildKey) {

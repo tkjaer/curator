@@ -551,6 +551,13 @@ func TestBuildDeploysConfiguredRsyncTarget(t *testing.T) {
 		status.RsyncStatus != "complete" || status.RsyncTarget != "photos@example.com:/srv/site" {
 		t.Fatalf("publish status = %#v", status)
 	}
+	settings, err := srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := time.Parse(time.RFC3339, settings["publish.last_success_at"]); err != nil {
+		t.Fatalf("last successful publish = %q: %v", settings["publish.last_success_at"], err)
+	}
 }
 
 func TestFailedBuildDoesNotDeploy(t *testing.T) {
@@ -583,8 +590,9 @@ func TestFailedRsyncIsReportedSeparately(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()
 	for key, value := range map[string]string{
-		"publish.rsync_enabled": "true",
-		"publish.rsync_target":  "photos@example.com:/srv/site",
+		"publish.rsync_enabled":   "true",
+		"publish.rsync_target":    "photos@example.com:/srv/site",
+		"publish.last_success_at": "2026-08-06T12:00:00Z",
 	} {
 		if err := srv.store.SetSetting(ctx, key, value); err != nil {
 			t.Fatal(err)
@@ -605,6 +613,26 @@ func TestFailedRsyncIsReportedSeparately(t *testing.T) {
 	if status.Running || status.RsyncStatus != "failed" || status.RsyncTarget != "photos@example.com:/srv/site" ||
 		status.Error != "connection refused" {
 		t.Fatalf("publish status = %#v", status)
+	}
+	settings, err := srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings["publish.last_success_at"]; got != "2026-08-06T12:00:00Z" {
+		t.Fatalf("last successful publish = %q after failed rsync", got)
+	}
+}
+
+func TestBuildStatusReportsPersistedLastPublish(t *testing.T) {
+	srv, _ := newTestServer(t)
+	if err := srv.store.SetSetting(context.Background(), "publish.last_success_at", "2026-08-06T12:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/build/status", nil))
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"lastPublished":"2026-08-06T12:00:00Z"`) {
+		t.Fatalf("build status = %d, %s", rec.Code, rec.Body.String())
 	}
 }
 

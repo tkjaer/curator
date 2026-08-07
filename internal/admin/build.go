@@ -127,6 +127,7 @@ type buildStatusJSON struct {
 	DurationMs    int64  `json:"durationMs"`
 	RsyncTarget   string `json:"rsyncTarget"`
 	RsyncStatus   string `json:"rsyncStatus"`
+	LastPublished string `json:"lastPublished"`
 }
 
 func (b *buildStatus) snapshot() buildStatusJSON {
@@ -183,6 +184,9 @@ func (s *Server) runBuildQueue() {
 		if err == nil {
 			err = s.deployAfterBuild(context.Background())
 		}
+		if err == nil {
+			err = s.store.SetSetting(context.Background(), "publish.last_success_at", time.Now().UTC().Format(time.RFC3339))
+		}
 		if !s.builds.finish(report, err) {
 			return
 		}
@@ -206,8 +210,15 @@ func (s *Server) deployAfterBuild(ctx context.Context) error {
 }
 
 func (s *Server) handleBuildStatus(w http.ResponseWriter, r *http.Request) {
+	status := s.builds.snapshot()
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	status.LastPublished = settings["publish.last_success_at"]
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(s.builds.snapshot())
+	_ = json.NewEncoder(w).Encode(status)
 }
 
 // handleRescan re-reads EXIF metadata from every item's original file. It runs
