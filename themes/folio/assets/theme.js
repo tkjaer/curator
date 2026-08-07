@@ -170,6 +170,7 @@
   bindClick(".lb-prev", () => openAt(index - 1));
   bindClick(".lb-close", () => dialog.close());
   imageButton.addEventListener("click", toggleZoom);
+  imageButton.addEventListener("pointerdown", () => imageButton.classList.remove("suppress-focus-ring"));
   dialog.addEventListener("pointermove", panZoom);
 
   // Close when the dark backdrop (the dialog itself, not the image or buttons)
@@ -185,8 +186,15 @@
 
   document.addEventListener("keydown", (e) => {
     if (!dialog.open) return;
-    if (e.key === "ArrowRight") openAt(index + 1);
-    else if (e.key === "ArrowLeft") openAt(index - 1);
+    if (e.key === "Tab") {
+      imageButton.classList.remove("suppress-focus-ring");
+      return;
+    }
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    imageButton.classList.add("suppress-focus-ring");
+    if (document.activeElement === imageButton) imageButton.blur();
+    openAt(index + (e.key === "ArrowRight" ? 1 : -1));
   });
 
   let startX = null;
