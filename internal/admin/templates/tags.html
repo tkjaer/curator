@@ -1,0 +1,59 @@
+{{define "tags"}}{{template "head" .}}
+<div class="page-head">
+  <div>
+    <h1>Tags</h1>
+    <p>Review effective tags across photos and open a photo to correct its tags.</p>
+  </div>
+  <a href="{{.BasePath}}/settings/metadata">Visibility settings</a>
+</div>
+<div class="tag-review-controls">
+  <input type="search" placeholder="Search tags" aria-label="Search tags" data-tag-search>
+  <select aria-label="Filter tags" data-tag-filter>
+    <option value="all">All tags</option>
+    <option value="single">Used once</option>
+    <option value="public">Public</option>
+    <option value="hidden">Not public</option>
+  </select>
+</div>
+<table data-tag-table>
+  <thead><tr><th>Tag</th><th class="tag-review-count">Photos</th><th class="tag-review-count">Published</th><th>Public page</th><th>Sources</th></tr></thead>
+  <tbody>
+  {{range .Data.Tags}}
+    <tr data-tag-row data-name="{{.Value}}" data-count="{{.PhotoCount}}" data-public="{{.Public}}">
+      <td><a href="{{$.BasePath}}/tags/{{.ID}}"><strong>{{.Value}}</strong></a></td>
+      <td class="tag-review-count">{{.PhotoCount}}</td>
+      <td class="tag-review-count">{{.PublishedCount}}</td>
+      <td>{{if .Public}}<span class="badge">Public</span>{{else}}<span class="tag-review-source">Not public</span>{{end}}</td>
+      <td class="tag-review-source">{{.Source}}</td>
+    </tr>
+  {{end}}
+  <tr class="tag-review-empty" data-tag-empty hidden><td colspan="5">No tags match this filter.</td></tr>
+  </tbody>
+</table>
+{{if not .Data.Tags}}<p>No tags found. Tags imported from metadata or added to photos will appear here.</p>{{end}}
+<script>
+(function () {
+  var search = document.querySelector("[data-tag-search]");
+  var filter = document.querySelector("[data-tag-filter]");
+  var rows = Array.from(document.querySelectorAll("[data-tag-row]"));
+  var empty = document.querySelector("[data-tag-empty]");
+  if (!search || !filter) return;
+  function applyFilters() {
+    var query = search.value.trim().toLocaleLowerCase();
+    var visible = 0;
+    rows.forEach(function (row) {
+      var matchesSearch = row.dataset.name.toLocaleLowerCase().includes(query);
+      var matchesFilter = filter.value === "all" ||
+        (filter.value === "single" && row.dataset.count === "1") ||
+        (filter.value === "public" && row.dataset.public === "true") ||
+        (filter.value === "hidden" && row.dataset.public === "false");
+      row.hidden = !(matchesSearch && matchesFilter);
+      if (!row.hidden) visible++;
+    });
+    if (empty) empty.hidden = visible !== 0;
+  }
+  search.addEventListener("input", applyFilters);
+  filter.addEventListener("change", applyFilters);
+})();
+</script>
+{{template "foot" .}}{{end}}

@@ -187,6 +187,18 @@
   #photo-list.is-arranging .item-hover-title { display: none; }
   .item.is-dragging { z-index: 2; opacity: .45; }
   .badge { display: inline-block; padding: .15rem .5rem; color: #2949ae; background: var(--accent-soft); border: 1px solid #c4cef2; border-radius: 999px; font-size: .72rem; font-weight: 700; }
+  .tag-review-controls { display: flex; flex-wrap: wrap; gap: .7rem; margin: 1rem 0; }
+  .tag-review-controls input { flex: 1 1 260px; }
+  .tag-review-controls select { width: auto; }
+  .tag-review-count { width: 1%; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tag-review-source { color: var(--muted); font-size: .85rem; }
+  .tag-review-empty { padding: 2rem; text-align: center; }
+  .tag-photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+  .tag-photo { min-width: 0; }
+  .tag-photo a { display: block; color: var(--ink); text-decoration: none; }
+  .tag-photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 5px; }
+  .tag-photo strong { display: block; overflow: hidden; margin-top: .4rem; font-size: .82rem; text-overflow: ellipsis; white-space: nowrap; }
+  .tag-photo small { display: block; color: var(--muted); }
   .progress { height: 7px; overflow: hidden; margin: .7rem 0; background: var(--surface-muted); border-radius: 99px; }
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .build-status { position: relative; }
@@ -455,6 +467,10 @@
     .photo-editor-footer { padding: .65rem .75rem; }
     .photo-editor-footer button { padding: .35rem .55rem; }
   }
+  @media (max-width: 720px) {
+    [data-tag-table] th:nth-child(5), [data-tag-table] td:nth-child(5) { display: none; }
+    .tag-review-count, [data-tag-table] th, [data-tag-table] td { padding-right: .65rem; padding-left: .65rem; }
+  }
 </style>
 </head>
 <body>
@@ -462,6 +478,7 @@
   <a class="brand" href="{{.BasePath}}/">Curator</a>
   <nav>
     <a href="{{.BasePath}}/">Galleries</a>
+    <a href="{{.BasePath}}/tags">Tags</a>
     <a href="{{.BasePath}}/access">Access</a>
     <a href="{{.BasePath}}/settings">Settings</a>
     <form class="inline" method="post" action="{{.BasePath}}/build"><input type="hidden" name="_csrf" value="{{.CSRF}}"><button>Publish site</button></form>

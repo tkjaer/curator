@@ -1,0 +1,26 @@
+{{define "tag"}}{{template "head" .}}
+<a class="back-link" href="{{.BasePath}}/tags">&larr; All tags</a>
+<div class="page-head">
+  <div>
+    <h1>{{.Data.Tag.Value}}</h1>
+    <div class="meta-row">
+      <span>{{.Data.Tag.PhotoCount}} {{if eq .Data.Tag.PhotoCount 1}}photo{{else}}photos{{end}}</span>
+      <span>{{.Data.Tag.PublishedCount}} published</span>
+      <span>{{.Data.Tag.Source}}</span>
+      {{if .Data.Tag.Public}}<span class="badge">Public</span>{{else}}<span>Not public</span>{{end}}
+    </div>
+  </div>
+</div>
+<div class="tag-photo-list">
+{{range .Data.Items}}
+  <article class="tag-photo">
+    <a href="{{$.BasePath}}/galleries/{{.GalleryID}}?photo={{.ID}}&amp;tab=tags&amp;return_tag={{$.Data.Tag.ID}}">
+      <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" loading="lazy">
+      <strong>{{.Filename}}</strong>
+      <small>{{.GalleryTitle}} &middot; photo {{.ItemStatus}} &middot; gallery {{.GalleryStatus}}</small>
+      <small>{{if .Manual}}Curator{{end}}{{if and .Manual .Metadata}}, {{end}}{{if .Metadata}}Metadata{{end}}{{if and (or .Manual .Metadata) .Lightroom}}, {{end}}{{if .Lightroom}}Lightroom{{end}}</small>
+    </a>
+  </article>
+{{end}}
+</div>
+{{template "foot" .}}{{end}}

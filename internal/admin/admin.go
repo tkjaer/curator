@@ -135,6 +135,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/items/{id}/cover"), s.handleItemCover)
 	mux.HandleFunc("POST "+s.path("/items/{id}/move"), s.handleItemMove)
 	mux.HandleFunc("POST "+s.path("/items/{id}/delete"), s.handleItemDelete)
+	mux.HandleFunc("GET "+s.path("/tags"), s.handleTags)
+	mux.HandleFunc("GET "+s.path("/tags/{id}"), s.handleTag)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/access"), s.handleGalleryAccess)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/blocks"), s.handleCreateBlock)
 	mux.HandleFunc("POST "+s.path("/blocks/{id}/update"), s.handleUpdateBlock)

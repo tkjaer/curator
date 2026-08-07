@@ -64,6 +64,67 @@ func TestDashboardRenders(t *testing.T) {
 	}
 }
 
+func TestTagReviewLinksToPhotoTagEditor(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "published", Title: "Published gallery", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: "published/photo.jpg", Filename: "photo.jpg", Status: model.ItemPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.ReplaceItemUserTags(ctx, itemID, []string{"shared", "hidden"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.ReplaceItemImportedTags(ctx, itemID, store.TagSourceMetadata, []string{"shared"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.store.DB.ExecContext(ctx, `UPDATE facet_config SET enabled = 1 WHERE namespace = 'tag'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.SetSetting(ctx, "metadata.tag_visibility", "hide_selected"); err != nil {
+		t.Fatal(err)
+	}
+	if err := srv.store.SetSetting(ctx, "metadata.tag_selection", "hidden"); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/tags", nil))
+	body := rec.Body.String()
+	if rec.Code != http.StatusOK || !strings.Contains(body, `data-name="shared" data-count="1" data-public="true"`) ||
+		!strings.Contains(body, `Curator, Metadata`) ||
+		!strings.Contains(body, `data-name="hidden" data-count="1" data-public="false"`) {
+		t.Fatalf("tag review status = %d, body = %s", rec.Code, body)
+	}
+
+	var tagID int64
+	if err := srv.store.DB.QueryRowContext(ctx, `SELECT id FROM tags WHERE namespace = 'user' AND value = 'shared'`).Scan(&tagID); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/tags/"+strconv.FormatInt(tagID, 10), nil))
+	body = rec.Body.String()
+	wantLink := `/galleries/` + strconv.FormatInt(galleryID, 10) + `?photo=` + strconv.FormatInt(itemID, 10) + `&amp;tab=tags&amp;return_tag=` + strconv.FormatInt(tagID, 10)
+	if rec.Code != http.StatusOK || !strings.Contains(body, `<h1>shared</h1>`) ||
+		!strings.Contains(body, `src="/media/published/photo.jpg"`) || !strings.Contains(body, wantLink) {
+		t.Fatalf("tag detail status = %d, body = %s", rec.Code, body)
+	}
+
+	if err := srv.store.ReplaceItemEditableTags(ctx, itemID, []string{"hidden"}); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/tags/"+strconv.FormatInt(tagID, 10), nil))
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/tags" {
+		t.Fatalf("removed tag redirect = %d %q, want 303 /tags", rec.Code, rec.Header().Get("Location"))
+	}
+}
+
 func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()

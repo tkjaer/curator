@@ -359,6 +359,7 @@
   var suppressPhotoClick = false;
   var orderSaveInFlight = false;
   var orderSavePending = false;
+  var photoEditorReturnURL = "";
 
   function stateFor(form) {
     var container = form.closest(".item, .story-block");
@@ -546,6 +547,9 @@
       if (form.dataset.pendingSave) {
         delete form.dataset.pendingSave;
         submit(form);
+      } else if (form.dataset.closeWhenSaved) {
+        delete form.dataset.closeWhenSaved;
+        photoEditor.close();
       }
     }
   }
@@ -667,6 +671,34 @@
     if (!photoEditor.open) photoEditor.showModal();
   }
 
+  var deepLink = new URLSearchParams(window.location.search);
+  var deepLinkedItem = document.querySelector('.item[data-item-id="' + CSS.escape(deepLink.get("photo") || "") + '"]');
+  var returnTag = deepLink.get("return_tag") || "";
+  if (/^[1-9][0-9]*$/.test(returnTag)) photoEditorReturnURL = "{{.BasePath}}/tags/" + returnTag;
+  if (deepLinkedItem) {
+    openPhotoEditor(deepLinkedItem);
+    if (deepLink.get("tab") === "tags") setPhotoEditorTab("tags", false);
+  }
+
+  if (photoEditor) photoEditor.addEventListener("close", function () {
+    if (photoEditorReturnURL) window.location.assign(photoEditorReturnURL);
+  });
+  if (photoEditor) photoEditor.addEventListener("cancel", function (event) {
+    var form = photoEditor.querySelector(".item-editor");
+    if (!busy.has(form)) return;
+    event.preventDefault();
+    form.dataset.closeWhenSaved = "true";
+  });
+
+  function closePhotoEditor() {
+    var form = photoEditor && photoEditor.querySelector(".item-editor");
+    if (form && busy.has(form)) {
+      form.dataset.closeWhenSaved = "true";
+      return;
+    }
+    if (photoEditor) photoEditor.close();
+  }
+
   function setArrangeMode(enabled) {
     var photoList = document.getElementById("photo-list");
     var toggle = document.querySelector("[data-toggle-arrange]");
@@ -757,7 +789,7 @@
 
   document.addEventListener("click", function (event) {
     if (photoEditor && photoEditor.open && event.target === photoEditor) {
-      photoEditor.close();
+      closePhotoEditor();
       return;
     }
     var arrangeToggle = event.target.closest("[data-toggle-arrange]");
@@ -777,7 +809,7 @@
     }
     var closer = event.target.closest("[data-close-photo-editor]");
     if (closer) {
-      closer.closest("dialog").close();
+      closePhotoEditor();
       return;
     }
     var tab = event.target.closest("[data-photo-editor-tab]");
