@@ -11,16 +11,30 @@
     </div>
   </div>
 </div>
-<div class="tag-photo-list">
-{{range .Data.Items}}
-  <article class="tag-photo">
-    <a href="{{$.BasePath}}/galleries/{{.GalleryID}}?photo={{.ID}}&amp;tab=tags&amp;return_tag={{$.Data.Tag.ID}}">
-      <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" loading="lazy">
-      <strong>{{.Filename}}</strong>
-      <small>{{.GalleryTitle}} &middot; photo {{.ItemStatus}} &middot; gallery {{.GalleryStatus}}</small>
-      <small>{{if .Manual}}Curator{{end}}{{if and .Manual .Metadata}}, {{end}}{{if .Metadata}}Metadata{{end}}{{if and (or .Manual .Metadata) .Lightroom}}, {{end}}{{if .Lightroom}}Lightroom{{end}}</small>
-    </a>
-  </article>
+{{range .Data.Groups}}
+<section class="tag-gallery-group">
+  <h2 class="tag-gallery-heading">{{.Title}} <span>{{len .Items}} photo{{if ne (len .Items) 1}}s{{end}}</span></h2>
+  <div class="tag-photo-list">
+  {{range .Items}}
+    <article class="tag-photo">
+      <a href="{{$.BasePath}}/galleries/{{.GalleryID}}?photo={{.ID}}&amp;tab=tags&amp;return_tag={{$.Data.Tag.ID}}" aria-label="Edit {{.Filename}} in {{.GalleryTitle}}">
+        <span class="tag-photo-media">
+          <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" loading="lazy">
+        {{if or (ne .ItemStatus "published") (ne .GalleryStatus "published")}}
+          <span class="tag-photo-flags">
+            {{if ne .ItemStatus "published"}}<span class="tag-photo-flag">Photo {{.ItemStatus}}</span>{{end}}
+            {{if ne .GalleryStatus "published"}}<span class="tag-photo-flag">Gallery {{.GalleryStatus}}</span>{{end}}
+          </span>
+        {{end}}
+        </span>
+        <span class="tag-photo-caption">
+          <span class="tag-photo-name">{{.Filename}}</span>
+          {{if .Lightroom}}<span class="tag-photo-source">Lightroom</span>{{end}}
+        </span>
+      </a>
+    </article>
+  {{end}}
+  </div>
+</section>
 {{end}}
-</div>
 {{template "foot" .}}{{end}}
