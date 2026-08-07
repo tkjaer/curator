@@ -265,11 +265,11 @@
           </section>
           <section class="photo-editor-section" id="photo-editor-tags" role="tabpanel" data-photo-editor-panel="tags" hidden>
             <div class="photo-editor-section-heading"><h3>Tags</h3><p>Add simple tags to organize and describe this photo.</p></div>
-            <label class="field"><span>Tags</span><input type="text" name="tags" list="tag-suggestions" placeholder="night, stockholm, kodak portra 400"></label>
+            <label class="field"><span>Tags</span><input type="text" name="tags" list="tag-suggestions" placeholder="night; stockholm; kodak portra 400"></label>
             <datalist id="tag-suggestions">
               {{range $.Data.TagSuggestions}}<option value="{{.Value}}"></option>{{end}}
             </datalist>
-            <p class="field-help">Separate tags with commas.</p>
+            <p class="field-help">Separate tags with commas or semicolons.</p>
             <p class="field-help" data-photo-editor-imported-tags hidden><strong>Imported:</strong> <span></span></p>
           </section>
           <section class="photo-editor-section" id="photo-editor-publishing" role="tabpanel" data-photo-editor-panel="publishing" hidden>

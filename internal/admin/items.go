@@ -24,7 +24,9 @@ func (s *Server) handleItemUpdate(w http.ResponseWriter, r *http.Request) {
 	highlighted := r.FormValue("highlight") == "on"
 	manualCamera := strings.TrimSpace(r.FormValue("manual_camera"))
 	manualLens := strings.TrimSpace(r.FormValue("manual_lens"))
-	tagValues := strings.Split(r.FormValue("tags"), ",")
+	tagValues := strings.FieldsFunc(r.FormValue("tags"), func(r rune) bool {
+		return r == ',' || r == ';'
+	})
 
 	settings, err := s.store.Settings(r.Context())
 	if err != nil {
