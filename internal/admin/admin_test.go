@@ -71,8 +71,18 @@ func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.store.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "summer", Title: "Summer"}); err != nil {
+	childID, err := srv.store.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "summer", Title: "Summer"})
+	if err != nil {
 		t.Fatal(err)
+	}
+	for _, item := range []model.Item{
+		{GalleryID: parentID, OriginalPath: "2026/cover.jpg", Filename: "cover.jpg"},
+		{GalleryID: childID, OriginalPath: "2026/summer/first.jpg", Filename: "first.jpg"},
+		{GalleryID: childID, OriginalPath: "2026/summer/second.jpg", Filename: "second.jpg"},
+	} {
+		if _, err := srv.store.CreateItem(ctx, item); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	rec := httptest.NewRecorder()
@@ -83,6 +93,10 @@ func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
 		`data-gallery-id="1" data-parent-id="" data-depth="0"`,
 		`aria-expanded="false" aria-label="Expand 2026"`,
 		`data-gallery-id="2" data-parent-id="1" data-depth="1"`,
+		`<th class="gallery-tree-count">Photos</th><th class="gallery-tree-count">Incl. subfolders</th>`,
+		`<td class="gallery-tree-count">1</td>`,
+		`<td class="gallery-tree-count">3</td>`,
+		`<td class="gallery-tree-count"><span class="muted">&mdash;</span></td>`,
 		`curator-expanded-galleries:`,
 	} {
 		if !strings.Contains(body, want) {
