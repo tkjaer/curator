@@ -253,7 +253,7 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 			}
 			for file, wants := range map[string][]string{
 				"theme.css": {".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
-				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`},
+				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`, "imageButton.classList.add(\"suppress-focus-ring\");\n    if (document.activeElement === imageButton)"},
 			} {
 				content, err := fs.ReadFile(assets, file)
 				if err != nil {

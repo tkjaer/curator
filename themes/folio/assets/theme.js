@@ -192,10 +192,8 @@
     }
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    if (document.activeElement === imageButton) {
-      imageButton.classList.add("suppress-focus-ring");
-      imageButton.blur();
-    }
+    imageButton.classList.add("suppress-focus-ring");
+    if (document.activeElement === imageButton) imageButton.blur();
     openAt(index + (e.key === "ArrowRight" ? 1 : -1));
   });
 
