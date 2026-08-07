@@ -83,6 +83,9 @@ func TestTagReviewLinksToPhotoTagEditor(t *testing.T) {
 	if err := srv.store.ReplaceItemImportedTags(ctx, itemID, store.TagSourceMetadata, []string{"shared"}); err != nil {
 		t.Fatal(err)
 	}
+	if err := srv.store.ReplaceItemImportedTags(ctx, itemID, store.TagSourceLightroom, []string{"shared"}); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := srv.store.DB.ExecContext(ctx, `UPDATE facet_config SET enabled = 1 WHERE namespace = 'tag'`); err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +100,7 @@ func TestTagReviewLinksToPhotoTagEditor(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/tags", nil))
 	body := rec.Body.String()
 	if rec.Code != http.StatusOK || !strings.Contains(body, `data-name="shared" data-count="1" data-public="true"`) ||
-		!strings.Contains(body, `Curator, Metadata`) ||
+		!strings.Contains(body, `Curator, Metadata, Lightroom`) ||
 		!strings.Contains(body, `data-name="hidden" data-count="1" data-public="false"`) {
 		t.Fatalf("tag review status = %d, body = %s", rec.Code, body)
 	}
@@ -113,10 +116,14 @@ func TestTagReviewLinksToPhotoTagEditor(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(body, `<h1>shared</h1>`) ||
 		!strings.Contains(body, `src="/media/published/photo.jpg"`) || !strings.Contains(body, wantLink) ||
 		!strings.Contains(body, `<h2 class="tag-gallery-heading">Published gallery <span>1 photo</span></h2>`) ||
-		!strings.Contains(body, `<span class="tag-photo-source">Curator + metadata</span>`) {
+		!strings.Contains(body, `<span class="tag-photo-source">Lightroom</span>`) ||
+		strings.Contains(body, `<span class="tag-photo-source">Curator`) {
 		t.Fatalf("tag detail status = %d, body = %s", rec.Code, body)
 	}
 
+	if err := srv.store.ReplaceItemImportedTags(ctx, itemID, store.TagSourceLightroom, nil); err != nil {
+		t.Fatal(err)
+	}
 	if err := srv.store.ReplaceItemEditableTags(ctx, itemID, []string{"hidden"}); err != nil {
 		t.Fatal(err)
 	}

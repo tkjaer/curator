@@ -29,8 +29,7 @@
         </span>
         <span class="tag-photo-caption">
           <span class="tag-photo-name">{{.Filename}}</span>
-          {{if .Manual}}<span class="tag-photo-source">Curator{{if .Metadata}} + metadata{{end}}</span>{{end}}
-          {{if .Lightroom}}<span class="tag-photo-source">Lightroom{{if or .Manual .Metadata}} + other{{end}}</span>{{end}}
+          {{if .Lightroom}}<span class="tag-photo-source">Lightroom</span>{{end}}
         </span>
       </a>
     </article>
