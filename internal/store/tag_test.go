@@ -13,15 +13,15 @@ func TestReplaceItemUserTagsNormalizesAndReplaces(t *testing.T) {
 	_, itemIDs := makeGalleryWithItems(t, st, 1)
 	itemID := itemIDs[0]
 
-	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night-life ", "Night Life", "Kodak   Portra 400", ""}); err != nil {
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{" night-life ", "Night Life", "Kodak   Portra 400", "Sjöstad", "Sjo\u0308stad", ""}); err != nil {
 		t.Fatal(err)
 	}
 	tags, err := st.ItemUserTags(ctx, itemID)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(tags) != 2 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night life" {
-		t.Fatalf("tags = %#v, want kodak portra 400 and night life", tags)
+	if len(tags) != 3 || tags[0].Value != "kodak portra 400" || tags[1].Value != "night life" || tags[2].Value != "sjöstad" {
+		t.Fatalf("tags = %#v, want kodak portra 400, night life, and sjöstad", tags)
 	}
 
 	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"Stockholm"}); err != nil {

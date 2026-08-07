@@ -16,8 +16,11 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+	"unicode/utf8"
 
 	"github.com/rwcarlsen/goexif/exif"
+	"golang.org/x/text/encoding/charmap"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Data is the normalized metadata Curator stores and displays.
@@ -318,6 +321,7 @@ func parseIPTC(data []byte) iptcMetadata {
 
 func parseIPTCDatasets(data []byte) iptcMetadata {
 	var metadata iptcMetadata
+	utf8Declared := false
 	for len(data) >= 5 {
 		if data[0] != 0x1c {
 			data = data[1:]
@@ -328,7 +332,13 @@ func parseIPTCDatasets(data []byte) iptcMetadata {
 		if size&0x8000 != 0 || 5+size > len(data) {
 			break
 		}
-		value := normalizeText(string(data[5 : 5+size]))
+		raw := data[5 : 5+size]
+		if record == 1 && dataset == 90 {
+			utf8Declared = bytes.Equal(raw, []byte{0x1b, 0x25, 0x47})
+			data = data[5+size:]
+			continue
+		}
+		value := normalizeText(decodeIPTCText(raw, utf8Declared))
 		if record == 2 {
 			switch dataset {
 			case 25:
@@ -346,6 +356,17 @@ func parseIPTCDatasets(data []byte) iptcMetadata {
 		data = data[5+size:]
 	}
 	return metadata
+}
+
+func decodeIPTCText(value []byte, utf8Declared bool) string {
+	if utf8Declared || utf8.Valid(value) {
+		return strings.ToValidUTF8(string(value), "\uFFFD")
+	}
+	decoded, err := charmap.Windows1252.NewDecoder().Bytes(value)
+	if err != nil {
+		return strings.ToValidUTF8(string(value), "\uFFFD")
+	}
+	return string(decoded)
 }
 
 func mergeKeywords(groups ...[]string) []string {
@@ -368,7 +389,7 @@ func firstText(values ...string) string {
 func normalizeText(value string) string {
 	value = strings.ReplaceAll(value, "\r\n", "\n")
 	value = strings.ReplaceAll(value, "\r", "\n")
-	return strings.TrimSpace(strings.Trim(value, "\x00"))
+	return norm.NFC.String(strings.TrimSpace(strings.Trim(value, "\x00")))
 }
 
 func exifText(x *exif.Exif, field exif.FieldName) string {
