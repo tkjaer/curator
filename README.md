@@ -12,8 +12,9 @@ embedded themes, and publishing from Lightroom Classic.
 Initial setup and Curator-specific settings live in the admin UI. Galleries and
 photos can then be managed there or published day to day from Lightroom Classic.
 The admin supports gallery hierarchies, contact-sheet review and ordering,
-photo metadata overrides and tags, block-based story editing, presentation
-defaults, access users, facets, themes, and publishing.
+photo metadata overrides, source-aware tag review and correction, block-based
+story editing, presentation defaults, access users, facets, themes, and
+publishing.
 
 Photo tags can be entered in Curator or imported from embedded and sidecar XMP,
 IPTC keywords, and Lightroom Classic. Curator tracks each assignment source so
