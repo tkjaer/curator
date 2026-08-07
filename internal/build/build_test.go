@@ -466,6 +466,86 @@ func mustNotExist(t *testing.T, path string) {
 	}
 }
 
+func TestBuildOrdersChildGalleriesByParentSetting(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	parentID, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "elsewhere", Title: "Elsewhere", Type: model.GalleryGrid, Status: model.GalleryPublished,
+		SortMode: model.SortByFilename, SortDirection: model.SortAscending,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	zurichID, err := st.CreateGallery(ctx, model.Gallery{
+		ParentID: &parentID, Slug: "zurich", Title: "Zurich", Type: model.GalleryGrid, Status: model.GalleryPublished,
+		SortMode: model.SortByFilename, SortDirection: model.SortAscending,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateGallery(ctx, model.Gallery{
+		ParentID: &parentID, Slug: "athens", Title: "Athens", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	th, err := theme.Load(os.DirFS("../../themes/default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildPage := func() string {
+		t.Helper()
+		if err := New(st, th, cfg).Build(ctx); err != nil {
+			t.Fatal(err)
+		}
+		page, err := os.ReadFile(filepath.Join(cfg.OutputDir, "elsewhere", "index.html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(page)
+	}
+	assertBefore := func(page, first, second string) {
+		t.Helper()
+		firstAt, secondAt := strings.Index(page, first), strings.Index(page, second)
+		if firstAt < 0 || secondAt < 0 || firstAt >= secondAt {
+			t.Fatalf("gallery order does not place %q before %q", first, second)
+		}
+	}
+
+	assertBefore(buildPage(), "Athens", "Zurich")
+	if err := st.SetGalleryItemOrder(ctx, parentID, model.SortByFilename, model.SortDescending); err != nil {
+		t.Fatal(err)
+	}
+	assertBefore(buildPage(), "Zurich", "Athens")
+
+	for _, gallery := range []model.Gallery{
+		{ParentID: &zurichID, Slug: "winterthur", Title: "Winterthur", Type: model.GalleryGrid, Status: model.GalleryPublished},
+		{ParentID: &zurichID, Slug: "basel", Title: "Basel", Type: model.GalleryGrid, Status: model.GalleryPublished},
+	} {
+		if _, err := st.CreateGallery(ctx, gallery); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatal(err)
+	}
+	zurichPage, err := os.ReadFile(filepath.Join(cfg.OutputDir, "elsewhere", "zurich", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertBefore(string(zurichPage), "Basel", "Winterthur")
+}
+
 func TestNestedCoverFallback(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))
