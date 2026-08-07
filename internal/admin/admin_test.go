@@ -111,7 +111,8 @@ func TestTagReviewLinksToPhotoTagEditor(t *testing.T) {
 	body = rec.Body.String()
 	wantLink := `/galleries/` + strconv.FormatInt(galleryID, 10) + `?photo=` + strconv.FormatInt(itemID, 10) + `&amp;tab=tags&amp;return_tag=` + strconv.FormatInt(tagID, 10)
 	if rec.Code != http.StatusOK || !strings.Contains(body, `<h1>shared</h1>`) ||
-		!strings.Contains(body, `src="/media/published/photo.jpg"`) || !strings.Contains(body, wantLink) {
+		!strings.Contains(body, `src="/media/published/photo.jpg"`) || !strings.Contains(body, wantLink) ||
+		!strings.Contains(body, `<span class="tag-photo-flag">Curator + metadata</span>`) {
 		t.Fatalf("tag detail status = %d, body = %s", rec.Code, body)
 	}
 

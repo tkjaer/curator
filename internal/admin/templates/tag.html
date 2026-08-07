@@ -17,8 +17,15 @@
     <a href="{{$.BasePath}}/galleries/{{.GalleryID}}?photo={{.ID}}&amp;tab=tags&amp;return_tag={{$.Data.Tag.ID}}">
       <img src="{{$.BasePath}}/media/{{.OriginalPath}}" alt="" loading="lazy">
       <strong>{{.Filename}}</strong>
-      <small>{{.GalleryTitle}} &middot; photo {{.ItemStatus}} &middot; gallery {{.GalleryStatus}}</small>
-      <small>{{if .Manual}}Curator{{end}}{{if and .Manual .Metadata}}, {{end}}{{if .Metadata}}Metadata{{end}}{{if and (or .Manual .Metadata) .Lightroom}}, {{end}}{{if .Lightroom}}Lightroom{{end}}</small>
+      <span class="tag-photo-gallery">{{.GalleryTitle}}</span>
+      {{if or (ne .ItemStatus "published") (ne .GalleryStatus "published") .Manual .Lightroom}}
+      <span class="tag-photo-flags">
+        {{if ne .ItemStatus "published"}}<span class="tag-photo-flag">Photo {{.ItemStatus}}</span>{{end}}
+        {{if ne .GalleryStatus "published"}}<span class="tag-photo-flag">Gallery {{.GalleryStatus}}</span>{{end}}
+        {{if .Manual}}<span class="tag-photo-flag">Curator{{if .Metadata}} + metadata{{end}}</span>{{end}}
+        {{if .Lightroom}}<span class="tag-photo-flag">Lightroom{{if or .Manual .Metadata}} + other{{end}}</span>{{end}}
+      </span>
+      {{end}}
     </a>
   </article>
 {{end}}
