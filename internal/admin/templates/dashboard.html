@@ -18,13 +18,14 @@
 </div>
 {{if .Galleries}}
 <table id="gallery-tree">
-  <tr><th>Title</th><th>Slug</th><th>Status</th><th>Photos</th></tr>
+  <tr><th>Title</th><th>Slug</th><th>Status</th><th class="gallery-tree-count">Photos</th><th class="gallery-tree-count">Incl. subfolders</th></tr>
   {{range .Galleries}}
   <tr class="gallery-tree-row" data-gallery-id="{{.ID}}" data-parent-id="{{with .ParentID}}{{.}}{{end}}" data-depth="{{.Depth}}">
     <td><div class="gallery-tree-title" style="--gallery-depth: {{.Depth}}">{{if .HasChildren}}<button class="gallery-tree-toggle" type="button" aria-expanded="false" aria-label="Expand {{.Title}}" title="Expand {{.Title}}"></button>{{else}}<span class="gallery-tree-spacer"></span>{{end}}<a href="{{.URL}}">{{.Title}}</a></div></td>
     <td>{{.Slug}}</td>
     <td><span class="badge">{{.Status}}</span></td>
-    <td>{{.Count}}</td>
+    <td class="gallery-tree-count">{{.Count}}</td>
+    <td class="gallery-tree-count">{{if .HasChildren}}{{.TotalCount}}{{else}}<span class="muted">&mdash;</span>{{end}}</td>
   </tr>
   {{end}}
 </table>

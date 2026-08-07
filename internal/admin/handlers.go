@@ -28,6 +28,7 @@ type galleryRow struct {
 	Slug        string
 	Status      string
 	Count       int
+	TotalCount  int
 	Depth       int
 	HasChildren bool
 	URL         string
@@ -73,12 +74,23 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 // galleryTree returns galleries in parent-first order with item counts.
 func (s *Server) galleryTree(ctx context.Context, galleries []model.Gallery) ([]galleryRow, error) {
 	rows := s.orderRows(galleries)
+	rowByID := make(map[int64]int, len(rows))
 	for i := range rows {
 		n, err := s.store.CountItems(ctx, rows[i].ID)
 		if err != nil {
 			return nil, err
 		}
 		rows[i].Count = n
+		rows[i].TotalCount = n
+		rowByID[rows[i].ID] = i
+	}
+	for i := len(rows) - 1; i >= 0; i-- {
+		if rows[i].ParentID == nil {
+			continue
+		}
+		if parent, ok := rowByID[*rows[i].ParentID]; ok {
+			rows[parent].TotalCount += rows[i].TotalCount
+		}
 	}
 	return rows, nil
 }
