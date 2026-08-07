@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -164,6 +165,9 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 
 	b.settings = settings
 	visible, children, roots, protected := groupVisible(galleries)
+	if err := b.sortFolderChildren(ctx, children); err != nil {
+		return Report{}, err
+	}
 	b.report.Galleries = len(visible)
 	assetVersion, err := b.Theme.AssetVersion()
 	if err != nil {
@@ -622,6 +626,69 @@ func groupVisible(all []model.Gallery) (visible []model.Gallery, children map[in
 		}
 	}
 	return visible, children, roots, protected
+}
+
+func (b *Builder) sortFolderChildren(ctx context.Context, children map[int64][]model.Gallery) error {
+	for parentID, galleries := range children {
+		parent, ok := b.byID[parentID]
+		if !ok {
+			continue
+		}
+		mode, err := b.Store.EffectiveGallerySortMode(ctx, parent.SortMode)
+		if err != nil {
+			return err
+		}
+		direction, err := b.Store.EffectiveGallerySortDirection(ctx, parent.SortDirection)
+		if err != nil {
+			return err
+		}
+		sortGalleryList(galleries, mode, direction)
+	}
+	return nil
+}
+
+func sortGalleryList(galleries []model.Gallery, mode model.SortMode, direction model.SortDirection) {
+	sort.SliceStable(galleries, func(i, j int) bool {
+		left, right := galleries[i], galleries[j]
+		if left.SortOrder != right.SortOrder {
+			return left.SortOrder < right.SortOrder
+		}
+
+		comparison := compareGalleryOrder(left, right, mode)
+		if direction == model.SortDescending {
+			comparison = -comparison
+		}
+		return comparison < 0
+	})
+}
+
+func compareGalleryOrder(left, right model.Gallery, mode model.SortMode) int {
+	switch mode {
+	case model.SortByFilename:
+		if comparison := strings.Compare(strings.ToLower(left.Title), strings.ToLower(right.Title)); comparison != 0 {
+			return comparison
+		}
+	case model.SortByDate:
+		if left.PublishedAt != nil && right.PublishedAt != nil && !left.PublishedAt.Equal(*right.PublishedAt) {
+			if left.PublishedAt.Before(*right.PublishedAt) {
+				return -1
+			}
+			return 1
+		}
+		if left.PublishedAt == nil && right.PublishedAt != nil {
+			return 1
+		}
+		if left.PublishedAt != nil && right.PublishedAt == nil {
+			return -1
+		}
+	}
+	if left.ID < right.ID {
+		return -1
+	}
+	if left.ID > right.ID {
+		return 1
+	}
+	return 0
 }
 
 func optInt(m map[string]any, key string, def int) int {

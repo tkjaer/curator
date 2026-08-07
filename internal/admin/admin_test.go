@@ -1014,8 +1014,8 @@ func TestDefaultGalleryOrderingAppliesToNewGalleries(t *testing.T) {
 
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
-	if !strings.Contains(rec.Body.String(), `<option value="default" selected>Default: Date taken</option>`) ||
-		!strings.Contains(rec.Body.String(), `<option value="default" selected>Default: Descending</option>`) {
+	if !strings.Contains(rec.Body.String(), `<option value="default" selected>Site default: Date taken</option>`) ||
+		!strings.Contains(rec.Body.String(), `<option value="default" selected>Site default: Descending</option>`) {
 		t.Fatal("gallery did not show inherited system ordering")
 	}
 }
@@ -1046,7 +1046,7 @@ func TestDateAddedCanBeTheDefaultGalleryOrder(t *testing.T) {
 	}
 	rec = httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
-	if !strings.Contains(rec.Body.String(), `Default: Date added`) {
+	if !strings.Contains(rec.Body.String(), `Site default: Date added`) {
 		t.Fatal("gallery did not show inherited date-added ordering")
 	}
 }

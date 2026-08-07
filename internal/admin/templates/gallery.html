@@ -69,10 +69,10 @@
           <div class="setting-control order-setting" data-custom="{{.CustomOrder}}" data-default-order="{{.AutomaticOrder}}">
             <form data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/order">
               <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-              <label><span>Ordering</span>
+              <label><span>Content ordering</span>
                 <select name="mode">
                   {{if .CustomOrder}}<option value="custom" selected disabled>Custom</option>{{end}}
-                  <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>Default: {{.AutomaticOrder}}</option>
+                  <option value="default"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "default")}} selected{{end}}>Site default: {{.AutomaticOrder}}</option>
                   <option value="date"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date")}} selected{{end}}>Date taken</option>
                   <option value="date_added"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "date_added")}} selected{{end}}>Date added</option>
                   <option value="filename"{{if and (not .CustomOrder) (eq (printf "%s" .Gallery.SortMode) "filename")}} selected{{end}}>Alphabetical</option>
@@ -80,11 +80,12 @@
               </label>
               <label><span>Direction</span>
                 <select name="direction"{{if .CustomOrder}} disabled{{end}}>
-                  <option value="default"{{if eq (printf "%s" .Gallery.SortDirection) "default"}} selected{{end}}>Default: {{.AutomaticDirection}}</option>
+                  <option value="default"{{if eq (printf "%s" .Gallery.SortDirection) "default"}} selected{{end}}>Site default: {{.AutomaticDirection}}</option>
                   <option value="asc"{{if eq (printf "%s" .Gallery.SortDirection) "asc"}} selected{{end}}>Ascending</option>
                   <option value="desc"{{if eq (printf "%s" .Gallery.SortDirection) "desc"}} selected{{end}}>Descending</option>
                 </select>
               </label>
+              <p class="field-help">Orders photos and direct subgalleries only. Date ordering uses publication date for subgalleries.</p>
             </form>
           </div>
         </div>
