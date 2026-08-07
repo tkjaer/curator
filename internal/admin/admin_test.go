@@ -252,7 +252,7 @@ func TestItemUpdateSetsAndClearsManualMetadata(t *testing.T) {
 		return rec
 	}
 
-	rec := update("  Leica M6  ", "  Manual lens  ", " night, Night, Kodak   Portra 400 ")
+	rec := update("  Leica M6  ", "  Manual lens  ", " night; Night, Kodak   Portra 400 ")
 	if body := rec.Body.String(); !strings.Contains(body, `"resolvedCamera":"Leica M6"`) {
 		t.Fatalf("manual update response = %q", body)
 	}
