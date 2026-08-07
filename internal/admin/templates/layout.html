@@ -193,14 +193,17 @@
   .tag-review-count { width: 1%; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .tag-review-source { color: var(--muted); font-size: .85rem; }
   .tag-review-empty { padding: 2rem; text-align: center; }
-  .tag-photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+  .tag-gallery-group + .tag-gallery-group { margin-top: 2rem; }
+  .tag-gallery-heading { display: flex; align-items: baseline; gap: .55rem; margin: 0 0 .65rem; font-size: 1rem; }
+  .tag-gallery-heading span { color: var(--muted); font-size: .72rem; font-weight: 600; }
+  .tag-photo-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .7rem; }
   .tag-photo { min-width: 0; }
   .tag-photo a { display: block; color: var(--ink); text-decoration: none; }
+  .tag-photo-media { position: relative; overflow: hidden; border-radius: 5px; }
   .tag-photo img { display: block; width: 100%; aspect-ratio: 1; object-fit: contain; background: var(--surface-muted); border: 1px solid var(--line); border-radius: 5px; }
-  .tag-photo strong { display: block; overflow: hidden; margin-top: .5rem; font-size: .86rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
-  .tag-photo-gallery { display: block; overflow: hidden; margin-top: .08rem; color: var(--muted); font-size: .75rem; text-overflow: ellipsis; white-space: nowrap; }
-  .tag-photo-flags { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .4rem; }
-  .tag-photo-flag { padding: .08rem .35rem; color: var(--muted); background: var(--surface-muted); border-radius: 3px; font-size: .63rem; font-weight: 650; line-height: 1.4; text-transform: capitalize; }
+  .tag-photo-name { display: block; overflow: hidden; margin-top: .35rem; color: var(--muted); font-size: .7rem; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+  .tag-photo-flags { position: absolute; top: .35rem; left: .35rem; display: flex; flex-wrap: wrap; gap: .25rem; max-width: calc(100% - .7rem); }
+  .tag-photo-flag { padding: .08rem .35rem; color: var(--ink); background: #fffefae8; border-radius: 3px; font-size: .63rem; font-weight: 650; line-height: 1.4; text-transform: capitalize; }
   .progress { height: 7px; overflow: hidden; margin: .7rem 0; background: var(--surface-muted); border-radius: 99px; }
   .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
   .build-status { position: relative; }

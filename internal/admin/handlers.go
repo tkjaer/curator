@@ -347,9 +347,15 @@ type tagsData struct {
 	Tags []tagReviewRow
 }
 
-type tagData struct {
-	Tag   tagReviewRow
+type tagGalleryGroup struct {
+	ID    int64
+	Title string
 	Items []store.TagUsageItem
+}
+
+type tagData struct {
+	Tag    tagReviewRow
+	Groups []tagGalleryGroup
 }
 
 func (s *Server) tagReviewRows(ctx context.Context) ([]tagReviewRow, bool, error) {
@@ -443,7 +449,14 @@ func (s *Server) handleTag(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.render(w, r, "tag", selected.Value, "", tagData{Tag: selected, Items: items})
+	var groups []tagGalleryGroup
+	for _, item := range items {
+		if len(groups) == 0 || groups[len(groups)-1].ID != item.GalleryID {
+			groups = append(groups, tagGalleryGroup{ID: item.GalleryID, Title: item.GalleryTitle})
+		}
+		groups[len(groups)-1].Items = append(groups[len(groups)-1].Items, item)
+	}
+	s.render(w, r, "tag", selected.Value, "", tagData{Tag: selected, Groups: groups})
 }
 
 type accessUserGrant struct {
