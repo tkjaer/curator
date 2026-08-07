@@ -196,6 +196,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 .site-footer a { color: var(--ink); font-weight: 700; text-decoration: none; }
 
 .lightbox { overflow: auto; width: 100vw; max-width: none; height: 100vh; max-height: none; margin: 0; padding: 2.5rem; background: #080808; border: 0; color: #fff; }
+.lightbox:focus { outline: none; }
 .lightbox::backdrop { background: #080808; }
 .lightbox[open]:not(.is-zoomed) { display: grid; place-items: center; }
 .lb-image-button { display: block; width: fit-content; max-width: calc(100vw - 5rem); margin: auto; padding: 0; background: transparent; border: 0; cursor: zoom-in; touch-action: pinch-zoom; }

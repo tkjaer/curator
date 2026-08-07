@@ -137,6 +137,7 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
 
 /* Lightbox */
 .lightbox { overflow: auto; border: 0; padding: 0; background: transparent; max-width: 100vw; max-height: 100vh; }
+.lightbox:focus { outline: none; }
 .lightbox::backdrop { background: #000d; }
 .lightbox[open]:not(.is-zoomed) { display: grid; place-items: center; }
 .lb-image-button { display: block; width: fit-content; max-width: 96vw; margin: auto; padding: 0; background: transparent; border: 0; cursor: zoom-in; touch-action: pinch-zoom; }
