@@ -199,6 +199,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 .lightbox::backdrop { background: #080808; }
 .lightbox[open]:not(.is-zoomed) { display: grid; place-items: center; }
 .lb-image-button { display: block; width: fit-content; max-width: calc(100vw - 5rem); margin: auto; padding: 0; background: transparent; border: 0; cursor: zoom-in; touch-action: pinch-zoom; }
+.lb-image-button.suppress-focus-ring { outline: none; }
 .lightbox .lb-img { display: block; max-width: 100%; max-height: calc(100vh - 8rem); margin: auto; }
 .lightbox.is-zoomed .lb-image-button { max-width: none; cursor: zoom-out; }
 .lightbox.is-zoomed .lb-img { max-width: none; max-height: none; }
