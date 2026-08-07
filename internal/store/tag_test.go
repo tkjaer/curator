@@ -101,6 +101,50 @@ func TestReplaceItemImportedTagsPreservesManualAssignments(t *testing.T) {
 	}
 }
 
+func TestReplaceItemEditableTagsPersistsMetadataRemovals(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	_, itemIDs := makeGalleryWithItems(t, st, 1)
+	itemID := itemIDs[0]
+
+	if err := st.ReplaceItemUserTags(ctx, itemID, []string{"shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "remove me", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"from metadata", "added in curator", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "shared ownership"})
+
+	manual, err := st.ItemManualTags(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(manual) != 2 || manual[0].Value != "added in curator" || manual[1].Value != "shared ownership" {
+		t.Fatalf("manual tags = %#v", manual)
+	}
+
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "new metadata", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "shared ownership"})
+
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "second curator tag", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.ReplaceItemImportedTags(ctx, itemID, TagSourceMetadata, []string{"from metadata", "remove me", "new metadata", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "second curator tag", "shared ownership"})
+
+	if err := st.ReplaceItemEditableTags(ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "remove me", "second curator tag", "shared ownership"}); err != nil {
+		t.Fatal(err)
+	}
+	assertTagValues(t, st, ctx, itemID, []string{"added in curator", "from metadata", "new metadata", "remove me", "second curator tag", "shared ownership"})
+}
+
 func assertTagValues(t *testing.T, st *Store, ctx context.Context, itemID int64, want []string) {
 	t.Helper()
 	tags, err := st.ItemUserTags(ctx, itemID)

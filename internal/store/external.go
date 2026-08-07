@@ -122,6 +122,27 @@ func (s *Store) IsExternalItem(ctx context.Context, source string, itemID int64)
 	return exists, err
 }
 
+// GalleryExternalItemIDs returns the items in a gallery owned by an external source.
+func (s *Store) GalleryExternalItemIDs(ctx context.Context, source string, galleryID int64) (map[int64]bool, error) {
+	rows, err := s.DB.QueryContext(ctx, `
+		SELECT external_items.item_id
+		  FROM external_items JOIN items ON items.id = external_items.item_id
+		 WHERE external_items.source = ? AND items.gallery_id = ?`, source, galleryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	itemIDs := make(map[int64]bool)
+	for rows.Next() {
+		var itemID int64
+		if err := rows.Scan(&itemID); err != nil {
+			return nil, err
+		}
+		itemIDs[itemID] = true
+	}
+	return itemIDs, rows.Err()
+}
+
 func (s *Store) IsExternalGallery(ctx context.Context, source string, galleryID int64) (bool, error) {
 	var exists bool
 	err := s.DB.QueryRowContext(ctx,
