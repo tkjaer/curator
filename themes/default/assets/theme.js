@@ -185,8 +185,10 @@
 
   document.addEventListener("keydown", (e) => {
     if (!dialog.open) return;
-    if (e.key === "ArrowRight") openAt(index + 1);
-    else if (e.key === "ArrowLeft") openAt(index - 1);
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    if (document.activeElement === imageButton) imageButton.blur();
+    openAt(index + (e.key === "ArrowRight" ? 1 : -1));
   });
 
   let startX = null;
