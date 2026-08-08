@@ -180,8 +180,10 @@ func (s *Server) handleItemDelete(w http.ResponseWriter, r *http.Request) {
 		s.redirect(w, r, s.galleryLink(it.GalleryID), "Could not delete photo")
 		return
 	}
-	// Best-effort removal of the original file; a missing file is not fatal.
-	_ = os.Remove(filepath.Join(s.cfg.OriginalsDir(), filepath.FromSlash(it.OriginalPath)))
+	// Keep originals shared by legacy duplicate records until the last reference is deleted.
+	if inUse, err := s.store.OriginalPathInUse(r.Context(), it.OriginalPath); err == nil && !inUse {
+		_ = os.Remove(filepath.Join(s.cfg.OriginalsDir(), filepath.FromSlash(it.OriginalPath)))
+	}
 	s.redirect(w, r, s.galleryLink(it.GalleryID), "Photo deleted")
 }
 

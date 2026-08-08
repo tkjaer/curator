@@ -137,6 +137,14 @@ func ImportUploadWithSidecar(ctx context.Context, st *store.Store, cfg config.Co
 
 // ImportUploadIDWithSidecar imports an image and returns its item id.
 func ImportUploadIDWithSidecar(ctx context.Context, st *store.Store, cfg config.Config, galleryID int64, gallerySlug, filename string, r, sidecar io.Reader) (int64, error) {
+	name := filepath.Base(filename)
+	exists, err := st.ItemFilenameExists(ctx, galleryID, name)
+	if err != nil {
+		return 0, err
+	}
+	if exists {
+		return 0, fmt.Errorf("%s is already in this gallery", name)
+	}
 	return ImportUploadIDWithSidecarAt(ctx, st, cfg, galleryID, gallerySlug, filename, filename, r, sidecar)
 }
 

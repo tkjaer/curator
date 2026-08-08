@@ -1,12 +1,17 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"html"
+	"image"
+	"image/jpeg"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -873,6 +878,94 @@ func TestUploadStemPairsSidecars(t *testing.T) {
 		if got := uploadStem(name); got != "photo" {
 			t.Errorf("uploadStem(%q) = %q, want photo", name, got)
 		}
+	}
+}
+
+func TestUploadRejectsDuplicateFilenameInGallery(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "manual", Title: "Manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	upload := func(filename string) *httptest.ResponseRecorder {
+		t.Helper()
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("images", filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := jpeg.Encode(part, image.NewRGBA(image.Rect(0, 0, 4, 3)), nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		req := httptest.NewRequest(http.MethodPost, "/galleries/"+strconv.FormatInt(galleryID, 10)+"/upload", &body)
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := upload("photo.jpg"); rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "1+image+uploaded") {
+		t.Fatalf("first upload = %d, %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if rec := upload("PHOTO.JPG"); rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "PHOTO.JPG+is+already+in+this+gallery") {
+		t.Fatalf("duplicate upload = %d, %q", rec.Code, rec.Header().Get("Location"))
+	}
+	items, err := srv.store.ItemsByGallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+}
+
+func TestDeleteKeepsOriginalReferencedByLegacyDuplicate(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "manual", Title: "Manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := model.Item{GalleryID: galleryID, OriginalPath: "manual/photo.jpg", Filename: "photo.jpg"}
+	firstID, err := srv.store.CreateItem(ctx, item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID, err := srv.store.CreateItem(ctx, item)
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPath := filepath.Join(srv.cfg.OriginalsDir(), "manual", "photo.jpg")
+	if err := os.MkdirAll(filepath.Dir(originalPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(originalPath, []byte("shared"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	deleteItem := func(itemID int64) {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/items/"+strconv.FormatInt(itemID, 10)+"/delete", nil)
+		srv.Handler().ServeHTTP(rec, req)
+		if rec.Code != http.StatusSeeOther {
+			t.Fatalf("delete status = %d, want 303", rec.Code)
+		}
+	}
+
+	deleteItem(firstID)
+	if _, err := os.Stat(originalPath); err != nil {
+		t.Fatalf("shared original removed: %v", err)
+	}
+	deleteItem(secondID)
+	if _, err := os.Stat(originalPath); !os.IsNotExist(err) {
+		t.Fatalf("unreferenced original still exists: %v", err)
 	}
 }
 

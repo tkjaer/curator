@@ -125,6 +125,61 @@ func TestImportUploadWithSidecar(t *testing.T) {
 	assertItemTags(t, st, ctx, it.ID, []string{"curator"})
 }
 
+func TestImportUploadRejectsDuplicateFilenameInGallery(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	galleryID, err := st.CreateGallery(ctx, model.Gallery{Slug: "manual", Title: "Manual"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	otherGalleryID, err := st.CreateGallery(ctx, model.Gallery{Slug: "other", Title: "Other"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var imageData bytes.Buffer
+	if err := jpeg.Encode(&imageData, image.NewRGBA(image.Rect(0, 0, 10, 10)), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := ImportUpload(ctx, st, cfg, galleryID, "manual", "photo.jpg", bytes.NewReader(imageData.Bytes())); err != nil {
+		t.Fatal(err)
+	}
+	originalPath := filepath.Join(cfg.OriginalsDir(), "manual", "photo.jpg")
+	original, err := os.ReadFile(originalPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ImportUpload(ctx, st, cfg, galleryID, "manual", "PHOTO.JPG", bytes.NewReader(imageData.Bytes())); err == nil || err.Error() != "PHOTO.JPG is already in this gallery" {
+		t.Fatalf("duplicate import error = %v", err)
+	}
+	if after, err := os.ReadFile(originalPath); err != nil || !bytes.Equal(after, original) {
+		t.Fatalf("duplicate import changed original: %v", err)
+	}
+	if err := ImportUpload(ctx, st, cfg, otherGalleryID, "other", "photo.jpg", bytes.NewReader(imageData.Bytes())); err != nil {
+		t.Fatalf("same filename in another gallery: %v", err)
+	}
+
+	items, err := st.ItemsByGallery(ctx, galleryID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if items[0].Filename != "photo.jpg" || items[0].OriginalPath != "manual/photo.jpg" {
+		t.Fatalf("item = %+v", items[0])
+	}
+}
+
 func assertItemTags(t *testing.T, st *store.Store, ctx context.Context, itemID int64, want []string) {
 	t.Helper()
 	tags, err := st.ItemUserTags(ctx, itemID)

@@ -27,6 +27,22 @@ func (s *Store) CreateItem(ctx context.Context, it model.Item) (int64, error) {
 	return res.LastInsertId()
 }
 
+// ItemFilenameExists reports whether a gallery already contains a filename.
+func (s *Store) ItemFilenameExists(ctx context.Context, galleryID int64, filename string) (bool, error) {
+	var inUse bool
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM items WHERE gallery_id = ? AND filename = ? COLLATE NOCASE)`, galleryID, filename).Scan(&inUse)
+	return inUse, err
+}
+
+// OriginalPathInUse reports whether any item still references an original file.
+func (s *Store) OriginalPathInUse(ctx context.Context, originalPath string) (bool, error) {
+	var inUse bool
+	err := s.DB.QueryRowContext(ctx,
+		`SELECT EXISTS(SELECT 1 FROM items WHERE original_path = ?)`, originalPath).Scan(&inUse)
+	return inUse, err
+}
+
 // ReplaceItemMedia updates an item's source image metadata and invalidates all
 // generated derivatives while preserving its stable id and presentation state.
 func (s *Store) ReplaceItemMedia(ctx context.Context, it model.Item) error {
