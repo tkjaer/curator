@@ -1,3 +1,10 @@
+{{define "gallery-upload"}}
+<form class="upload-form" method="post" enctype="multipart/form-data" action="{{.BasePath}}/galleries/{{.Data.Gallery.ID}}/upload">
+  <input type="hidden" name="_csrf" value="{{.CSRF}}">
+  <input type="file" name="images" multiple accept="image/jpeg,image/png,.xmp" aria-label="Images and matching XMP sidecars" title="Select images and optional matching XMP sidecars">
+  <button>Upload</button>
+</form>
+{{end}}
 {{define "gallery"}}{{template "head" .}}
 {{with .Data}}
 <nav class="breadcrumbs" aria-label="Gallery hierarchy">
@@ -200,11 +207,8 @@
       <button class="secondary-button" title="Return to the site's default photo order">Reset order</button>
     </form>
   </div>{{end}}
-  <form class="upload-form" method="post" enctype="multipart/form-data" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/upload">
-  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <input type="file" name="images" multiple accept="image/jpeg,image/png,.xmp" aria-label="Images and matching XMP sidecars" title="Select images and optional matching XMP sidecars">
-  <button>Upload</button>
-</form></div></div>
+  {{template "gallery-upload" $}}
+</div></div>
 
 {{if .Items}}
 <div id="photo-list" aria-label="Gallery photos">
@@ -295,6 +299,7 @@
   </div>
 </dialog>
 </div>
+<div class="media-footer-actions">{{template "gallery-upload" $}}</div>
 {{else}}
 <div id="photo-list"><p>No photos yet.</p></div>
 {{end}}
