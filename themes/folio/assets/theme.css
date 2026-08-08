@@ -201,7 +201,11 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 .lightbox[open]:not(.is-zoomed) { display: grid; place-items: center; }
 .lb-image-button { display: block; width: fit-content; max-width: calc(100vw - 5rem); margin: auto; padding: 0; background: transparent; border: 0; cursor: zoom-in; touch-action: pinch-zoom; }
 .lb-image-button.suppress-focus-ring { outline: none; }
-.lightbox .lb-img { display: block; max-width: 100%; max-height: calc(100vh - 8rem); margin: auto; }
+.lightbox .lb-img { display: block; max-width: 100%; max-height: calc(100vh - 8rem); margin: auto; transition: filter .15s ease, opacity .15s ease; }
+.lightbox.is-loading:not(.is-opening) .lb-img { filter: blur(12px); opacity: .45; }
+.lightbox.is-opening .lb-img { opacity: 0; }
+.lightbox.is-loading .lb-image-button::after { content: ""; position: fixed; top: 50%; left: 50%; width: 1.5rem; height: 1.5rem; margin: -.75rem 0 0 -.75rem; border: 2px solid #fff6; border-top-color: #fff; border-radius: 50%; animation: lb-spin .7s linear infinite; pointer-events: none; }
+@keyframes lb-spin { to { transform: rotate(360deg); } }
 .lightbox.is-zoomed .lb-image-button { max-width: none; cursor: zoom-out; }
 .lightbox.is-zoomed .lb-img { max-width: none; max-height: none; }
 .lb-btn { position: fixed; z-index: 2; display: grid; width: 42px; height: 42px; padding: 0; place-items: center; color: #fff; background: #242424; border: 1px solid #555; border-radius: 50%; font: 400 var(--text-heading)/1 var(--font-sans); cursor: pointer; }
