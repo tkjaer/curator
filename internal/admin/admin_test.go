@@ -209,6 +209,9 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 			t.Errorf("gallery missing %q", want)
 		}
 	}
+	if got := strings.Count(body, `<form class="upload-form"`); got != 1 {
+		t.Errorf("empty gallery upload forms = %d, want 1", got)
+	}
 }
 
 func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
@@ -265,6 +268,13 @@ func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	}
 	if strings.Count(body, `<dialog class="photo-editor-dialog"`) != 1 {
 		t.Error("gallery should render one shared photo editor dialog")
+	}
+	uploadAction := `action="/galleries/` + strconv.FormatInt(galleryID, 10) + `/upload"`
+	if got := strings.Count(body, `<form class="upload-form"`); got != 2 {
+		t.Errorf("gallery upload forms = %d, want 2", got)
+	}
+	if got := strings.Count(body, uploadAction); got != 2 {
+		t.Errorf("gallery upload actions = %d, want 2", got)
 	}
 }
 
