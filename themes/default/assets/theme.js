@@ -33,6 +33,7 @@
   let zoomed = false;
   let zoomPending = false;
   let zoomRequest = 0;
+  let imageRequest = 0;
   let panFrame = 0;
   let panAnchor = null;
 
@@ -140,7 +141,10 @@
     resetZoom();
     index = (i + links.length) % links.length;
     const link = links[index];
-    img.src = link.getAttribute("href");
+    const src = link.getAttribute("href");
+    const request = ++imageRequest;
+    dialog.classList.add("is-loading");
+    if (!dialog.open) dialog.classList.add("is-opening");
     img.alt = link.dataset.title || link.dataset.caption || link.dataset.description || "";
     caption.textContent = [...new Set([link.dataset.title, link.dataset.description, link.dataset.caption].filter(Boolean))].join(" · ");
     if (exif) exif.textContent = link.dataset.exif || "";
@@ -149,6 +153,19 @@
       const source = link.closest("figure")?.querySelector(".lightbox-tags-source");
       if (source) tags.append(...Array.from(source.children, (tag) => tag.cloneNode(true)));
     }
+
+    const preload = new Image();
+    const activate = () => {
+      if (request !== imageRequest) return;
+      img.src = src;
+      dialog.classList.remove("is-loading", "is-opening");
+    };
+    preload.onload = () => {
+      const decoded = typeof preload.decode === "function" ? preload.decode() : Promise.resolve();
+      decoded.catch(() => {}).then(activate);
+    };
+    preload.onerror = activate;
+    preload.src = src;
   }
 
   function openAt(i) {
@@ -158,16 +175,26 @@
     if (id) setHash("#photo-" + id);
   }
 
+  function navigate(delta) {
+    if (dialog.classList.contains("is-loading")) return;
+    openAt(index + delta);
+  }
+
   // Clear the hash whenever the lightbox closes (backdrop, Esc, or button).
   // Registered first so a later missing button can't stop it from running.
   dialog.addEventListener("close", clearHash);
   dialog.addEventListener("close", resetZoom);
+  dialog.addEventListener("close", () => {
+    imageRequest++;
+    img.removeAttribute("src");
+    dialog.classList.remove("is-loading", "is-opening");
+  });
   dialog.addEventListener("cancel", clearHash);
 
   document.addEventListener("curator:content-added", (e) => registerLinks(e.detail || document));
 
-  bindClick(".lb-next", () => openAt(index + 1));
-  bindClick(".lb-prev", () => openAt(index - 1));
+  bindClick(".lb-next", () => navigate(1));
+  bindClick(".lb-prev", () => navigate(-1));
   bindClick(".lb-close", () => dialog.close());
   imageButton.addEventListener("click", toggleZoom);
   imageButton.addEventListener("pointerdown", () => imageButton.classList.remove("suppress-focus-ring"));
@@ -192,9 +219,10 @@
     }
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
+    if (dialog.classList.contains("is-loading")) return;
     imageButton.classList.add("suppress-focus-ring");
     if (document.activeElement === imageButton) imageButton.blur();
-    openAt(index + (e.key === "ArrowRight" ? 1 : -1));
+    navigate(e.key === "ArrowRight" ? 1 : -1);
   });
 
   let startX = null;
@@ -204,7 +232,7 @@
   dialog.addEventListener("touchend", (e) => {
     if (startX === null) return;
     const dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 40) openAt(index + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 40) navigate(dx < 0 ? 1 : -1);
     startX = null;
   });
 

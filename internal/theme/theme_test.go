@@ -252,8 +252,8 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 				t.Fatal(err)
 			}
 			for file, wants := range map[string][]string{
-				"theme.css": {".lightbox:focus { outline: none; }", ".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
-				"theme.js":  {"function toggleZoom", "function panZoom", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`, "imageButton.classList.add(\"suppress-focus-ring\");\n    if (document.activeElement === imageButton)"},
+				"theme.css": {".lightbox:focus { outline: none; }", ".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", ".lightbox.is-loading:not(.is-opening) .lb-img", ".lightbox.is-opening .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
+				"theme.js":  {"function toggleZoom", "function panZoom", "function navigate", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `classList.add("is-loading")`, `classList.contains("is-loading")`, "request !== imageRequest", `img.removeAttribute("src")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`, "imageButton.classList.add(\"suppress-focus-ring\");\n    if (document.activeElement === imageButton)"},
 			} {
 				content, err := fs.ReadFile(assets, file)
 				if err != nil {
