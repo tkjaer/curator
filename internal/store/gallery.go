@@ -80,6 +80,66 @@ func (s *Store) Galleries(ctx context.Context) ([]model.Gallery, error) {
 	return out, rows.Err()
 }
 
+// MoveGalleryOrder moves a gallery one position among its siblings.
+func (s *Store) MoveGalleryOrder(ctx context.Context, galleryID int64, earlier bool) error {
+	galleries, err := s.Galleries(ctx)
+	if err != nil {
+		return err
+	}
+	var parentID *int64
+	found := false
+	for _, gallery := range galleries {
+		if gallery.ID == galleryID {
+			parentID = gallery.ParentID
+			found = true
+			break
+		}
+	}
+	if !found {
+		return sql.ErrNoRows
+	}
+
+	siblings := make([]model.Gallery, 0)
+	position := -1
+	for _, gallery := range galleries {
+		if !sameParent(gallery.ParentID, parentID) {
+			continue
+		}
+		if gallery.ID == galleryID {
+			position = len(siblings)
+		}
+		siblings = append(siblings, gallery)
+	}
+	target := position + 1
+	if earlier {
+		target = position - 1
+	}
+	if position < 0 || target < 0 || target >= len(siblings) {
+		return nil
+	}
+	siblings[position], siblings[target] = siblings[target], siblings[position]
+
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for index, gallery := range siblings {
+		if _, err := tx.ExecContext(ctx,
+			`UPDATE galleries SET sort_order = ?, updated_at = datetime('now') WHERE id = ?`, index+1, gallery.ID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func sameParent(left, right *int64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
+}
+
 func nullInt(n sql.NullInt64) *int64 {
 	if !n.Valid {
 		return nil

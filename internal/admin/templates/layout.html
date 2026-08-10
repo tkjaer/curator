@@ -56,6 +56,12 @@
   tr:last-child td { border-bottom: 0; }
   tbody tr:hover, table tr:not(:first-child):hover { background: #f8faf8; }
   .gallery-tree-title { display: flex; align-items: center; gap: .45rem; padding-left: calc(var(--gallery-depth) * 1.35rem); }
+  .gallery-tree-order { width: 1%; text-align: center; white-space: nowrap; }
+  .gallery-order-controls { display: flex; gap: .25rem; justify-content: center; }
+  .gallery-order-controls form { margin: 0; }
+  .gallery-order-button { width: 30px; min-height: 30px; padding: 0; color: var(--muted); background: transparent; border-color: var(--line); }
+  .gallery-order-button:hover:not(:disabled) { color: var(--ink); background: var(--surface-muted); }
+  .gallery-order-button:disabled { opacity: .25; cursor: default; }
   .gallery-tree-count { width: 1%; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .gallery-tree-toggle, .gallery-tree-spacer { flex: 0 0 28px; width: 28px; }
   .gallery-tree-toggle { position: relative; min-height: 28px; padding: 0; color: var(--muted); background: transparent; border-color: transparent; }

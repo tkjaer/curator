@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -92,6 +93,56 @@ func TestUpdateGallerySlugValidatesConflicts(t *testing.T) {
 	}
 	if g.Slug != "renamed" {
 		t.Fatalf("slug = %q, want renamed", g.Slug)
+	}
+}
+
+func TestMoveGalleryOrderOnlyReordersSiblings(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	firstID, err := st.CreateGallery(ctx, model.Gallery{Slug: "first", Title: "First"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondID, err := st.CreateGallery(ctx, model.Gallery{Slug: "second", Title: "Second"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	thirdID, err := st.CreateGallery(ctx, model.Gallery{Slug: "third", Title: "Third"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childA, err := st.CreateGallery(ctx, model.Gallery{ParentID: &firstID, Slug: "a", Title: "A"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childB, err := st.CreateGallery(ctx, model.Gallery{ParentID: &firstID, Slug: "b", Title: "B"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := st.MoveGalleryOrder(ctx, thirdID, true); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.MoveGalleryOrder(ctx, childB, true); err != nil {
+		t.Fatal(err)
+	}
+	galleries, err := st.Galleries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roots, children []int64
+	for _, gallery := range galleries {
+		if gallery.ParentID == nil {
+			roots = append(roots, gallery.ID)
+		} else if *gallery.ParentID == firstID {
+			children = append(children, gallery.ID)
+		}
+	}
+	if !reflect.DeepEqual(roots, []int64{firstID, thirdID, secondID}) {
+		t.Errorf("root order = %v", roots)
+	}
+	if !reflect.DeepEqual(children, []int64{childB, childA}) {
+		t.Errorf("child order = %v", children)
 	}
 }
 

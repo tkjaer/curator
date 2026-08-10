@@ -22,16 +22,18 @@ import (
 const maxUpload = 256 << 20 // 256 MiB per upload request
 
 type galleryRow struct {
-	ID          int64
-	ParentID    *int64
-	Title       string
-	Slug        string
-	Status      string
-	Count       int
-	TotalCount  int
-	Depth       int
-	HasChildren bool
-	URL         string
+	ID             int64
+	ParentID       *int64
+	Title          string
+	Slug           string
+	Status         string
+	Count          int
+	TotalCount     int
+	Depth          int
+	HasChildren    bool
+	CanMoveEarlier bool
+	CanMoveLater   bool
+	URL            string
 }
 
 type parentOption struct {
@@ -109,21 +111,37 @@ func (s *Server) orderRows(galleries []model.Gallery) []galleryRow {
 	}
 
 	var rows []galleryRow
-	var walk func(g model.Gallery, depth int)
-	walk = func(g model.Gallery, depth int) {
-		rows = append(rows, galleryRow{
-			ID: g.ID, ParentID: g.ParentID, Title: g.Title, Slug: g.Slug,
-			Status: string(g.Status), Depth: depth, HasChildren: len(childrenOf[g.ID]) > 0,
-			URL: s.link("galleries", strconv.FormatInt(g.ID, 10)),
-		})
-		for _, c := range childrenOf[g.ID] {
-			walk(c, depth+1)
+	var walk func(galleries []model.Gallery, depth int)
+	walk = func(galleries []model.Gallery, depth int) {
+		for index, g := range galleries {
+			rows = append(rows, galleryRow{
+				ID: g.ID, ParentID: g.ParentID, Title: g.Title, Slug: g.Slug,
+				Status: string(g.Status), Depth: depth, HasChildren: len(childrenOf[g.ID]) > 0,
+				CanMoveEarlier: index > 0, CanMoveLater: index < len(galleries)-1,
+				URL: s.link("galleries", strconv.FormatInt(g.ID, 10)),
+			})
+			walk(childrenOf[g.ID], depth+1)
 		}
 	}
-	for _, root := range roots {
-		walk(root, 0)
-	}
+	walk(roots, 0)
 	return rows
+}
+
+func (s *Server) handleGalleryPosition(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	direction := r.FormValue("direction")
+	if direction != "earlier" && direction != "later" {
+		s.redirect(w, r, s.path("/"), "Invalid gallery position")
+		return
+	}
+	if err := s.store.MoveGalleryOrder(r.Context(), id, direction == "earlier"); err != nil {
+		s.redirect(w, r, s.path("/"), "Could not reorder gallery")
+		return
+	}
+	s.redirect(w, r, s.path("/"), "Gallery order updated")
 }
 
 // galleryPublicURL builds a gallery's public site URL from its ancestor slugs.

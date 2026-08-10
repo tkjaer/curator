@@ -129,6 +129,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/options/reset"), s.handleGalleryOptionsReset)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/delete"), s.handleDeleteGallery)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/move"), s.handleMoveGallery)
+	mux.HandleFunc("POST "+s.path("/galleries/{id}/position"), s.handleGalleryPosition)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/order"), s.handleGalleryItemOrder)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/reorder"), s.handleGalleryItemReorder)
 	mux.HandleFunc("POST "+s.path("/items/{id}/update"), s.handleItemUpdate)
