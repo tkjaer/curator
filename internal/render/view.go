@@ -77,8 +77,8 @@ type TagView struct {
 	Href  string
 }
 
-// GridRow is one row of a justified grid. Center is set for rows that do not
-// fill the container width (a capped panorama) so the theme can center them.
+// GridRow is one row of a justified grid. Center is set for featured rows that
+// keep their natural width so the theme can center them.
 type GridRow struct {
 	Photos []PhotoView
 	Height int

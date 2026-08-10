@@ -19,8 +19,9 @@ func aspectRatio(p PhotoView) float64 {
 }
 
 // Justify arranges photos into rows that fill containerWidth, scaling each row
-// to sit near targetHeight. When panoFullWidth is set, panoramas take their own
-// full-width row. The last row keeps its natural height rather than stretching.
+// to sit near targetHeight. When panoFullWidth is set, panoramas prefer their
+// own rows but may share spare width with adjacent narrow photos that fit at the
+// target height. The last row keeps its natural height rather than stretching.
 func Justify(photos []PhotoView, containerWidth, targetHeight, gap int, panoFullWidth bool) []GridRow {
 	if containerWidth <= 0 || targetHeight <= 0 {
 		return nil
@@ -30,19 +31,48 @@ func Justify(photos []PhotoView, containerWidth, targetHeight, gap int, panoFull
 	var row []PhotoView
 	var sumRatio float64
 
-	flush := func(fill bool) {
+	flush := func(fill, center bool) {
 		if len(row) == 0 {
 			return
 		}
-		rows = append(rows, layoutRow(row, sumRatio, containerWidth, targetHeight, gap, fill))
+		laidOut := layoutRow(row, sumRatio, containerWidth, targetHeight, gap, fill)
+		laidOut.Center = center
+		rows = append(rows, laidOut)
 		row = nil
 		sumRatio = 0
 	}
 
-	for _, p := range photos {
+	for index := 0; index < len(photos); index++ {
+		p := photos[index]
 		if panoFullWidth && p.Aspect == "pano" && aspectRatio(p) > 1 {
-			flush(true)
-			rows = append(rows, panoRow(p, containerWidth, targetHeight))
+			panoRatio := aspectRatio(p)
+			if len(row) > 0 && !fitsAtHeight(sumRatio+panoRatio, len(row)+1, containerWidth, targetHeight, gap) {
+				flush(false, true)
+			}
+			row = append(row, p)
+			sumRatio += panoRatio
+
+			for index+1 < len(photos) {
+				next := photos[index+1]
+				if next.Aspect == "pano" && aspectRatio(next) > 1 {
+					break
+				}
+				nextRatio := aspectRatio(next)
+				if !fitsAtHeight(sumRatio+nextRatio, len(row)+1, containerWidth, targetHeight, gap) {
+					break
+				}
+				index++
+				row = append(row, next)
+				sumRatio += nextRatio
+			}
+
+			if len(row) == 1 {
+				rows = append(rows, panoRow(p, containerWidth, targetHeight))
+				row = nil
+				sumRatio = 0
+			} else {
+				flush(false, true)
+			}
 			continue
 		}
 
@@ -51,7 +81,7 @@ func Justify(photos []PhotoView, containerWidth, targetHeight, gap int, panoFull
 
 		gaps := float64(gap * (len(row) - 1))
 		if sumRatio*float64(targetHeight)+gaps >= float64(containerWidth) {
-			flush(true)
+			flush(true, false)
 		}
 	}
 
@@ -66,6 +96,11 @@ func Justify(photos []PhotoView, containerWidth, targetHeight, gap int, panoFull
 		rows = append(rows, layoutRow(row, sumRatio, containerWidth, h, gap, false))
 	}
 	return rows
+}
+
+func fitsAtHeight(sumRatio float64, photoCount, containerWidth, height, gap int) bool {
+	width := sumRatio*float64(height) + float64(gap*(photoCount-1))
+	return width <= float64(containerWidth)
 }
 
 // panoRow lays out a panorama on its own row. It fills the container width but
