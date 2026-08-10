@@ -180,6 +180,51 @@ func TestDashboardRendersCollapsibleGalleryTree(t *testing.T) {
 	}
 }
 
+func TestDashboardCanReorderGalleries(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	var galleryIDs []int64
+	for _, title := range []string{"First", "Second", "Third"} {
+		galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: strings.ToLower(title), Title: title})
+		if err != nil {
+			t.Fatal(err)
+		}
+		galleryIDs = append(galleryIDs, galleryID)
+	}
+
+	form := url.Values{"direction": {"earlier"}}
+	req := httptest.NewRequest(http.MethodPost, "/galleries/3/position", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/?msg=Gallery+order+updated" {
+		t.Fatalf("position response = %d, location %q", rec.Code, rec.Header().Get("Location"))
+	}
+
+	galleries, err := srv.store.Galleries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := []int64{galleries[0].ID, galleries[1].ID, galleries[2].ID}
+	want := []int64{galleryIDs[0], galleryIDs[2], galleryIDs[1]}
+	if !slices.Equal(got, want) {
+		t.Fatalf("gallery order = %v, want %v", got, want)
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	body := rec.Body.String()
+	for _, want := range []string{
+		`aria-label="Move First earlier" title="Move earlier" disabled`,
+		`aria-label="Move Third earlier" title="Move earlier" >`,
+		`aria-label="Move Second later" title="Move later" disabled`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("dashboard missing %q", want)
+		}
+	}
+}
+
 func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()

@@ -18,10 +18,14 @@
 </div>
 {{if .Galleries}}
 <table id="gallery-tree">
-  <tr><th>Title</th><th>Slug</th><th>Status</th><th class="gallery-tree-count">Photos</th><th class="gallery-tree-count">Incl. subfolders</th></tr>
+  <tr><th>Title</th><th class="gallery-tree-order">Order</th><th>Slug</th><th>Status</th><th class="gallery-tree-count">Photos</th><th class="gallery-tree-count">Incl. subfolders</th></tr>
   {{range .Galleries}}
   <tr class="gallery-tree-row" data-gallery-id="{{.ID}}" data-parent-id="{{with .ParentID}}{{.}}{{end}}" data-depth="{{.Depth}}">
     <td><div class="gallery-tree-title" style="--gallery-depth: {{.Depth}}">{{if .HasChildren}}<button class="gallery-tree-toggle" type="button" aria-expanded="false" aria-label="Expand {{.Title}}" title="Expand {{.Title}}"></button>{{else}}<span class="gallery-tree-spacer"></span>{{end}}<a href="{{.URL}}">{{.Title}}</a></div></td>
+    <td class="gallery-tree-order"><div class="gallery-order-controls">
+      <form method="post" action="{{$.BasePath}}/galleries/{{.ID}}/position"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="direction" value="earlier"><button class="gallery-order-button" type="submit" aria-label="Move {{.Title}} earlier" title="Move earlier" {{if not .CanMoveEarlier}}disabled{{end}}>&uarr;</button></form>
+      <form method="post" action="{{$.BasePath}}/galleries/{{.ID}}/position"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="direction" value="later"><button class="gallery-order-button" type="submit" aria-label="Move {{.Title}} later" title="Move later" {{if not .CanMoveLater}}disabled{{end}}>&darr;</button></form>
+    </div></td>
     <td>{{.Slug}}</td>
     <td><span class="badge">{{.Status}}</span></td>
     <td class="gallery-tree-count">{{.Count}}</td>
