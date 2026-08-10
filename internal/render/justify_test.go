@@ -141,3 +141,66 @@ func TestJustifyPanoFullWidthCapped(t *testing.T) {
 		t.Errorf("capped pano should be narrower than full width, got flex-basis %.2f", r.Photos[0].FlexBasis)
 	}
 }
+
+func TestJustifyPanoramaUsesSpareWidthWithPreviousPortrait(t *testing.T) {
+	photos := []PhotoView{
+		photo(3872, 1430, "pano"),
+		photo(2832, 3540, "portrait"),
+		photo(3872, 1715, "pano"),
+	}
+	const targetHeight = 380
+
+	rows := Justify(photos, 1200, targetHeight, 12, true)
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want first pano alone and the remaining photos paired", len(rows))
+	}
+	if rows[1].Height != targetHeight {
+		t.Errorf("paired row height = %d, want target %d", rows[1].Height, targetHeight)
+	}
+	if len(rows[1].Photos) != 2 || rows[1].Photos[0].Aspect != "portrait" || rows[1].Photos[1].Aspect != "pano" {
+		t.Errorf("paired row = %+v, want portrait then pano", rows[1].Photos)
+	}
+	if !rows[1].Center {
+		t.Error("natural-width panorama row should be centered")
+	}
+}
+
+func TestJustifyPanoramaUsesSpareWidthWithFollowingPortrait(t *testing.T) {
+	photos := []PhotoView{
+		photo(3872, 1715, "pano"),
+		photo(2832, 3540, "portrait"),
+		photo(3000, 2000, "landscape"),
+	}
+
+	rows := Justify(photos, 1200, 380, 12, true)
+	if len(rows) != 2 || len(rows[0].Photos) != 2 {
+		t.Fatalf("rows = %+v, want pano and following portrait paired", rows)
+	}
+	if rows[0].Photos[0].Aspect != "pano" || rows[0].Photos[1].Aspect != "portrait" {
+		t.Errorf("paired row = %+v, want pano then portrait", rows[0].Photos)
+	}
+}
+
+func TestJustifyPanoramaDoesNotSqueezeNonFittingCompanion(t *testing.T) {
+	photos := []PhotoView{
+		photo(6500, 2400, "pano"),
+		photo(2000, 2000, "square"),
+		photo(6500, 2400, "pano"),
+	}
+
+	rows := Justify(photos, 1000, 300, 8, true)
+	if len(rows) != 3 {
+		t.Fatalf("rows = %d, want non-fitting square kept separate", len(rows))
+	}
+	for _, row := range rows {
+		if len(row.Photos) != 1 {
+			t.Fatalf("non-fitting row has %d photos, want 1", len(row.Photos))
+		}
+	}
+	if rows[1].Height != 300 || rows[1].Photos[0].FlexBasis >= 100 {
+		t.Errorf("isolated square layout = height %d, basis %.2f; want compact natural size", rows[1].Height, rows[1].Photos[0].FlexBasis)
+	}
+	if !rows[1].Center {
+		t.Error("isolated square between panoramas should be centered")
+	}
+}
