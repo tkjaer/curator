@@ -246,6 +246,7 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
 		`<div class="settings-links public-url-row">`,
+		`class="view-link" href=`,
 		`Open public gallery &nearr;`,
 		`<details class="gallery-options">`,
 		`<span class="disclosure-title">Gallery options</span>`,
@@ -326,6 +327,7 @@ func TestGalleryRendersStoryGuidance(t *testing.T) {
 		`<select name="type" id="add-block-type">`,
 		`<span>Heading (optional)</span>`,
 		`<button>Add to story</button>`,
+		`class="view-link story-preview-link"`,
 		`>Preview story &nearr;</a>`,
 		`if (!form || event.defaultPrevented) return;`,
 	} {

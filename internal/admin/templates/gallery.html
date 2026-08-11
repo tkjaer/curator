@@ -29,7 +29,7 @@
     <div class="settings-links public-url-row">
       <span class="save-state" id="gallery-save-state" aria-live="polite"></span>
       {{if eq (printf "%s" .Gallery.Status) "unlisted"}}<span class="visibility-note">Direct link only</span>{{end}}
-      <a href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
+      <a class="view-link" href="{{.PublicURL}}" target="_blank" rel="noreferrer">Open public gallery &nearr;</a>
     </div>
   </div>
   <details class="gallery-options">
@@ -309,7 +309,7 @@
 
 {{if .IsStory}}
 <section class="story-editor-section">
-<div class="section-heading"><div><h2>Story</h2><p>The published page follows the block order below, not the order of the media library.</p></div>{{if .StoryPreviewAvailable}}<a class="secondary-button story-preview-link" href="{{$.BasePath}}/galleries/{{.Gallery.ID}}/preview" target="_blank" rel="noreferrer">Preview story &nearr;</a>{{end}}</div>
+<div class="section-heading"><div><h2>Story</h2><p>The published page follows the block order below, not the order of the media library.</p></div>{{if .StoryPreviewAvailable}}<a class="view-link story-preview-link" href="{{$.BasePath}}/galleries/{{.Gallery.ID}}/preview" target="_blank" rel="noreferrer">Preview story &nearr;</a>{{end}}</div>
 <ol class="story-workflow" aria-label="Story workflow">
   <li><strong>Upload</strong><span>Add source photos to the media library.</span></li>
   <li><strong>Compose</strong><span>Add text, individual images, or photo grids.</span></li>
