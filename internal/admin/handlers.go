@@ -835,6 +835,8 @@ type lensMappingRow struct {
 	Lens              string
 	Suggestion        string
 	Evidence          string
+	XMPName           string
+	XMPFallbackActive bool
 	CanEnableFallback bool
 }
 
@@ -1108,7 +1110,12 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 	suggestions := cameraLensSuggestions(clues, useLightroomProfile)
 	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
 	for camera, lens := range mappings {
-		rows = append(rows, lensMappingRow{Camera: camera, Lens: lens, Evidence: suggestions[camera].Evidence})
+		suggestion := suggestions[camera]
+		rows = append(rows, lensMappingRow{
+			Camera: camera, Lens: lens, Evidence: suggestion.Evidence,
+			XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
+			CanEnableFallback: suggestion.CanEnableFallback,
+		})
 	}
 	slices.SortFunc(rows, func(a, b lensMappingRow) int {
 		return strings.Compare(strings.ToLower(a.Camera), strings.ToLower(b.Camera))
@@ -1118,6 +1125,7 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 			suggestion := suggestions[camera]
 			rows = append(rows, lensMappingRow{
 				Camera: camera, Suggestion: suggestion.Lens, Evidence: suggestion.Evidence,
+				XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
 				CanEnableFallback: suggestion.CanEnableFallback,
 			})
 		}
@@ -1147,6 +1155,8 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 type cameraLensSuggestion struct {
 	Lens              string
 	Evidence          string
+	XMPName           string
+	XMPFallbackActive bool
 	CanEnableFallback bool
 }
 
@@ -1186,13 +1196,9 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 			parts = append(parts, "max "+firstKey(e.apertures))
 		}
 		if len(e.profiles) == 1 {
-			if useLightroomProfile {
-				parts = append(parts, "XMP lens fallback enabled; mapping optional and takes precedence")
-			} else {
-				parts = append(parts, "XMP lens name available but fallback disabled")
-			}
+			parts = append(parts, "XMP lens metadata found")
 		} else if len(e.profiles) > 1 {
-			parts = append(parts, pluralize(len(e.profiles), "XMP lens name")+"; one mapping would affect all photos")
+			parts = append(parts, pluralize(len(e.profiles), "different XMP lens name")+"; one mapping would affect all photos")
 		}
 
 		var lens string
@@ -1200,10 +1206,15 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 			lens = camera + " " + strings.ReplaceAll(firstKey(e.focals), " ", "") + " " + firstKey(e.apertures)
 			parts = append(parts, "one mapping affects every photo from this camera")
 		}
-		out[camera] = cameraLensSuggestion{
+		suggestion := cameraLensSuggestion{
 			Lens: lens, Evidence: strings.Join(parts, " · "),
+			XMPFallbackActive: len(e.profiles) == 1 && useLightroomProfile,
 			CanEnableFallback: len(e.profiles) == 1 && !useLightroomProfile,
 		}
+		if len(e.profiles) == 1 {
+			suggestion.XMPName = firstKey(e.profiles)
+		}
+		out[camera] = suggestion
 	}
 	return out
 }

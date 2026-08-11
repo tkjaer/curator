@@ -28,7 +28,7 @@
           <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
           <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
           <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
-          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}{{if and .CanEnableFallback (not .Lens)}} · <a href="#xmp-lens-fallback">Enable XMP lens fallback</a>{{end}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
+          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}{{if .XMPName}} · Found in XMP: <strong>{{.XMPName}}</strong>. <span{{if and .CanEnableFallback (not .Lens)}} data-xmp-fallback-status{{end}}>{{if .Lens}}The mapping takes precedence.{{else if .XMPFallbackActive}}Curator will use this when no higher-priority lens is available.{{else if .CanEnableFallback}}Fallback is off.{{end}}</span>{{end}}</span>{{if and .CanEnableFallback (not .Lens)}}<button class="xmp-enable secondary-button" type="button">Enable XMP lens fallback</button>{{else if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
         </div>
         {{end}}
       </div>
@@ -127,6 +127,20 @@
     list.lastElementChild.querySelector("input").focus();
   });
   list.addEventListener("click", function (event) {
+    var enableXMP = event.target.closest(".xmp-enable");
+    if (enableXMP) {
+      var fallback = document.querySelector('input[name="use_lightroom_lens_profile"]');
+      fallback.checked = true;
+      fallback.dispatchEvent(new Event("change", {bubbles: true}));
+      list.querySelectorAll("[data-xmp-fallback-status]").forEach(function (status) {
+        status.textContent = "Fallback selected; save settings to apply it.";
+      });
+      list.querySelectorAll(".xmp-enable").forEach(function (button) {
+        button.textContent = "Fallback selected";
+        button.disabled = true;
+      });
+      return;
+    }
     var use = event.target.closest(".mapping-use");
     if (use) {
       var row = use.closest(".mapping-row");
