@@ -407,8 +407,17 @@ func TestThemesRenderCopyrightFooter(t *testing.T) {
 			if err := th.Render(&buf, "gallery-grid", view); err != nil {
 				t.Fatalf("render: %v", err)
 			}
-			if !strings.Contains(buf.String(), "© 2025–2026 Example Name") {
+			output := buf.String()
+			copyrightAt := strings.Index(output, "© 2025–2026 Example Name")
+			if copyrightAt < 0 {
 				t.Error("copyright footer missing")
+			}
+			creditAt := strings.Index(output, `href="https://github.com/tkjaer/curator"`)
+			if creditAt < 0 {
+				t.Error("Curator repository link missing")
+			}
+			if creditAt < copyrightAt {
+				t.Error("Curator credit should follow copyright")
 			}
 		})
 	}
