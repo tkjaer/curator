@@ -11,6 +11,8 @@ import (
 	"embed"
 	"encoding/json"
 	"html/template"
+	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"path"
@@ -35,6 +37,12 @@ type DeployFunc func(ctx context.Context, target string, delete bool) error
 // PreviewDeployFunc dry-runs deployment and returns itemized rsync changes.
 type PreviewDeployFunc func(ctx context.Context, target string, delete bool) (string, error)
 
+// StoryPreviewFunc renders a story through the active public theme.
+type StoryPreviewFunc func(ctx context.Context, galleryID int64, baseURL string, w io.Writer) error
+
+// StoryPreviewAssetsFunc returns the active public theme's assets.
+type StoryPreviewAssetsFunc func(ctx context.Context) (fs.FS, error)
+
 // Options configure the admin server for direct or proxied operation.
 type Options struct {
 	BasePath      string
@@ -42,6 +50,8 @@ type Options struct {
 	Build         BuildFunc
 	Deploy        DeployFunc
 	PreviewDeploy PreviewDeployFunc
+	StoryPreview  StoryPreviewFunc
+	PreviewAssets StoryPreviewAssetsFunc
 	Themes        []string
 }
 
@@ -53,6 +63,8 @@ type Server struct {
 	build         BuildFunc
 	deploy        DeployFunc
 	previewDeploy PreviewDeployFunc
+	storyPreview  StoryPreviewFunc
+	previewAssets StoryPreviewAssetsFunc
 	tmpl          *template.Template
 	themes        []string
 	publishAPI    *publishapi.API
@@ -97,6 +109,8 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		build:         opts.Build,
 		deploy:        deploySite,
 		previewDeploy: previewDeploy,
+		storyPreview:  opts.StoryPreview,
+		previewAssets: opts.PreviewAssets,
 		tmpl:          tmpl,
 		themes:        opts.Themes,
 		trustProxy:    opts.TrustProxy,
@@ -121,6 +135,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/logout"), s.handleLogout)
 	mux.HandleFunc("POST "+s.path("/galleries"), s.handleCreateGallery)
 	mux.HandleFunc("GET "+s.path("/galleries/{id}"), s.handleGallery)
+	mux.HandleFunc("GET "+s.path("/galleries/{id}/preview"), s.handleStoryPreview)
+	mux.HandleFunc("GET "+s.path("/galleries/{id}/preview/"), s.handleStoryPreview)
+	mux.HandleFunc("GET "+s.path("/galleries/{id}/preview/_curator/assets/{file...}"), s.handleStoryPreviewAsset)
+	mux.HandleFunc("GET "+s.path("/galleries/{id}/preview/_curator/img/{file...}"), s.handleStoryPreviewImage)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/upload"), s.handleUpload)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/title"), s.handleGalleryTitle)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/slug"), s.handleGallerySlug)

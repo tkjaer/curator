@@ -408,7 +408,7 @@
   .story-block.block-heading::before { background: var(--accent); }
   .story-block.block-quote::before { background: #b7791f; }
   .story-block.block-image::before, .story-block.block-grid::before { background: #27806f; }
-  .block-heading { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) 72px 114px; align-items: center; gap: .65rem; margin-bottom: .85rem; }
+  .block-header { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) 72px 114px; align-items: center; gap: .65rem; margin-bottom: .85rem; }
   .block-identity { display: flex; min-width: 0; align-items: center; gap: .65rem; }
   .block-position { display: grid; flex: 0 0 auto; width: 1.7rem; height: 1.7rem; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); font-size: .68rem; font-weight: 700; }
   .block-position::before { content: counter(story-block); }
@@ -423,7 +423,7 @@
   .block-editor input, .block-editor select, .block-editor textarea { width: 100%; }
   .block-editor textarea { min-height: 120px; resize: vertical; }
   .story-block.block-quote .block-editor textarea { min-height: 88px; }
-  .story-block.block-heading .block-editor input { min-height: 44px; padding-inline: .8rem; font-size: 1rem; font-weight: 650; }
+  .story-block.block-heading .block-editor input { width: 100% !important; min-height: 44px; padding-inline: .8rem; font-size: 1rem; font-weight: 650; }
   .story-block.block-image .block-editor select { max-width: 100%; }
   .story-block.block-grid .grid-choices { width: 100%; }
   .block-field-label { display: block; margin-bottom: .4rem; font-size: .78rem; font-weight: 700; }
@@ -466,7 +466,7 @@
     .resolution-flow li:nth-child(4) { border-top: 1px solid var(--line); }
     .story-workflow { grid-template-columns: 1fr; }
     .story-workflow li + li { border-top: 1px solid var(--line); border-left: 0; }
-    .block-heading { grid-template-columns: minmax(0, 1fr) 114px; }
+    .block-header { grid-template-columns: minmax(0, 1fr) 114px; }
     .block-save-state { display: none; }
     .block-editor { padding-left: 0; }
     .add-block { grid-template-columns: 1fr; }

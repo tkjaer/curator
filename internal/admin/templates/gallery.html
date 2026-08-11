@@ -309,7 +309,7 @@
 
 {{if .IsStory}}
 <section class="story-editor-section">
-<div class="section-heading"><div><h2>Story</h2><p>The published page follows the block order below, not the order of the media library.</p></div></div>
+<div class="section-heading"><div><h2>Story</h2><p>The published page follows the block order below, not the order of the media library.</p></div>{{if .StoryPreviewAvailable}}<a class="secondary-button story-preview-link" href="{{$.BasePath}}/galleries/{{.Gallery.ID}}/preview" target="_blank" rel="noreferrer">Preview story &nearr;</a>{{end}}</div>
 <ol class="story-workflow" aria-label="Story workflow">
   <li><strong>Upload</strong><span>Add source photos to the media library.</span></li>
   <li><strong>Compose</strong><span>Add text, individual images, or photo grids.</span></li>
@@ -318,7 +318,7 @@
 <div class="story-editor">
 {{range $block := .Blocks}}
 <article class="story-block block-{{$block.Type}}" data-block-id="{{$block.ID}}">
-  <div class="block-heading">
+  <div class="block-header">
     <div class="block-identity">
       <span class="block-position" aria-hidden="true"></span>
       <div><strong>{{if eq $block.Type "heading"}}Heading{{else if eq $block.Type "text"}}Text{{else if eq $block.Type "quote"}}Quote{{else if eq $block.Type "image"}}Image{{else if eq $block.Type "grid"}}Photo grid{{else}}{{$block.Type}}{{end}}</strong><span>{{if eq $block.Type "heading"}}Section title{{else if eq $block.Type "text"}}Markdown prose{{else if eq $block.Type "quote"}}Highlighted passage{{else if eq $block.Type "image"}}Single photo{{else if eq $block.Type "grid"}}Group of photos{{end}}</span></div>

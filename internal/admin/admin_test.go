@@ -7,6 +7,7 @@ import (
 	"html"
 	"image"
 	"image/jpeg"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -306,6 +307,13 @@ func TestGalleryRendersStoryGuidance(t *testing.T) {
 	if _, err := srv.store.CreateBlock(ctx, model.Block{GalleryID: storyID, Type: model.BlockQuote, Content: "A remembered line"}); err != nil {
 		t.Fatal(err)
 	}
+	srv.storyPreview = func(_ context.Context, galleryID int64, baseURL string, w io.Writer) error {
+		if galleryID != storyID || baseURL != "/galleries/"+strconv.FormatInt(storyID, 10)+"/preview" {
+			t.Fatalf("preview request = gallery %d, base %q", galleryID, baseURL)
+		}
+		_, err := io.WriteString(w, "<h1>Draft preview</h1>")
+		return err
+	}
 	rec = httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10), nil))
 	for _, want := range []string{
@@ -318,10 +326,17 @@ func TestGalleryRendersStoryGuidance(t *testing.T) {
 		`<select name="type" id="add-block-type">`,
 		`<span>Heading (optional)</span>`,
 		`<button>Add to story</button>`,
+		`>Preview story &nearr;</a>`,
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("populated story gallery missing %q", want)
 		}
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10)+"/preview", nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "no-store" || !strings.Contains(rec.Body.String(), "Draft preview") {
+		t.Fatalf("story preview response = %d, cache %q, body %q", rec.Code, rec.Header().Get("Cache-Control"), rec.Body.String())
 	}
 }
 

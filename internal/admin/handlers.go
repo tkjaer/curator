@@ -313,33 +313,34 @@ func (s *Server) handleDeleteGallery(w http.ResponseWriter, r *http.Request) {
 }
 
 type galleryData struct {
-	Gallery              model.Gallery
-	Breadcrumbs          []galleryRow
-	Items                []model.Item
-	CameraSuggestions    []store.CameraSuggestion
-	LensSuggestions      []store.LensSuggestion
-	TagSuggestions       []model.Tag
-	ItemTags             map[int64]string
-	ItemImportedTags     map[int64]string
-	ItemLightroomManaged map[int64]bool
-	Statuses             []string
-	ItemStatuses         []string
-	CoverID              int64
-	Protected            bool
-	LightroomManaged     bool
-	PublicURL            string
-	AccessUsers          []accessUserGrant
-	Children             []galleryRow
-	MoveTargets          []parentOption
-	CurrentParentID      int64
-	IsStory              bool
-	Blocks               []blockRow
-	BlockTypes           []string
-	ItemChoices          []itemChoice
-	CustomOrder          bool
-	AutomaticOrder       string
-	AutomaticDirection   string
-	PresentationDefaults model.GalleryPresentationDefaults
+	Gallery               model.Gallery
+	Breadcrumbs           []galleryRow
+	Items                 []model.Item
+	CameraSuggestions     []store.CameraSuggestion
+	LensSuggestions       []store.LensSuggestion
+	TagSuggestions        []model.Tag
+	ItemTags              map[int64]string
+	ItemImportedTags      map[int64]string
+	ItemLightroomManaged  map[int64]bool
+	Statuses              []string
+	ItemStatuses          []string
+	CoverID               int64
+	Protected             bool
+	LightroomManaged      bool
+	PublicURL             string
+	AccessUsers           []accessUserGrant
+	Children              []galleryRow
+	MoveTargets           []parentOption
+	CurrentParentID       int64
+	IsStory               bool
+	StoryPreviewAvailable bool
+	Blocks                []blockRow
+	BlockTypes            []string
+	ItemChoices           []itemChoice
+	CustomOrder           bool
+	AutomaticOrder        string
+	AutomaticDirection    string
+	PresentationDefaults  model.GalleryPresentationDefaults
 }
 
 type blockRow struct {
@@ -550,20 +551,21 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := galleryData{
-		Gallery:              g,
-		Items:                items,
-		CameraSuggestions:    cameraSuggestions,
-		LensSuggestions:      lensSuggestions,
-		TagSuggestions:       tagSuggestions,
-		ItemTags:             itemTags,
-		ItemImportedTags:     itemImportedTags,
-		ItemLightroomManaged: itemLightroomManaged,
-		Statuses:             []string{"draft", "unlisted", "published", "protected"},
-		ItemStatuses:         []string{"draft", "unlisted", "published"},
-		CoverID:              cover,
-		Protected:            g.Status == model.GalleryProtected,
-		AutomaticOrder:       "Date taken",
-		AutomaticDirection:   "Ascending",
+		Gallery:               g,
+		Items:                 items,
+		CameraSuggestions:     cameraSuggestions,
+		LensSuggestions:       lensSuggestions,
+		TagSuggestions:        tagSuggestions,
+		ItemTags:              itemTags,
+		ItemImportedTags:      itemImportedTags,
+		ItemLightroomManaged:  itemLightroomManaged,
+		Statuses:              []string{"draft", "unlisted", "published", "protected"},
+		ItemStatuses:          []string{"draft", "unlisted", "published"},
+		CoverID:               cover,
+		Protected:             g.Status == model.GalleryProtected,
+		AutomaticOrder:        "Date taken",
+		AutomaticDirection:    "Ascending",
+		StoryPreviewAvailable: s.storyPreview != nil,
 	}
 	data.LightroomManaged, err = s.store.IsExternalGallery(ctx, "lightroom", id)
 	if err != nil {
