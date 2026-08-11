@@ -1601,7 +1601,7 @@ func TestCameraLensSuggestions(t *testing.T) {
 		{Camera: "FUJIFILM GFX 50R", XMPProfile: "Voigtlander 15mm", Count: 3},
 	}
 
-	suggestions := cameraLensSuggestions(clues)
+	suggestions := cameraLensSuggestions(clues, true)
 	if got := suggestions["FUJIFILM XF10"]; got.Lens != "FUJIFILM XF10 18.5mm f/2.8" ||
 		!strings.Contains(got.Evidence, "27 photos") || !strings.Contains(got.Evidence, "max f/2.8") {
 		t.Fatalf("XF10 suggestion = %+v", got)
@@ -1609,6 +1609,21 @@ func TestCameraLensSuggestions(t *testing.T) {
 	if got := suggestions["FUJIFILM GFX 50R"]; got.Lens != "" ||
 		!strings.Contains(got.Evidence, "2 XMP profiles") {
 		t.Fatalf("ambiguous GFX suggestion = %+v", got)
+	}
+}
+
+func TestCameraLensSuggestionExplainsXMPFallbackState(t *testing.T) {
+	clues := []store.CameraLensClue{{
+		Camera: "FUJIFILM X100S", XMPProfile: "Fujifilm X100S", Count: 12,
+	}}
+
+	enabled := cameraLensSuggestions(clues, true)["FUJIFILM X100S"].Evidence
+	if !strings.Contains(enabled, "fallback enabled; mapping optional and takes precedence") {
+		t.Errorf("enabled evidence = %q", enabled)
+	}
+	disabled := cameraLensSuggestions(clues, false)["FUJIFILM X100S"].Evidence
+	if !strings.Contains(disabled, "fallback disabled; enable fallback or add a mapping") {
+		t.Errorf("disabled evidence = %q", disabled)
 	}
 }
 
