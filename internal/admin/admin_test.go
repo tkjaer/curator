@@ -264,6 +264,67 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 	}
 }
 
+func TestGalleryRendersStoryGuidance(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	storyID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		Slug: "essay", Title: "Essay", Type: model.GalleryStory,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	for _, want := range []string{
+		`<option value="grid">Grid - photo collection</option>`,
+		`<option value="story">Story - sequenced essay</option>`,
+		`A grid publishes its photo order. A story publishes an authored sequence`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("dashboard missing %q", want)
+		}
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10), nil))
+	for _, want := range []string{
+		`<ol class="story-workflow" aria-label="Story workflow">`,
+		`The published page follows the block order below, not the order of the media library.`,
+		`Photos remain unpublished here until an image or grid block uses them.`,
+		`Heading - section title`,
+		`Grid - group of photos`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("story gallery missing %q", want)
+		}
+	}
+
+	if _, err := srv.store.CreateBlock(ctx, model.Block{GalleryID: storyID, Type: model.BlockHeading, Content: "Arrival"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.store.CreateBlock(ctx, model.Block{GalleryID: storyID, Type: model.BlockQuote, Content: "A remembered line"}); err != nil {
+		t.Fatal(err)
+	}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10), nil))
+	for _, want := range []string{
+		`class="story-block block-heading"`,
+		`<strong>Heading</strong><span>Section title</span>`,
+		`class="save-state block-save-state"`,
+		`<input type="text" name="content" value="Arrival" placeholder="Section title">`,
+		`<span>Quotation (Markdown)</span>`,
+		`<strong>Add the next block</strong>`,
+		`<select name="type" id="add-block-type">`,
+		`<span>Heading (optional)</span>`,
+		`<button>Add to story</button>`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("populated story gallery missing %q", want)
+		}
+	}
+}
+
 func TestGalleryRendersCompactPhotoEditor(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()

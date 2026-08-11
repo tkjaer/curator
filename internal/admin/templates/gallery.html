@@ -164,8 +164,9 @@
   <input type="hidden" name="parent" value="{{.Gallery.ID}}">
   <label class="field"><span>New sub-gallery title</span><input name="title" required></label>
   <label class="field"><span>Type</span>
-    <select name="type"><option value="grid">Grid</option><option value="story">Story</option></select>
+    <select name="type"><option value="grid">Grid - photo collection</option><option value="story">Story - sequenced essay</option></select>
   </label>
+  <p class="field-help">Stories use ordered content blocks; uploaded photos become their media library.</p>
   <button>Add sub-gallery</button>
 </form>
 </div>
@@ -308,13 +309,21 @@
 
 {{if .IsStory}}
 <section class="story-editor-section">
-<div class="section-heading"><div><h2>Story</h2><p>Build the page from top to bottom.</p></div></div>
+<div class="section-heading"><div><h2>Story</h2><p>The published page follows the block order below, not the order of the media library.</p></div></div>
+<ol class="story-workflow" aria-label="Story workflow">
+  <li><strong>Upload</strong><span>Add source photos to the media library.</span></li>
+  <li><strong>Compose</strong><span>Add text, individual images, or photo grids.</span></li>
+  <li><strong>Sequence</strong><span>Move blocks into the order visitors will read.</span></li>
+</ol>
 <div class="story-editor">
 {{range $block := .Blocks}}
-<article class="story-block" data-block-id="{{$block.ID}}">
+<article class="story-block block-{{$block.Type}}" data-block-id="{{$block.ID}}">
   <div class="block-heading">
-    <strong>{{$block.Type}}</strong>
-    <span class="save-state" aria-live="polite"></span>
+    <div class="block-identity">
+      <span class="block-position" aria-hidden="true"></span>
+      <div><strong>{{if eq $block.Type "heading"}}Heading{{else if eq $block.Type "text"}}Text{{else if eq $block.Type "quote"}}Quote{{else if eq $block.Type "image"}}Image{{else if eq $block.Type "grid"}}Photo grid{{else}}{{$block.Type}}{{end}}</strong><span>{{if eq $block.Type "heading"}}Section title{{else if eq $block.Type "text"}}Markdown prose{{else if eq $block.Type "quote"}}Highlighted passage{{else if eq $block.Type "image"}}Single photo{{else if eq $block.Type "grid"}}Group of photos{{end}}</span></div>
+    </div>
+    <span class="save-state block-save-state" aria-live="polite"></span>
     <div class="block-actions">
       <form data-async data-action="move-up" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="up"><button class="icon-button" aria-label="Move block up" title="Move up">&uarr;</button></form>
       <form data-async data-action="move-down" method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/move"><input type="hidden" name="_csrf" value="{{$.CSRF}}"><input type="hidden" name="dir" value="down"><button class="icon-button" aria-label="Move block down" title="Move down">&darr;</button></form>
@@ -323,32 +332,39 @@
   </div>
   <form class="block-editor" data-async data-autosave method="post" action="{{$.BasePath}}/blocks/{{$block.ID}}/update">
     <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-    {{if or (eq $block.Type "heading") (eq $block.Type "text") (eq $block.Type "quote")}}
-    <label class="field"><span>Text (Markdown)</span><textarea name="content" rows="4">{{$block.Content}}</textarea></label>
+    {{if eq $block.Type "heading"}}
+    <label class="field"><span>Heading</span><input type="text" name="content" value="{{$block.Content}}" placeholder="Section title"></label>
+    {{else if eq $block.Type "text"}}
+    <label class="field"><span>Body (Markdown)</span><textarea name="content" rows="5" placeholder="Write this part of the story...">{{$block.Content}}</textarea></label>
+    {{else if eq $block.Type "quote"}}
+    <label class="field"><span>Quotation (Markdown)</span><textarea name="content" rows="3" placeholder="A passage to set apart...">{{$block.Content}}</textarea></label>
     {{else if eq $block.Type "image"}}
-    <label class="field"><span>Photo</span>
+    <label class="field"><span>Choose photo</span>
       <select name="item">
         <option value="">(choose photo)</option>
         {{range $.Data.ItemChoices}}<option value="{{.ID}}"{{if eq .ID $block.ItemID}} selected{{end}}>{{.Filename}}</option>{{end}}
       </select>
     </label>
     {{else if eq $block.Type "grid"}}
-    <span>Photos in this grid</span>
+    <span class="block-field-label">Choose photos</span>
     <div class="grid-choices">
       {{range $.Data.ItemChoices}}<label><input type="checkbox" name="item_{{.ID}}"{{if index $block.GridItems .ID}} checked{{end}}> {{.Filename}}</label>{{end}}
     </div>
     {{end}}
   </form>
 </article>
+{{else}}
+<div class="story-empty"><strong>No story blocks yet</strong><p>Add a block below to begin the published page. Photos remain unpublished here until an image or grid block uses them.</p></div>
 {{end}}
 
 <form class="add-block" method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/blocks">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <label><span>Add block</span>
-    <select name="type">{{range .BlockTypes}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+  <div class="add-block-heading"><strong>Add the next block</strong><span>It appears at the end of the story.</span></div>
+  <label><span>Block type</span>
+    <select name="type" id="add-block-type">{{range .BlockTypes}}<option value="{{.}}">{{if eq . "heading"}}Heading - section title{{else if eq . "text"}}Text - Markdown prose{{else if eq . "quote"}}Quote - highlighted passage{{else if eq . "image"}}Image - one photo{{else if eq . "grid"}}Grid - group of photos{{else}}{{.}}{{end}}</option>{{end}}</select>
   </label>
-  <label class="add-block-content"><span>Text (optional)</span><textarea name="content" rows="2"></textarea></label>
-  <button>Add block</button>
+  <label class="add-block-content"><span>Heading (optional)</span><textarea name="content" rows="2"></textarea></label>
+  <button>Add to story</button>
 </form>
 </div>
 </section>
@@ -365,6 +381,20 @@
   var orderSaveInFlight = false;
   var orderSavePending = false;
   var photoEditorReturnURL = "";
+  var addBlockType = document.getElementById("add-block-type");
+  var addBlockContent = document.querySelector(".add-block-content");
+
+  function updateAddBlockContent() {
+    if (!addBlockType || !addBlockContent) return;
+    var labels = {heading: "Heading (optional)", text: "Text (optional)", quote: "Quotation (optional)"};
+    var label = labels[addBlockType.value];
+    addBlockContent.hidden = !label;
+    addBlockContent.querySelector("span").textContent = label || "";
+    addBlockContent.querySelector("textarea").disabled = !label;
+  }
+
+  if (addBlockType) addBlockType.addEventListener("change", updateAddBlockContent);
+  updateAddBlockContent();
 
   function stateFor(form) {
     var container = form.closest(".item, .story-block");
@@ -392,6 +422,14 @@
     if (!sibling || !sibling.matches(selector)) return;
     if (up) element.parentNode.insertBefore(element, sibling);
     else element.parentNode.insertBefore(sibling, element);
+  }
+
+  function updateStoryBlockActions() {
+    var blocks = Array.from(document.querySelectorAll(".story-block"));
+    blocks.forEach(function (block, index) {
+      block.querySelector('[data-action="move-up"] button').disabled = index === 0;
+      block.querySelector('[data-action="move-down"] button').disabled = index === blocks.length - 1;
+    });
   }
 
   function markCustomOrder() {
@@ -427,6 +465,7 @@
       if (photoEditor && photoEditor.open) photoEditor.close();
       element.remove();
     }
+  if (element.classList.contains("story-block")) updateStoryBlockActions();
     if (action === "cover") {
       var removeCover = element.classList.contains("is-cover");
       document.querySelectorAll(".item.is-cover").forEach(function (item) {
@@ -677,6 +716,7 @@
   }
 
   var deepLink = new URLSearchParams(window.location.search);
+  updateStoryBlockActions();
   var deepLinkedItem = document.querySelector('.item[data-item-id="' + CSS.escape(deepLink.get("photo") || "") + '"]');
   var returnTag = deepLink.get("return_tag") || "";
   if (/^[1-9][0-9]*$/.test(returnTag)) photoEditorReturnURL = "{{.BasePath}}/tags/" + returnTag;
