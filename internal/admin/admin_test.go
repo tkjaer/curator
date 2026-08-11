@@ -1520,6 +1520,8 @@ func TestLensMetadataSettings(t *testing.T) {
 		"use_lightroom_lens_profile": {"on"},
 		"mapping_camera":             {"FUJIFILM XF10"},
 		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
+		"lens_name_existing":         {"45.0 mm f/2.8", "Nikkor 28mm f/3.5 AI-s"},
+		"lens_name_canonical":        {"Nikkor 45mm f/2.8P AI-s", "Nikkor 28mm f/3.5 AI"},
 		"facet_camera":               {"on"},
 		"tag_visibility":             {"hide_selected"},
 		"selected_tag":               {"Private", "private", "Public"},
@@ -1540,10 +1542,13 @@ func TestLensMetadataSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if settings["metadata.use_lightroom_lens_profile"] != "true" {
-		t.Error("Lightroom profile fallback was not enabled")
+		t.Error("XMP lens fallback was not enabled")
 	}
 	if settings["metadata.lens_mappings"] != "FUJIFILM XF10 = FUJINON 18.5mm F2.8" {
 		t.Errorf("lens mappings = %q", settings["metadata.lens_mappings"])
+	}
+	if settings["metadata.lens_name_mappings"] != "45.0 mm f/2.8 = Nikkor 45mm f/2.8P AI-s\nNikkor 28mm f/3.5 AI-s = Nikkor 28mm f/3.5 AI" {
+		t.Errorf("lens-name mappings = %q", settings["metadata.lens_name_mappings"])
 	}
 	if settings["metadata.facet_pagination_enabled"] != "true" || settings["metadata.facet_page_size"] != "60" {
 		t.Fatalf("pagination settings = %q, %q", settings["metadata.facet_pagination_enabled"], settings["metadata.facet_page_size"])
@@ -1564,6 +1569,8 @@ func TestLensMetadataSettings(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `name="use_lightroom_lens_profile" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) ||
+		!strings.Contains(rec.Body.String(), `name="lens_name_existing" value="45.0 mm f/2.8"`) ||
+		!strings.Contains(rec.Body.String(), `name="lens_name_canonical" value="Nikkor 45mm f/2.8P AI-s"`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
 		!strings.Contains(rec.Body.String(), `<option value="hide_selected" selected>Show all except selected</option>`) ||
 		!strings.Contains(rec.Body.String(), `name="tag_browse_enabled" checked`) ||
@@ -1607,7 +1614,7 @@ func TestCameraLensSuggestions(t *testing.T) {
 		t.Fatalf("XF10 suggestion = %+v", got)
 	}
 	if got := suggestions["FUJIFILM GFX 50R"]; got.Lens != "" ||
-		!strings.Contains(got.Evidence, "2 XMP lens names") {
+		!strings.Contains(got.Evidence, "2 different XMP lens names") {
 		t.Fatalf("ambiguous GFX suggestion = %+v", got)
 	}
 }
@@ -1617,16 +1624,13 @@ func TestCameraLensSuggestionExplainsXMPFallbackState(t *testing.T) {
 		Camera: "FUJIFILM X100S", XMPProfile: "Fujifilm X100S", Count: 12,
 	}}
 
-	enabled := cameraLensSuggestions(clues, true)["FUJIFILM X100S"].Evidence
-	if !strings.Contains(enabled, "XMP lens fallback enabled; mapping optional and takes precedence") {
-		t.Errorf("enabled evidence = %q", enabled)
+	enabled := cameraLensSuggestions(clues, true)["FUJIFILM X100S"]
+	if enabled.XMPName != "Fujifilm X100S" || !enabled.XMPFallbackActive || enabled.CanEnableFallback {
+		t.Errorf("enabled suggestion = %+v", enabled)
 	}
-	disabled := cameraLensSuggestions(clues, false)["FUJIFILM X100S"].Evidence
-	if !strings.Contains(disabled, "XMP lens name available but fallback disabled") {
-		t.Errorf("disabled evidence = %q", disabled)
-	}
-	if !cameraLensSuggestions(clues, false)["FUJIFILM X100S"].CanEnableFallback {
-		t.Error("disabled XMP fallback should offer an enable action")
+	disabled := cameraLensSuggestions(clues, false)["FUJIFILM X100S"]
+	if disabled.XMPName != "Fujifilm X100S" || disabled.XMPFallbackActive || !disabled.CanEnableFallback {
+		t.Errorf("disabled suggestion = %+v", disabled)
 	}
 }
 
@@ -1685,7 +1689,7 @@ func TestMetadataSettingsSuggestCamerasWithoutLens(t *testing.T) {
 	}
 }
 
-func TestMetadataSettingsLinkDisabledXMPFallbackToControl(t *testing.T) {
+func TestMetadataSettingsMakeDisabledXMPFallbackActionable(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()
 	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "xmp-lens", Title: "XMP lens"})
@@ -1709,16 +1713,21 @@ func TestMetadataSettingsLinkDisabledXMPFallbackToControl(t *testing.T) {
 		return rec.Body.String()
 	}
 	body := render()
-	if !strings.Contains(body, `id="xmp-lens-fallback"`) ||
-		!strings.Contains(body, `<a href="#xmp-lens-fallback">Enable XMP lens fallback</a>`) {
-		t.Fatal("disabled XMP evidence did not link to fallback control")
+	if !strings.Contains(body, `Found in XMP: <strong>Fujifilm X100S</strong>`) ||
+		!strings.Contains(body, `class="xmp-enable secondary-button" type="button">Enable XMP lens fallback</button>`) {
+		t.Fatal("disabled XMP evidence did not show its value and enable action")
 	}
 
 	if err := srv.store.SetSetting(ctx, "metadata.lens_mappings", "FUJIFILM X100S = FUJINON 23mm F2"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(render(), `>Enable XMP lens fallback</a>`) {
+	mappedBody := render()
+	if strings.Contains(mappedBody, `>Enable XMP lens fallback</button>`) {
 		t.Fatal("mapped camera should not offer to enable XMP fallback")
+	}
+	if !strings.Contains(mappedBody, `Found in XMP: <strong>Fujifilm X100S</strong>`) ||
+		!strings.Contains(mappedBody, `The mapping takes precedence.`) {
+		t.Fatal("mapped camera did not retain its XMP evidence and precedence explanation")
 	}
 }
 

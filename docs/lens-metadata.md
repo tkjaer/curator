@@ -42,6 +42,11 @@ Curator uses the first non-empty value in this order:
 5. Configured camera-to-lens mapping
 6. XMP lens metadata, when enabled as a fallback
 
+After choosing that value, Curator applies an exact lens-name mapping when one
+is configured. This final normalization step is source-neutral: it works on
+names from manual overrides, Lightroom keywords, EXIF, sidecars, camera
+mappings, and XMP fallback metadata.
+
 Camera mappings and the XMP fallback are configured under
 **Settings → Metadata**. To enable the fallback, select **Use XMP lens metadata
 as a fallback**, save the metadata settings, and publish again. Policy
@@ -56,6 +61,19 @@ make that name active: the fallback setting must be enabled, and any value
 earlier in the resolution order still wins. A camera-to-lens mapping is
 therefore optional when the fallback is enabled, but adding one overrides the
 XMP value.
+
+## Normalize lens names
+
+Under **Settings → Metadata → Lens-name mappings**, map an existing lens name to
+the canonical name Curator should display. For example:
+
+- `45.0 mm f/2.8` → `Nikkor 45mm f/2.8P AI-s`
+- `Nikkor 28mm f/3.5 AI-s` → `Nikkor 28mm f/3.5 AI`
+
+Names already found in the library are suggested in both fields. Matching is
+exact, and mappings are applied once rather than chained. The source metadata
+and per-photo overrides remain unchanged, so removing a mapping restores the
+name selected by normal metadata resolution.
 
 ## Lightroom keywords
 

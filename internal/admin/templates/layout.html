@@ -161,6 +161,14 @@
   .mapping-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 2rem 0 .75rem; }
   .mapping-heading h3, .mapping-heading p { margin: 0; }
   .mapping-heading p { font-size: .82rem; }
+  .resolution-control-heading { margin-bottom: .25rem; }
+  .resolution-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin: 0 0 .5rem; padding: 0; list-style: none; counter-reset: resolution-step; border-block: 1px solid var(--line); }
+  .resolution-flow li { position: relative; min-width: 0; padding: .9rem .85rem .9rem 2.6rem; counter-increment: resolution-step; }
+  .resolution-flow li + li { border-left: 1px solid var(--line); }
+  .resolution-flow li::before { position: absolute; top: .9rem; left: .8rem; display: grid; width: 1.25rem; height: 1.25rem; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--muted); content: counter(resolution-step); font-size: .68rem; font-weight: 700; }
+  .resolution-flow strong, .resolution-flow span { display: block; }
+  .resolution-flow strong { font-size: .82rem; }
+  .resolution-flow span { margin-top: .16rem; color: var(--muted); font-size: .72rem; line-height: 1.35; }
   .mapping-list { display: grid; gap: .65rem; margin-bottom: 1.25rem; }
   .mapping-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 40px; gap: .65rem; align-items: end; }
   .mapping-row label { min-width: 0; }
@@ -422,6 +430,9 @@
     .dashboard-actions { grid-template-columns: 1fr; gap: 0; }
     .mapping-heading { align-items: stretch; flex-direction: column; }
     .mapping-heading button { align-self: flex-start; }
+    .resolution-flow { grid-template-columns: 1fr 1fr; }
+    .resolution-flow li:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
+    .resolution-flow li:nth-child(4) { border-top: 1px solid var(--line); }
     .deployment-preview-heading { align-items: stretch; flex-direction: column; }
     .deployment-preview-heading button { align-self: flex-start; }
     .settings-save-row { top: 0; }

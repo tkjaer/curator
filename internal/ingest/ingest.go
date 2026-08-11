@@ -290,8 +290,9 @@ func ResolveCamera(embeddedCamera, manualCamera string) string {
 
 // LensPolicy controls explicit lens overrides and metadata fallbacks.
 type LensPolicy struct {
-	UseLightroom bool
-	Mappings     map[string]string
+	UseXMPFallback bool
+	Mappings       map[string]string
+	NameMappings   map[string]string
 }
 
 // LensPolicyFromSettings builds and validates the lens metadata policy.
@@ -300,56 +301,72 @@ func LensPolicyFromSettings(settings map[string]string) (LensPolicy, error) {
 	if err != nil {
 		return LensPolicy{}, err
 	}
+	nameMappings, err := ParseLensNameMappings(settings["metadata.lens_name_mappings"])
+	if err != nil {
+		return LensPolicy{}, err
+	}
 	return LensPolicy{
-		UseLightroom: settings["metadata.use_lightroom_lens_profile"] == "true",
-		Mappings:     mappings,
+		UseXMPFallback: settings["metadata.use_lightroom_lens_profile"] == "true",
+		Mappings:       mappings,
+		NameMappings:   nameMappings,
 	}, nil
 }
 
 // ParseLensMappings parses one camera-to-lens mapping per line.
 func ParseLensMappings(value string) (map[string]string, error) {
+	return parseLensMappings(value, "Camera = Lens", false)
+}
+
+// ParseLensNameMappings parses one existing-to-canonical lens name per line.
+func ParseLensNameMappings(value string) (map[string]string, error) {
+	return parseLensMappings(value, "Existing lens = Canonical lens", true)
+}
+
+func parseLensMappings(value, format string, rejectDuplicates bool) (map[string]string, error) {
 	mappings := map[string]string{}
 	for lineNumber, line := range strings.Split(value, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		camera, lens, ok := strings.Cut(line, "=")
-		camera, lens = strings.TrimSpace(camera), strings.TrimSpace(lens)
-		if !ok || camera == "" || lens == "" {
-			return nil, fmt.Errorf("invalid lens mapping on line %d: use Camera = Lens", lineNumber+1)
+		from, to, ok := strings.Cut(line, "=")
+		from, to = strings.TrimSpace(from), strings.TrimSpace(to)
+		if !ok || from == "" || to == "" {
+			return nil, fmt.Errorf("invalid lens mapping on line %d: use %s", lineNumber+1, format)
 		}
-		mappings[camera] = lens
+		if _, exists := mappings[from]; exists && rejectDuplicates {
+			return nil, fmt.Errorf("duplicate lens mapping for %q on line %d", from, lineNumber+1)
+		}
+		mappings[from] = to
 	}
 	return mappings, nil
 }
 
-// Lens resolves a stored lens using EXIF, configured mappings, then Lightroom.
+// Lens resolves a stored lens using EXIF and configured metadata policies.
 func (p LensPolicy) Lens(meta exif.Data) string {
 	return p.Resolve(meta.Camera, meta.Lens, "", meta.SidecarLens, meta.XMPLens, "")
 }
 
 // Resolve chooses a lens from stored source values without rereading a photo.
 func (p LensPolicy) Resolve(camera, embeddedLens, lightroomLens, sidecarLens, xmpLens, manualLens string) string {
+	var lens string
 	if manualLens != "" {
-		return manualLens
+		lens = manualLens
+	} else if lightroomLens != "" {
+		lens = lightroomLens
+	} else if embeddedLens != "" {
+		lens = embeddedLens
+	} else if sidecarLens != "" {
+		lens = sidecarLens
+	} else if mappedLens := p.Mappings[camera]; mappedLens != "" {
+		lens = mappedLens
+	} else if p.UseXMPFallback {
+		lens = xmpLens
 	}
-	if lightroomLens != "" {
-		return lightroomLens
+	if canonical := p.NameMappings[lens]; canonical != "" {
+		return canonical
 	}
-	if embeddedLens != "" {
-		return embeddedLens
-	}
-	if sidecarLens != "" {
-		return sidecarLens
-	}
-	if lens := p.Mappings[camera]; lens != "" {
-		return lens
-	}
-	if p.UseLightroom {
-		return xmpLens
-	}
-	return ""
+	return lens
 }
 
 func writeFile(dest string, r io.Reader) error {

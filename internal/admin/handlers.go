@@ -835,20 +835,29 @@ type lensMappingRow struct {
 	Lens              string
 	Suggestion        string
 	Evidence          string
+	XMPName           string
+	XMPFallbackActive bool
 	CanEnableFallback bool
 }
 
+type lensNameMappingRow struct {
+	Existing  string
+	Canonical string
+}
+
 type metadataSettingsData struct {
-	UseLightroomProfile bool
-	Mappings            []lensMappingRow
-	XMPProfiles         []xmpProfileRow
-	Facets              []model.FacetConfig
-	TagSuggestions      []model.Tag
-	SelectedTags        map[string]bool
-	TagVisibility       string
-	TagBrowseEnabled    bool
-	PaginationEnabled   bool
-	PageSize            int
+	UseXMPFallback    bool
+	Mappings          []lensMappingRow
+	LensNameMappings  []lensNameMappingRow
+	LensSuggestions   []store.LensSuggestion
+	XMPProfiles       []xmpProfileRow
+	Facets            []model.FacetConfig
+	TagSuggestions    []model.Tag
+	SelectedTags      map[string]bool
+	TagVisibility     string
+	TagBrowseEnabled  bool
+	PaginationEnabled bool
+	PageSize          int
 }
 
 type publishingSettingsData struct {
@@ -1064,6 +1073,16 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	lensNameMappings, err := ingest.ParseLensNameMappings(settings["metadata.lens_name_mappings"])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	lensSuggestions, err := s.store.LensSuggestions(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	clues, err := s.store.CameraLensClues(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -1104,11 +1123,16 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		metadataFacets = append(metadataFacets, facet)
 	}
 
-	useLightroomProfile := settings["metadata.use_lightroom_lens_profile"] == "true"
-	suggestions := cameraLensSuggestions(clues, useLightroomProfile)
+	useXMPFallback := settings["metadata.use_lightroom_lens_profile"] == "true"
+	suggestions := cameraLensSuggestions(clues, useXMPFallback)
 	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
 	for camera, lens := range mappings {
-		rows = append(rows, lensMappingRow{Camera: camera, Lens: lens, Evidence: suggestions[camera].Evidence})
+		suggestion := suggestions[camera]
+		rows = append(rows, lensMappingRow{
+			Camera: camera, Lens: lens, Evidence: suggestion.Evidence,
+			XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
+			CanEnableFallback: suggestion.CanEnableFallback,
+		})
 	}
 	slices.SortFunc(rows, func(a, b lensMappingRow) int {
 		return strings.Compare(strings.ToLower(a.Camera), strings.ToLower(b.Camera))
@@ -1118,6 +1142,7 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 			suggestion := suggestions[camera]
 			rows = append(rows, lensMappingRow{
 				Camera: camera, Suggestion: suggestion.Lens, Evidence: suggestion.Evidence,
+				XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
 				CanEnableFallback: suggestion.CanEnableFallback,
 			})
 		}
@@ -1125,32 +1150,40 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 	if len(rows) == 0 {
 		rows = append(rows, lensMappingRow{})
 	}
+	nameRows := make([]lensNameMappingRow, 0, len(lensNameMappings))
+	for _, existing := range slices.Sorted(maps.Keys(lensNameMappings)) {
+		nameRows = append(nameRows, lensNameMappingRow{Existing: existing, Canonical: lensNameMappings[existing]})
+	}
 
 	pageSize, err := strconv.Atoi(settings["metadata.facet_page_size"])
 	if err != nil || pageSize < 1 {
 		pageSize = 100
 	}
 	s.render(w, r, "metadata-settings", "Metadata settings", s.flash(r), metadataSettingsData{
-		UseLightroomProfile: useLightroomProfile,
-		Mappings:            rows,
-		XMPProfiles:         xmpProfileRows(profileUsages, mappings, useLightroomProfile),
-		Facets:              metadataFacets,
-		TagSuggestions:      tagSuggestions,
-		SelectedTags:        selectedTags,
-		TagVisibility:       tagVisibility,
-		TagBrowseEnabled:    tagBrowseEnabled,
-		PaginationEnabled:   settings["metadata.facet_pagination_enabled"] != "false",
-		PageSize:            pageSize,
+		UseXMPFallback:    useXMPFallback,
+		Mappings:          rows,
+		LensNameMappings:  nameRows,
+		LensSuggestions:   lensSuggestions,
+		XMPProfiles:       xmpProfileRows(profileUsages, mappings, useXMPFallback),
+		Facets:            metadataFacets,
+		TagSuggestions:    tagSuggestions,
+		SelectedTags:      selectedTags,
+		TagVisibility:     tagVisibility,
+		TagBrowseEnabled:  tagBrowseEnabled,
+		PaginationEnabled: settings["metadata.facet_pagination_enabled"] != "false",
+		PageSize:          pageSize,
 	})
 }
 
 type cameraLensSuggestion struct {
 	Lens              string
 	Evidence          string
+	XMPName           string
+	XMPFallbackActive bool
 	CanEnableFallback bool
 }
 
-func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile bool) map[string]cameraLensSuggestion {
+func cameraLensSuggestions(clues []store.CameraLensClue, useXMPFallback bool) map[string]cameraLensSuggestion {
 	type evidence struct {
 		count     int
 		focals    map[string]bool
@@ -1186,13 +1219,9 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 			parts = append(parts, "max "+firstKey(e.apertures))
 		}
 		if len(e.profiles) == 1 {
-			if useLightroomProfile {
-				parts = append(parts, "XMP lens fallback enabled; mapping optional and takes precedence")
-			} else {
-				parts = append(parts, "XMP lens name available but fallback disabled")
-			}
+			parts = append(parts, "XMP lens metadata found")
 		} else if len(e.profiles) > 1 {
-			parts = append(parts, pluralize(len(e.profiles), "XMP lens name")+"; one mapping would affect all photos")
+			parts = append(parts, pluralize(len(e.profiles), "different XMP lens name")+"; one mapping would affect all photos")
 		}
 
 		var lens string
@@ -1200,10 +1229,15 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 			lens = camera + " " + strings.ReplaceAll(firstKey(e.focals), " ", "") + " " + firstKey(e.apertures)
 			parts = append(parts, "one mapping affects every photo from this camera")
 		}
-		out[camera] = cameraLensSuggestion{
+		suggestion := cameraLensSuggestion{
 			Lens: lens, Evidence: strings.Join(parts, " · "),
-			CanEnableFallback: len(e.profiles) == 1 && !useLightroomProfile,
+			XMPFallbackActive: len(e.profiles) == 1 && useXMPFallback,
+			CanEnableFallback: len(e.profiles) == 1 && !useXMPFallback,
 		}
+		if len(e.profiles) == 1 {
+			suggestion.XMPName = firstKey(e.profiles)
+		}
+		out[camera] = suggestion
 	}
 	return out
 }
@@ -1300,6 +1334,31 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 		s.redirect(w, r, s.link("settings", "metadata"), err.Error())
 		return
 	}
+	existingNames, canonicalNames := r.Form["lens_name_existing"], r.Form["lens_name_canonical"]
+	nameCount := max(len(existingNames), len(canonicalNames))
+	nameLines := make([]string, 0, nameCount)
+	for i := 0; i < nameCount; i++ {
+		var existing, canonical string
+		if i < len(existingNames) {
+			existing = strings.TrimSpace(existingNames[i])
+		}
+		if i < len(canonicalNames) {
+			canonical = strings.TrimSpace(canonicalNames[i])
+		}
+		if existing == "" && canonical == "" {
+			continue
+		}
+		if existing == "" || canonical == "" || strings.Contains(existing, "=") {
+			s.redirect(w, r, s.link("settings", "metadata"), "Each lens-name mapping needs an existing and canonical name")
+			return
+		}
+		nameLines = append(nameLines, existing+" = "+canonical)
+	}
+	lensNameMappings := strings.Join(nameLines, "\n")
+	if _, err := ingest.ParseLensNameMappings(lensNameMappings); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), err.Error())
+		return
+	}
 
 	ctx := r.Context()
 	settings, err := s.store.Settings(ctx)
@@ -1319,15 +1378,19 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 		s.redirect(w, r, s.link("settings", "metadata"), "Photos per browse page must be between 1 and 1000")
 		return
 	}
-	useLightroomProfile := "false"
+	useXMPFallback := "false"
 	if r.FormValue("use_lightroom_lens_profile") == "on" {
-		useLightroomProfile = "true"
+		useXMPFallback = "true"
 	}
-	if err := s.store.SetSetting(ctx, "metadata.use_lightroom_lens_profile", useLightroomProfile); err != nil {
+	if err := s.store.SetSetting(ctx, "metadata.use_lightroom_lens_profile", useXMPFallback); err != nil {
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
 		return
 	}
 	if err := s.store.SetSetting(ctx, "metadata.lens_mappings", lensMappings); err != nil {
+		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "metadata.lens_name_mappings", lensNameMappings); err != nil {
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save metadata settings")
 		return
 	}
