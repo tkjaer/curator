@@ -16,10 +16,15 @@
   </div>
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
-      <div class="settings-card-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
-      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Uses a direct XMP lens name or Adobe lens profile name. Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
+      <div class="settings-card-heading"><h2>Lens resolution</h2><p>Curator chooses the first available lens name, then applies an optional display-name mapping.</p></div>
+      <ol class="resolution-flow" aria-label="Lens resolution order">
+        <li><strong>Source name</strong><span>Manual override, Curator Lens keyword, embedded EXIF, or adjacent sidecar</span></li>
+        <li><strong>Camera mapping</strong><span>Used only when the source provides no lens name</span></li>
+        <li><strong>XMP fallback</strong><span>Used only when neither a source name nor camera mapping is available</span></li>
+        <li><strong>Name mapping</strong><span>Normalizes the chosen name for display</span></li>
+      </ol>
       <div class="mapping-heading">
-        <div><h3>Camera-to-lens mappings</h3><p>Useful for fixed-lens cameras when embedded EXIF has no lens.</p></div>
+        <div><h3>Camera-to-lens mappings</h3><p>Infer a lens from the camera when no higher-priority source provides one.</p></div>
         <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
       </div>
       <div class="mapping-list" id="mapping-list">
@@ -32,8 +37,12 @@
         </div>
         {{end}}
       </div>
+      <div class="mapping-heading resolution-control-heading">
+        <div><h3>XMP fallback</h3><p>Use XMP lens metadata only as the last source of a lens name.</p></div>
+      </div>
+      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Accept a direct XMP lens name or Adobe lens profile name when the earlier sources are empty.</small></span></label>
       <div class="mapping-heading">
-        <div><h3>Lens-name mappings</h3><p>Normalize equivalent lens names after Curator resolves metadata from any source.</p></div>
+        <div><h3>Lens-name mappings</h3><p>Rename the final lens value regardless of which source supplied it.</p></div>
         <button class="secondary-button" type="button" id="add-lens-name-mapping">Add lens-name mapping</button>
       </div>
       <div class="mapping-list" id="lens-name-mapping-list">
@@ -46,7 +55,7 @@
         {{end}}
       </div>
       <datalist id="lens-name-suggestions">{{range .LensSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}</datalist>
-      <p class="field-help">These choices affect the next build; source metadata does not need to be refreshed.</p>
+      <p class="field-help">Save these settings and publish again to update the site. A metadata refresh is not needed.</p>
     </section>
 
     <section class="settings-panel" id="public-browse-pages">
