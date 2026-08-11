@@ -44,7 +44,7 @@ func newTestServer(t *testing.T) (*Server, chan struct{}) {
 	}
 
 	built := make(chan struct{}, 1)
-	srv, err := New(st, cfg, Options{Build: func(context.Context, func(build.Progress)) (build.Report, error) {
+	srv, err := New(st, cfg, Options{Version: "abcdef123456", Build: func(context.Context, func(build.Progress)) (build.Report, error) {
 		select {
 		case built <- struct{}{}:
 		default:
@@ -67,6 +67,9 @@ func TestDashboardRenders(t *testing.T) {
 	}
 	if !strings.Contains(rec.Body.String(), "Galleries") {
 		t.Error("dashboard missing expected content")
+	}
+	if !strings.Contains(rec.Body.String(), "Curator abcdef123456") {
+		t.Error("dashboard missing Curator version")
 	}
 }
 

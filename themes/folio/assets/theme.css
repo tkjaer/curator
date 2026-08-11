@@ -194,6 +194,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 
 .site-footer { display: flex; width: min(100%, var(--maxw)); margin: 0 auto; padding: 1.5rem 1.25rem 2.5rem; justify-content: space-between; color: var(--muted); border-top: 1px solid var(--line); font-size: var(--text-small); }
 .site-footer a { color: var(--ink); font-weight: 700; text-decoration: none; }
+.footer-meta { display: flex; flex-direction: column; gap: .25rem; }
 
 .lightbox { overflow: auto; width: 100vw; max-width: none; height: 100vh; max-height: none; margin: 0; padding: 2.5rem; background: #080808; border: 0; color: #fff; }
 .lightbox:focus { outline: none; }

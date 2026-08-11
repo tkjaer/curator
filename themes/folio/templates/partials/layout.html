@@ -22,7 +22,7 @@
 {{end}}
 
 {{define "site-foot"}}</main>
-<footer class="site-footer"><span>{{if .Site.Copyright}}{{.Site.Copyright}}{{else}}{{.Site.Title}}{{end}}</span><a href="#top">Back to top</a></footer>
+<footer class="site-footer"><div class="footer-meta"><span>{{if .Site.Copyright}}{{.Site.Copyright}}{{else}}{{.Site.Title}}{{end}}</span><span>Powered by <a href="https://github.com/tkjaer/curator">Curator</a></span></div><a href="#top">Back to top</a></footer>
 {{template "lightbox" .}}
 <script src="{{.Site.BaseURL}}/_curator/assets/theme.js{{with .Site.AssetVersion}}?v={{.}}{{end}}" defer></script>
 </body>

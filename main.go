@@ -10,6 +10,7 @@ import (
 	iofs "io/fs"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -26,7 +27,60 @@ import (
 	"golang.org/x/term"
 )
 
-const version = "0.1.0-dev"
+var version string
+
+func buildVersion() string {
+	if version != "" {
+		return version
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return formatVersion("", false)
+	}
+	var revision string
+	modified := false
+	for _, setting := range info.Settings {
+		switch setting.Key {
+		case "vcs.revision":
+			revision = setting.Value
+		case "vcs.modified":
+			modified = setting.Value == "true"
+		}
+	}
+	if revision == "" {
+		return moduleBuildVersion(info.Main.Version)
+	}
+	return formatVersion(revision, modified)
+}
+
+func moduleBuildVersion(moduleVersion string) string {
+	if moduleVersion == "" || moduleVersion == "(devel)" {
+		return "development"
+	}
+	base, metadata, _ := strings.Cut(moduleVersion, "+")
+	if dash := strings.LastIndexByte(base, '-'); dash >= 0 {
+		candidate := base[dash+1:]
+		if len(candidate) >= 12 && strings.IndexFunc(candidate, func(char rune) bool {
+			return !strings.ContainsRune("0123456789abcdef", char)
+		}) == -1 {
+			return formatVersion(candidate, metadata == "dirty")
+		}
+	}
+	return moduleVersion
+}
+
+func formatVersion(revision string, modified bool) string {
+	if revision == "" {
+		return "development"
+	}
+	if len(revision) > 12 {
+		revision = revision[:12]
+	}
+	if modified {
+		revision += "+modified"
+	}
+	return revision
+}
 
 func main() {
 	if err := run(os.Args[1:]); err != nil {
@@ -60,7 +114,7 @@ func run(args []string) error {
 	case "create-publish-token":
 		return cmdCreatePublishToken(rest)
 	case "version", "-version", "--version":
-		fmt.Println("curator", version)
+		fmt.Println("curator", buildVersion())
 		return nil
 	case "help", "-h", "--help":
 		usage()
@@ -378,6 +432,7 @@ func cmdServe(args []string) error {
 	srv, err := admin.New(st, cfg, admin.Options{
 		BasePath:      *basePath,
 		TrustProxy:    *trustProxy,
+		Version:       buildVersion(),
 		Build:         runBuild,
 		StoryPreview:  renderStoryPreview,
 		PreviewAssets: previewAssets,

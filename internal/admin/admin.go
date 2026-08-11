@@ -47,6 +47,7 @@ type StoryPreviewAssetsFunc func(ctx context.Context) (fs.FS, error)
 type Options struct {
 	BasePath      string
 	TrustProxy    bool
+	Version       string
 	Build         BuildFunc
 	Deploy        DeployFunc
 	PreviewDeploy PreviewDeployFunc
@@ -67,6 +68,7 @@ type Server struct {
 	previewAssets StoryPreviewAssetsFunc
 	tmpl          *template.Template
 	themes        []string
+	version       string
 	publishAPI    *publishapi.API
 
 	trustProxy       bool
@@ -113,6 +115,7 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		previewAssets: opts.PreviewAssets,
 		tmpl:          tmpl,
 		themes:        opts.Themes,
+		version:       opts.Version,
 		trustProxy:    opts.TrustProxy,
 		throttle:      newThrottle(),
 		loginSem:      make(chan struct{}, throttleMaxConcurrent),
@@ -203,6 +206,7 @@ type page struct {
 	BasePath    string
 	Title       string
 	Flash       string
+	Version     string
 	CSRF        string
 	Authed      bool
 	AuthEnabled bool
@@ -216,6 +220,7 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, name, title, fla
 		BasePath:    s.basePath,
 		Title:       title,
 		Flash:       flash,
+		Version:     s.version,
 		CSRF:        sess.CSRF,
 		Authed:      sess.Auth,
 		AuthEnabled: s.authEnabled,
