@@ -1103,7 +1103,8 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		metadataFacets = append(metadataFacets, facet)
 	}
 
-	suggestions := cameraLensSuggestions(clues)
+	useLightroomProfile := settings["metadata.use_lightroom_lens_profile"] == "true"
+	suggestions := cameraLensSuggestions(clues, useLightroomProfile)
 	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
 	for camera, lens := range mappings {
 		rows = append(rows, lensMappingRow{Camera: camera, Lens: lens, Evidence: suggestions[camera].Evidence})
@@ -1123,7 +1124,6 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		rows = append(rows, lensMappingRow{})
 	}
 
-	useLightroomProfile := settings["metadata.use_lightroom_lens_profile"] == "true"
 	pageSize, err := strconv.Atoi(settings["metadata.facet_page_size"])
 	if err != nil || pageSize < 1 {
 		pageSize = 100
@@ -1147,7 +1147,7 @@ type cameraLensSuggestion struct {
 	Evidence string
 }
 
-func cameraLensSuggestions(clues []store.CameraLensClue) map[string]cameraLensSuggestion {
+func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile bool) map[string]cameraLensSuggestion {
 	type evidence struct {
 		count     int
 		focals    map[string]bool
@@ -1183,7 +1183,11 @@ func cameraLensSuggestions(clues []store.CameraLensClue) map[string]cameraLensSu
 			parts = append(parts, "max "+firstKey(e.apertures))
 		}
 		if len(e.profiles) == 1 {
-			parts = append(parts, "XMP profile available; mapping unnecessary")
+			if useLightroomProfile {
+				parts = append(parts, "XMP profile fallback enabled; mapping optional and takes precedence")
+			} else {
+				parts = append(parts, "XMP profile available but fallback disabled; enable fallback or add a mapping")
+			}
 		} else if len(e.profiles) > 1 {
 			parts = append(parts, pluralize(len(e.profiles), "XMP profile")+"; one mapping would affect all photos")
 		}

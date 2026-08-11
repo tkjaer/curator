@@ -44,7 +44,15 @@ Curator uses the first non-empty value in this order:
 
 Camera mappings and the Lightroom fallback are configured under
 **Settings → Metadata**. Policy changes take effect on the next build and do not
-require source metadata to be refreshed.
+require source metadata to be refreshed. A mapping applies to every stored photo
+whose effective camera name matches it; Curator does not need to reopen those
+image files.
+
+An available XMP profile means Curator detected a Lightroom lens-profile name
+in embedded or sidecar XMP. Detection alone does not make that name active: the
+fallback setting must be enabled, and any value earlier in the resolution order
+still wins. A camera-to-lens mapping is therefore optional when the fallback is
+enabled, but adding one overrides the XMP profile.
 
 ## Lightroom keywords
 
@@ -60,3 +68,5 @@ keyword hierarchy and publishing behavior.
 
 Use **Refresh metadata** after embedded EXIF or adjacent XMP files change. A
 refresh rereads source facts but does not replace Curator's manual override.
+Adding a mapping or enabling the Lightroom profile fallback does not require a
+refresh; publish again to apply the new resolution policy.
