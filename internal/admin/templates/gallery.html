@@ -364,7 +364,7 @@
     <select name="type" id="add-block-type">{{range .BlockTypes}}<option value="{{.}}">{{if eq . "heading"}}Heading - section title{{else if eq . "text"}}Text - Markdown prose{{else if eq . "quote"}}Quote - highlighted passage{{else if eq . "image"}}Image - one photo{{else if eq . "grid"}}Grid - group of photos{{else}}{{.}}{{end}}</option>{{end}}</select>
   </label>
   <label class="add-block-content"><span>Heading (optional)</span><textarea name="content" rows="2"></textarea></label>
-  <button>Add to story</button>
+  <div class="add-block-actions"><button>Add to story</button></div>
 </form>
 </div>
 </section>
