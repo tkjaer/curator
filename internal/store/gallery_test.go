@@ -146,6 +146,93 @@ func TestMoveGalleryOrderOnlyReordersSiblings(t *testing.T) {
 	}
 }
 
+func TestCreateGalleryAppendsAfterCustomSiblingOrder(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	var ids []int64
+	for _, gallerySlug := range []string{"first", "second", "third"} {
+		id, err := st.CreateGallery(ctx, model.Gallery{Slug: gallerySlug, Title: gallerySlug})
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, id)
+	}
+	if err := st.MoveGalleryOrder(ctx, ids[2], true); err != nil {
+		t.Fatal(err)
+	}
+	lastID, err := st.CreateGallery(ctx, model.Gallery{Slug: "last", Title: "last"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	galleries, err := st.Galleries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []int64
+	for _, gallery := range galleries {
+		if gallery.ParentID == nil {
+			got = append(got, gallery.ID)
+		}
+	}
+	want := []int64{ids[0], ids[2], ids[1], lastID}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("root order after insert = %v, want %v", got, want)
+	}
+}
+
+func TestGalleryOrderMigrationAppendsMisplacedGalleries(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	var rootIDs []int64
+	for _, gallerySlug := range []string{"first", "second", "third", "last"} {
+		id, err := st.CreateGallery(ctx, model.Gallery{Slug: gallerySlug, Title: gallerySlug})
+		if err != nil {
+			t.Fatal(err)
+		}
+		rootIDs = append(rootIDs, id)
+	}
+	if err := st.MoveGalleryOrder(ctx, rootIDs[2], true); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.DB.ExecContext(ctx, `UPDATE galleries SET sort_order = 0 WHERE id = ?`, rootIDs[3]); err != nil {
+		t.Fatal(err)
+	}
+	parentID, err := st.CreateGallery(ctx, model.Gallery{Slug: "parent", Title: "parent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gallerySlug := range []string{"automatic-b", "automatic-a"} {
+		if _, err := st.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: gallerySlug, Title: gallerySlug}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := st.DB.ExecContext(ctx, `DELETE FROM schema_migrations WHERE version = 26`); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	galleries, err := st.Galleries(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var roots []int64
+	for _, gallery := range galleries {
+		if gallery.ParentID == nil && gallery.ID != parentID {
+			roots = append(roots, gallery.ID)
+		}
+		if gallery.ParentID != nil && *gallery.ParentID == parentID && gallery.SortOrder != 0 {
+			t.Errorf("automatic child %q sort order = %d, want 0", gallery.Slug, gallery.SortOrder)
+		}
+	}
+	want := []int64{rootIDs[0], rootIDs[2], rootIDs[1], rootIDs[3]}
+	if !reflect.DeepEqual(roots, want) {
+		t.Errorf("migrated root order = %v, want %v", roots, want)
+	}
+}
+
 func TestPublishStampsPublishedAt(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

@@ -36,9 +36,15 @@ func (s *Store) UpsertExternalGallery(ctx context.Context, source, externalID st
 			INSERT INTO galleries
 				(parent_id, slug, title, description, type, status, sort_mode, sort_direction, sort_order,
 				 show_exif, show_title, show_description, published_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?,
+				CASE WHEN ? <> 0 THEN ?
+				     WHEN EXISTS (SELECT 1 FROM galleries WHERE parent_id IS ? AND sort_order <> 0)
+				     THEN (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM galleries WHERE parent_id IS ?)
+				     ELSE 0 END,
+				?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
 			gallery.ParentID, gallery.Slug, gallery.Title, gallery.Description, gallery.Type,
-			gallery.Status, gallery.SortMode, gallery.SortDirection, gallery.SortOrder,
+			gallery.Status, gallery.SortMode, gallery.SortDirection,
+			gallery.SortOrder, gallery.SortOrder, gallery.ParentID, gallery.ParentID,
 			gallery.ShowEXIF, gallery.ShowTitle, gallery.ShowDescription, gallery.Status)
 		if err != nil {
 			return 0, false, err
