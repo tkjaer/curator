@@ -1520,6 +1520,8 @@ func TestLensMetadataSettings(t *testing.T) {
 		"use_lightroom_lens_profile": {"on"},
 		"mapping_camera":             {"FUJIFILM XF10"},
 		"mapping_lens":               {"FUJINON 18.5mm F2.8"},
+		"lens_name_existing":         {"45.0 mm f/2.8", "Nikkor 28mm f/3.5 AI-s"},
+		"lens_name_canonical":        {"Nikkor 45mm f/2.8P AI-s", "Nikkor 28mm f/3.5 AI"},
 		"facet_camera":               {"on"},
 		"tag_visibility":             {"hide_selected"},
 		"selected_tag":               {"Private", "private", "Public"},
@@ -1540,10 +1542,13 @@ func TestLensMetadataSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	if settings["metadata.use_lightroom_lens_profile"] != "true" {
-		t.Error("Lightroom profile fallback was not enabled")
+		t.Error("XMP lens fallback was not enabled")
 	}
 	if settings["metadata.lens_mappings"] != "FUJIFILM XF10 = FUJINON 18.5mm F2.8" {
 		t.Errorf("lens mappings = %q", settings["metadata.lens_mappings"])
+	}
+	if settings["metadata.lens_name_mappings"] != "45.0 mm f/2.8 = Nikkor 45mm f/2.8P AI-s\nNikkor 28mm f/3.5 AI-s = Nikkor 28mm f/3.5 AI" {
+		t.Errorf("lens-name mappings = %q", settings["metadata.lens_name_mappings"])
 	}
 	if settings["metadata.facet_pagination_enabled"] != "true" || settings["metadata.facet_page_size"] != "60" {
 		t.Fatalf("pagination settings = %q, %q", settings["metadata.facet_pagination_enabled"], settings["metadata.facet_page_size"])
@@ -1564,6 +1569,8 @@ func TestLensMetadataSettings(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `name="use_lightroom_lens_profile" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_camera" value="FUJIFILM XF10"`) ||
 		!strings.Contains(rec.Body.String(), `name="mapping_lens" value="FUJINON 18.5mm F2.8"`) ||
+		!strings.Contains(rec.Body.String(), `name="lens_name_existing" value="45.0 mm f/2.8"`) ||
+		!strings.Contains(rec.Body.String(), `name="lens_name_canonical" value="Nikkor 45mm f/2.8P AI-s"`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_camera" checked`) ||
 		!strings.Contains(rec.Body.String(), `<option value="hide_selected" selected>Show all except selected</option>`) ||
 		!strings.Contains(rec.Body.String(), `name="tag_browse_enabled" checked`) ||

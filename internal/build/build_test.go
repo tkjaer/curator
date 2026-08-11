@@ -213,6 +213,7 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	xmpPage := filepath.Join(cfg.OutputDir, "browse", "lens", "voigtlander-15mm", "index.html")
 	mappedPage := filepath.Join(cfg.OutputDir, "browse", "lens", "mapped-15mm", "index.html")
 	manualPage := filepath.Join(cfg.OutputDir, "browse", "lens", "manual-prime", "index.html")
+	canonicalPage := filepath.Join(cfg.OutputDir, "browse", "lens", "nikkor-45mm-f-2-8p-ai-s", "index.html")
 	importedCameraPage := filepath.Join(cfg.OutputDir, "browse", "camera", "fujifilm-gfx-50r", "index.html")
 	manualCameraPage := filepath.Join(cfg.OutputDir, "browse", "camera", "leica-m6", "index.html")
 
@@ -242,6 +243,13 @@ func TestBuildAppliesLensPolicyWithoutRescan(t *testing.T) {
 	build()
 	mustNotExist(t, mappedPage)
 	mustExist(t, manualPage)
+
+	if err := st.SetSetting(ctx, "metadata.lens_name_mappings", "Manual Prime = Nikkor 45mm f/2.8P AI-s"); err != nil {
+		t.Fatal(err)
+	}
+	build()
+	mustNotExist(t, manualPage)
+	mustExist(t, canonicalPage)
 
 	if err := st.UpdateItemPresentation(ctx, itemID, "", "", "", model.ItemPublished, false, "", "stale cached camera", "", "stale cached value"); err != nil {
 		t.Fatal(err)

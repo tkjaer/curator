@@ -285,6 +285,11 @@ durable source facts retained across metadata refreshes and media replacement;
 clearing one restores automatic resolution. Changing this policy requires only
 another build, not a reread of the original files.
 
+An optional exact lens-name mapping canonicalizes the resolved value after this
+source precedence has run. Because this operates on the final value, it applies
+uniformly to every source without rewriting imported metadata or manual
+overrides.
+
 Facets are opt-in and configured in the admin. When enabled, Curator groups
 published, non-protected items by facet value and emits browseable pages, e.g.
 `/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in

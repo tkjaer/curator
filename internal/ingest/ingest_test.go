@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/tkjaer/curator/internal/config"
@@ -20,6 +21,7 @@ func TestLensPolicy(t *testing.T) {
 	policy, err := LensPolicyFromSettings(map[string]string{
 		"metadata.use_lightroom_lens_profile": "true",
 		"metadata.lens_mappings":              "FUJIFILM XF10 = FUJINON 18.5mm F2.8\n",
+		"metadata.lens_name_mappings":         "Embedded = Canonical embedded\nTagged lens = Canonical tag\nSidecar lens = Canonical sidecar\nFUJINON 18.5mm F2.8 = Canonical fixed lens\nVoigtlander 15mm = Canonical XMP\nCurator override = Canonical manual\nCanonical manual = Must not chain\n",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -32,18 +34,32 @@ func TestLensPolicy(t *testing.T) {
 		manualLens    string
 		want          string
 	}{
-		{"Manual override wins", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "Curator override", "Curator override"},
-		{"Lightroom tag overrides EXIF", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Tagged lens", "", "Tagged lens"},
-		{"EXIF before sidecar", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens"}, "", "", "Embedded"},
-		{"Lightroom tag before sidecar", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "", "Tagged lens"},
-		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Manual 18mm", XMPLens: "Profile"}, "", "", "Manual 18mm"},
-		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "", "", "FUJINON 18.5mm F2.8"},
-		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "", "", "Voigtlander 15mm"},
+		{"Manual override wins", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "Curator override", "Canonical manual"},
+		{"Lightroom tag overrides EXIF", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", XMPLens: "Profile"}, "Tagged lens", "", "Canonical tag"},
+		{"EXIF before sidecar", exif.Data{Camera: "FUJIFILM XF10", Lens: "Embedded", SidecarLens: "Sidecar lens"}, "", "", "Canonical embedded"},
+		{"Lightroom tag before sidecar", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "Tagged lens", "", "Canonical tag"},
+		{"sidecar before mapping", exif.Data{Camera: "FUJIFILM XF10", SidecarLens: "Sidecar lens", XMPLens: "Profile"}, "", "", "Canonical sidecar"},
+		{"mapping before profile", exif.Data{Camera: "FUJIFILM XF10", XMPLens: "Profile"}, "", "", "Canonical fixed lens"},
+		{"profile fallback", exif.Data{Camera: "FUJIFILM GFX 50R", XMPLens: "Voigtlander 15mm"}, "", "", "Canonical XMP"},
+		{"unmatched value", exif.Data{Camera: "Leica M10", Lens: "Summicron 35mm"}, "", "", "Summicron 35mm"},
 	}
 	for _, test := range tests {
 		if got := policy.Resolve(test.meta.Camera, test.meta.Lens, test.lightroomLens, test.meta.SidecarLens, test.meta.XMPLens, test.manualLens); got != test.want {
 			t.Errorf("%s: lens = %q, want %q", test.name, got, test.want)
 		}
+	}
+}
+
+func TestParseLensNameMappingsRejectsIncompleteMapping(t *testing.T) {
+	if _, err := ParseLensNameMappings("45.0 mm f/2.8 ="); err == nil || !strings.Contains(err.Error(), "Existing lens = Canonical lens") {
+		t.Fatalf("error = %v, want lens-name mapping format", err)
+	}
+}
+
+func TestParseLensNameMappingsRejectsDuplicateExistingName(t *testing.T) {
+	value := "45.0 mm f/2.8 = Nikkor 45mm f/2.8P AI-s\n45.0 mm f/2.8 = Another lens"
+	if _, err := ParseLensNameMappings(value); err == nil || !strings.Contains(err.Error(), `duplicate lens mapping for "45.0 mm f/2.8"`) {
+		t.Fatalf("error = %v, want duplicate existing-name error", err)
 	}
 }
 

@@ -17,7 +17,7 @@
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
       <div class="settings-card-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
-      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Uses a direct XMP lens name or Adobe lens profile name. Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
+      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Uses a direct XMP lens name or Adobe lens profile name. Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
       <div class="mapping-heading">
         <div><h3>Camera-to-lens mappings</h3><p>Useful for fixed-lens cameras when embedded EXIF has no lens.</p></div>
         <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
@@ -32,6 +32,20 @@
         </div>
         {{end}}
       </div>
+      <div class="mapping-heading">
+        <div><h3>Lens-name mappings</h3><p>Normalize equivalent lens names after Curator resolves metadata from any source.</p></div>
+        <button class="secondary-button" type="button" id="add-lens-name-mapping">Add lens-name mapping</button>
+      </div>
+      <div class="mapping-list" id="lens-name-mapping-list">
+        {{range .LensNameMappings}}
+        <div class="mapping-row">
+          <label><span>Existing name</span><input name="lens_name_existing" value="{{.Existing}}" list="lens-name-suggestions" placeholder="Name currently shown"></label>
+          <label><span>Canonical name</span><input name="lens_name_canonical" value="{{.Canonical}}" list="lens-name-suggestions" placeholder="Name to show instead"></label>
+          <button class="mapping-remove" type="button" aria-label="Remove lens-name mapping" title="Remove mapping">&times;</button>
+        </div>
+        {{end}}
+      </div>
+      <datalist id="lens-name-suggestions">{{range .LensSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}</datalist>
       <p class="field-help">These choices affect the next build; source metadata does not need to be refreshed.</p>
     </section>
 
@@ -97,6 +111,13 @@
     <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
   </div>
 </template>
+<template id="lens-name-mapping-row-template">
+  <div class="mapping-row">
+    <label><span>Existing name</span><input name="lens_name_existing" list="lens-name-suggestions" placeholder="Name currently shown"></label>
+    <label><span>Canonical name</span><input name="lens_name_canonical" list="lens-name-suggestions" placeholder="Name to show instead"></label>
+    <button class="mapping-remove" type="button" aria-label="Remove lens-name mapping" title="Remove mapping">&times;</button>
+  </div>
+</template>
 <script>
 (function () {
   var pagination = document.getElementById("facet-pagination-enabled");
@@ -152,6 +173,18 @@
     if (!button) return;
     button.closest(".mapping-row").remove();
     if (!list.children.length) add.click();
+  });
+
+  var nameList = document.getElementById("lens-name-mapping-list");
+  var addName = document.getElementById("add-lens-name-mapping");
+  var nameTemplate = document.getElementById("lens-name-mapping-row-template");
+  addName.addEventListener("click", function () {
+    nameList.appendChild(nameTemplate.content.cloneNode(true));
+    nameList.lastElementChild.querySelector("input").focus();
+  });
+  nameList.addEventListener("click", function (event) {
+    var button = event.target.closest(".mapping-remove");
+    if (button) button.closest(".mapping-row").remove();
   });
 })();
 </script>
