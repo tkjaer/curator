@@ -327,6 +327,7 @@ func TestGalleryRendersStoryGuidance(t *testing.T) {
 		`<span>Heading (optional)</span>`,
 		`<button>Add to story</button>`,
 		`>Preview story &nearr;</a>`,
+		`if (!form || event.defaultPrevented) return;`,
 	} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("populated story gallery missing %q", want)

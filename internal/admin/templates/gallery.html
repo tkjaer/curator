@@ -605,7 +605,7 @@
 
   document.addEventListener("submit", function (event) {
     var form = event.target.closest("form[data-async]");
-    if (!form) return;
+    if (!form || event.defaultPrevented) return;
     event.preventDefault();
     if (form.classList.contains("url-name-form")) {
       var input = form.elements.slug;
