@@ -1607,7 +1607,7 @@ func TestCameraLensSuggestions(t *testing.T) {
 		t.Fatalf("XF10 suggestion = %+v", got)
 	}
 	if got := suggestions["FUJIFILM GFX 50R"]; got.Lens != "" ||
-		!strings.Contains(got.Evidence, "2 XMP profiles") {
+		!strings.Contains(got.Evidence, "2 XMP lens names") {
 		t.Fatalf("ambiguous GFX suggestion = %+v", got)
 	}
 }
@@ -1618,12 +1618,15 @@ func TestCameraLensSuggestionExplainsXMPFallbackState(t *testing.T) {
 	}}
 
 	enabled := cameraLensSuggestions(clues, true)["FUJIFILM X100S"].Evidence
-	if !strings.Contains(enabled, "fallback enabled; mapping optional and takes precedence") {
+	if !strings.Contains(enabled, "XMP lens fallback enabled; mapping optional and takes precedence") {
 		t.Errorf("enabled evidence = %q", enabled)
 	}
 	disabled := cameraLensSuggestions(clues, false)["FUJIFILM X100S"].Evidence
-	if !strings.Contains(disabled, "fallback disabled; enable fallback or add a mapping") {
+	if !strings.Contains(disabled, "XMP lens name available but fallback disabled") {
 		t.Errorf("disabled evidence = %q", disabled)
+	}
+	if !cameraLensSuggestions(clues, false)["FUJIFILM X100S"].CanEnableFallback {
+		t.Error("disabled XMP fallback should offer an enable action")
 	}
 }
 
@@ -1679,6 +1682,43 @@ func TestMetadataSettingsSuggestCamerasWithoutLens(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, req)
 	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "Metadata+settings+saved") {
 		t.Fatalf("blank suggestion response = %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+}
+
+func TestMetadataSettingsLinkDisabledXMPFallbackToControl(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	galleryID, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "xmp-lens", Title: "XMP lens"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.store.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: "xmp-lens/photo.jpg", Filename: "photo.jpg",
+		Camera: "FUJIFILM X100S", XMPLens: "Fujifilm X100S", Status: model.ItemPublished,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	render := func() string {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings/metadata", nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		return rec.Body.String()
+	}
+	body := render()
+	if !strings.Contains(body, `id="xmp-lens-fallback"`) ||
+		!strings.Contains(body, `<a href="#xmp-lens-fallback">Enable XMP lens fallback</a>`) {
+		t.Fatal("disabled XMP evidence did not link to fallback control")
+	}
+
+	if err := srv.store.SetSetting(ctx, "metadata.lens_mappings", "FUJIFILM X100S = FUJINON 23mm F2"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(render(), `>Enable XMP lens fallback</a>`) {
+		t.Fatal("mapped camera should not offer to enable XMP fallback")
 	}
 }
 

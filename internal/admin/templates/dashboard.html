@@ -63,7 +63,7 @@
     <h2>Maintenance</h2>
     <form class="card" method="post" action="{{$.BasePath}}/rescan" onsubmit="return confirm('Re-read source metadata from every photo?')">
       <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-      <p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p>
+      <p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and XMP lens metadata after source metadata changes.</p>
       <button>Refresh metadata</button>
     </form>
   </section>

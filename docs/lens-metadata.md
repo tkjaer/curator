@@ -40,19 +40,22 @@ Curator uses the first non-empty value in this order:
 3. Embedded EXIF lens name
 4. Adjacent XMP sidecar lens name
 5. Configured camera-to-lens mapping
-6. Lightroom XMP lens profile, when enabled as a fallback
+6. XMP lens metadata, when enabled as a fallback
 
-Camera mappings and the Lightroom fallback are configured under
-**Settings → Metadata**. Policy changes take effect on the next build and do not
-require source metadata to be refreshed. A mapping applies to every stored photo
-whose effective camera name matches it; Curator does not need to reopen those
-image files.
+Camera mappings and the XMP fallback are configured under
+**Settings → Metadata**. To enable the fallback, select **Use XMP lens metadata
+as a fallback**, save the metadata settings, and publish again. Policy
+changes take effect on the next build and do not require source metadata to be
+refreshed. A mapping applies to every stored photo whose effective camera name
+matches it; Curator does not need to reopen those image files.
 
-An available XMP profile means Curator detected a Lightroom lens-profile name
-in embedded or sidecar XMP. Detection alone does not make that name active: the
-fallback setting must be enabled, and any value earlier in the resolution order
-still wins. A camera-to-lens mapping is therefore optional when the fallback is
-enabled, but adding one overrides the XMP profile.
+Available XMP lens metadata means Curator detected either a direct lens name
+(`aux:Lens` or `exifEX:LensModel`) or an Adobe Camera Raw lens profile name
+(`crs:LensProfileName`) in embedded or sidecar XMP. Detection alone does not
+make that name active: the fallback setting must be enabled, and any value
+earlier in the resolution order still wins. A camera-to-lens mapping is
+therefore optional when the fallback is enabled, but adding one overrides the
+XMP value.
 
 ## Lightroom keywords
 
@@ -68,5 +71,5 @@ keyword hierarchy and publishing behavior.
 
 Use **Refresh metadata** after embedded EXIF or adjacent XMP files change. A
 refresh rereads source facts but does not replace Curator's manual override.
-Adding a mapping or enabling the Lightroom profile fallback does not require a
+Adding a mapping or enabling the XMP lens fallback does not require a
 refresh; publish again to apply the new resolution policy.

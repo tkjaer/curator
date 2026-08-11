@@ -831,10 +831,11 @@ type settingsData struct {
 }
 
 type lensMappingRow struct {
-	Camera     string
-	Lens       string
-	Suggestion string
-	Evidence   string
+	Camera            string
+	Lens              string
+	Suggestion        string
+	Evidence          string
+	CanEnableFallback bool
 }
 
 type metadataSettingsData struct {
@@ -1117,6 +1118,7 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 			suggestion := suggestions[camera]
 			rows = append(rows, lensMappingRow{
 				Camera: camera, Suggestion: suggestion.Lens, Evidence: suggestion.Evidence,
+				CanEnableFallback: suggestion.CanEnableFallback,
 			})
 		}
 	}
@@ -1143,8 +1145,9 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 }
 
 type cameraLensSuggestion struct {
-	Lens     string
-	Evidence string
+	Lens              string
+	Evidence          string
+	CanEnableFallback bool
 }
 
 func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile bool) map[string]cameraLensSuggestion {
@@ -1184,12 +1187,12 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 		}
 		if len(e.profiles) == 1 {
 			if useLightroomProfile {
-				parts = append(parts, "XMP profile fallback enabled; mapping optional and takes precedence")
+				parts = append(parts, "XMP lens fallback enabled; mapping optional and takes precedence")
 			} else {
-				parts = append(parts, "XMP profile available but fallback disabled; enable fallback or add a mapping")
+				parts = append(parts, "XMP lens name available but fallback disabled")
 			}
 		} else if len(e.profiles) > 1 {
-			parts = append(parts, pluralize(len(e.profiles), "XMP profile")+"; one mapping would affect all photos")
+			parts = append(parts, pluralize(len(e.profiles), "XMP lens name")+"; one mapping would affect all photos")
 		}
 
 		var lens string
@@ -1197,7 +1200,10 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useLightroomProfile boo
 			lens = camera + " " + strings.ReplaceAll(firstKey(e.focals), " ", "") + " " + firstKey(e.apertures)
 			parts = append(parts, "one mapping affects every photo from this camera")
 		}
-		out[camera] = cameraLensSuggestion{Lens: lens, Evidence: strings.Join(parts, " · ")}
+		out[camera] = cameraLensSuggestion{
+			Lens: lens, Evidence: strings.Join(parts, " · "),
+			CanEnableFallback: len(e.profiles) == 1 && !useLightroomProfile,
+		}
 	}
 	return out
 }

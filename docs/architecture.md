@@ -226,7 +226,7 @@ original bytes, preset name, and an internal processing version, so:
 
 ## EXIF and facet browsing
 
-EXIF and Lightroom XMP are extracted when an image is ingested or source
+EXIF and XMP metadata are extracted when an image is ingested or source
 metadata is explicitly refreshed. Curator stores the raw EXIF JSON and keeps
 embedded and XMP lens values as separate source facts.
 
@@ -280,7 +280,7 @@ Each build resolves the effective lens from the current metadata policy: the
 per-photo Curator manual override first, then a direct child of Lightroom's
 `Curator Lens` keyword, embedded EXIF, a standard adjacent XMP sidecar
 (`aux:Lens` or `exifEX:LensModel`), a configured fixed-camera mapping, and
-finally Lightroom XMP when that fallback is enabled. Manual overrides are
+finally XMP lens metadata when that fallback is enabled. Manual overrides are
 durable source facts retained across metadata refreshes and media replacement;
 clearing one restores automatic resolution. Changing this policy requires only
 another build, not a reread of the original files.
