@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	iofs "io/fs"
 	"net/http"
 	"os"
 	"strings"
@@ -359,12 +360,28 @@ func cmdServe(args []string) error {
 		b.OnProgress = onProgress
 		return b.BuildReport(ctx)
 	}
+	renderStoryPreview := func(ctx context.Context, galleryID int64, baseURL string, w io.Writer) error {
+		th, err := loadSiteTheme(ctx, st)
+		if err != nil {
+			return err
+		}
+		return build.New(st, th, cfg).RenderStoryPreview(ctx, galleryID, baseURL, w)
+	}
+	previewAssets := func(ctx context.Context) (iofs.FS, error) {
+		th, err := loadSiteTheme(ctx, st)
+		if err != nil {
+			return nil, err
+		}
+		return th.Assets()
+	}
 
 	srv, err := admin.New(st, cfg, admin.Options{
-		BasePath:   *basePath,
-		TrustProxy: *trustProxy,
-		Build:      runBuild,
-		Themes:     availableThemes(),
+		BasePath:      *basePath,
+		TrustProxy:    *trustProxy,
+		Build:         runBuild,
+		StoryPreview:  renderStoryPreview,
+		PreviewAssets: previewAssets,
+		Themes:        availableThemes(),
 	})
 	if err != nil {
 		return err

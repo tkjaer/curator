@@ -102,6 +102,67 @@ func (b *Builder) Build(ctx context.Context) error {
 	return err
 }
 
+// RenderStoryPreview renders the current story through the active theme without
+// changing gallery visibility or writing a public gallery page.
+func (b *Builder) RenderStoryPreview(ctx context.Context, galleryID int64, baseURL string, w io.Writer) error {
+	g, err := b.Store.Gallery(ctx, galleryID)
+	if err != nil {
+		return err
+	}
+	if g.Type != model.GalleryStory {
+		return fmt.Errorf("gallery %q is not a story", g.Slug)
+	}
+	settings, err := b.Store.Settings(ctx)
+	if err != nil {
+		return err
+	}
+	b.lensPolicy, err = ingest.LensPolicyFromSettings(settings)
+	if err != nil {
+		return err
+	}
+	presets, err := b.Store.Presets(ctx)
+	if err != nil {
+		return err
+	}
+	galleries, err := b.Store.Galleries(ctx)
+	if err != nil {
+		return err
+	}
+	b.settings = settings
+	b.options = b.Theme.Manifest.Defaults()
+	b.byID = make(map[int64]model.Gallery, len(galleries))
+	for _, gallery := range galleries {
+		b.byID[gallery.ID] = gallery
+	}
+	b.kept = map[string]bool{}
+	assetVersion, err := b.Theme.AssetVersion()
+	if err != nil {
+		return err
+	}
+	b.site = render.SiteView{
+		Title:        settings["site.title"],
+		BaseURL:      strings.TrimRight(baseURL, "/"),
+		AssetVersion: assetVersion,
+		Copyright:    copyrightLine(settings, time.Now().Year()),
+	}
+	_, byItem, err := b.galleryPhotos(ctx, g, presets)
+	if err != nil {
+		return err
+	}
+	blocks, err := b.Store.BlocksByGallery(ctx, galleryID)
+	if err != nil {
+		return err
+	}
+	blockViews, err := b.buildBlocks(ctx, blocks, byItem)
+	if err != nil {
+		return err
+	}
+	return b.Theme.Render(w, "gallery-story", render.GalleryView{
+		Title: g.Title, Slug: g.Slug, Type: string(g.Type), Blocks: blockViews,
+		Options: b.options, Site: b.site,
+	})
+}
+
 // BuildReport updates the static site when its inputs changed and returns a
 // summary report.
 func (b *Builder) BuildReport(ctx context.Context) (Report, error) {

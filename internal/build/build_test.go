@@ -36,6 +36,46 @@ func TestCardCoverUsesResponsiveSource(t *testing.T) {
 	}
 }
 
+func TestRenderStoryPreviewIncludesDraftStoryWithoutPublishing(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	galleryID, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "draft-story", Title: "Draft Story", Type: model.GalleryStory, Status: model.GalleryDraft,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateBlock(ctx, model.Block{GalleryID: galleryID, Type: model.BlockHeading, Content: "Arrival"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := st.CreateBlock(ctx, model.Block{GalleryID: galleryID, Type: model.BlockText, Content: "A **private** draft."}); err != nil {
+		t.Fatal(err)
+	}
+	th, err := theme.Load(os.DirFS("../../themes/default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var preview strings.Builder
+	if err := New(st, th, cfg).RenderStoryPreview(ctx, galleryID, "/galleries/1/preview", &preview); err != nil {
+		t.Fatal(err)
+	}
+	if body := preview.String(); !strings.Contains(body, "Draft Story") || !strings.Contains(body, "<h2>Arrival</h2>") || !strings.Contains(body, "<strong>private</strong>") || !strings.Contains(body, `/galleries/1/preview/_curator/assets/theme.css`) {
+		t.Fatalf("preview missing draft story content or scoped assets:\n%s", body)
+	}
+	if _, err := os.Stat(filepath.Join(cfg.OutputDir, "draft-story", "index.html")); !os.IsNotExist(err) {
+		t.Fatalf("preview wrote public story page: %v", err)
+	}
+}
+
 func TestBuildProducesSite(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))

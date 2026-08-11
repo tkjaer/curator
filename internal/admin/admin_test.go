@@ -7,6 +7,7 @@ import (
 	"html"
 	"image"
 	"image/jpeg"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -245,6 +246,7 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 		`<a href="/galleries/1">2026</a>`,
 		`<span aria-current="page">Summer</span>`,
 		`<div class="settings-links public-url-row">`,
+		`class="view-link" href=`,
 		`Open public gallery &nearr;`,
 		`<details class="gallery-options">`,
 		`<span class="disclosure-title">Gallery options</span>`,
@@ -261,6 +263,83 @@ func TestGalleryRendersHierarchyAndSecondarySettings(t *testing.T) {
 	}
 	if got := strings.Count(body, `<form class="upload-form"`); got != 1 {
 		t.Errorf("empty gallery upload forms = %d, want 1", got)
+	}
+}
+
+func TestGalleryRendersStoryGuidance(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	storyID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		Slug: "essay", Title: "Essay", Type: model.GalleryStory,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+	for _, want := range []string{
+		`<option value="grid">Grid - photo collection</option>`,
+		`<option value="story">Story - sequenced essay</option>`,
+		`A grid publishes its photo order. A story publishes an authored sequence`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("dashboard missing %q", want)
+		}
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10), nil))
+	for _, want := range []string{
+		`<ol class="story-workflow" aria-label="Story workflow">`,
+		`The published page follows the block order below, not the order of the media library.`,
+		`Photos remain unpublished here until an image or grid block uses them.`,
+		`Heading - section title`,
+		`Grid - group of photos`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("story gallery missing %q", want)
+		}
+	}
+
+	if _, err := srv.store.CreateBlock(ctx, model.Block{GalleryID: storyID, Type: model.BlockHeading, Content: "Arrival"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.store.CreateBlock(ctx, model.Block{GalleryID: storyID, Type: model.BlockQuote, Content: "A remembered line"}); err != nil {
+		t.Fatal(err)
+	}
+	srv.storyPreview = func(_ context.Context, galleryID int64, baseURL string, w io.Writer) error {
+		if galleryID != storyID || baseURL != "/galleries/"+strconv.FormatInt(storyID, 10)+"/preview" {
+			t.Fatalf("preview request = gallery %d, base %q", galleryID, baseURL)
+		}
+		_, err := io.WriteString(w, "<h1>Draft preview</h1>")
+		return err
+	}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10), nil))
+	for _, want := range []string{
+		`class="story-block block-heading"`,
+		`<strong>Heading</strong><span>Section title</span>`,
+		`class="save-state block-save-state"`,
+		`<input type="text" name="content" value="Arrival" placeholder="Section title">`,
+		`<span>Quotation (Markdown)</span>`,
+		`<strong>Add the next block</strong>`,
+		`<select name="type" id="add-block-type">`,
+		`<span>Heading (optional)</span>`,
+		`<button>Add to story</button>`,
+		`class="view-link story-preview-link"`,
+		`>Preview story &nearr;</a>`,
+		`if (!form || event.defaultPrevented) return;`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("populated story gallery missing %q", want)
+		}
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(storyID, 10)+"/preview", nil))
+	if rec.Code != http.StatusOK || rec.Header().Get("Cache-Control") != "no-store" || !strings.Contains(rec.Body.String(), "Draft preview") {
+		t.Fatalf("story preview response = %d, cache %q, body %q", rec.Code, rec.Header().Get("Cache-Control"), rec.Body.String())
 	}
 }
 
