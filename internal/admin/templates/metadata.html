@@ -17,7 +17,7 @@
   <div class="settings-grid">
     <section class="settings-panel settings-panel-wide">
       <div class="settings-card-heading"><h2>Lens resolution</h2><p>Choose how Curator fills missing or ambiguous lens names at build time.</p></div>
-      <label class="choice-row"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> <span><strong>Use Lightroom profile names as a fallback</strong><small>Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
+      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseLightroomProfile}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Uses a direct XMP lens name or Adobe lens profile name. Embedded EXIF, adjacent sidecars, and camera mappings still take precedence.</small></span></label>
       <div class="mapping-heading">
         <div><h3>Camera-to-lens mappings</h3><p>Useful for fixed-lens cameras when embedded EXIF has no lens.</p></div>
         <button class="secondary-button" type="button" id="add-mapping">Add mapping</button>
@@ -28,7 +28,7 @@
           <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
           <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
           <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
-          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
+          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}{{if and .CanEnableFallback (not .Lens)}} · <a href="#xmp-lens-fallback">Enable XMP lens fallback</a>{{end}}</span>{{if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
         </div>
         {{end}}
       </div>
@@ -71,23 +71,23 @@
   </div>
 </form>
 <section class="card xmp-profiles settings-wide-card">
-  <div class="settings-card-heading"><h2>Detected Lightroom profiles</h2><p>Read-only lens profiles found in embedded or sidecar XMP metadata.</p></div>
+  <div class="settings-card-heading"><h2>Detected XMP lens metadata</h2><p>Read-only direct lens names and Adobe lens profile names found in embedded or sidecar XMP.</p></div>
   {{if .XMPProfiles}}
   <table>
-    <thead><tr><th>Profile</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
+    <thead><tr><th>Lens name</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>
     <tbody>
       {{range .XMPProfiles}}
-      <tr><td data-label="Profile">{{.Name}}</td><td data-label="Camera">{{if .Cameras}}{{.Cameras}}{{else}}Unknown{{end}}</td><td data-label="Photos">{{.Count}}</td><td data-label="Status"><span class="badge">{{.Status}}</span></td></tr>
+      <tr><td data-label="Lens name">{{.Name}}</td><td data-label="Camera">{{if .Cameras}}{{.Cameras}}{{else}}Unknown{{end}}</td><td data-label="Photos">{{.Count}}</td><td data-label="Status"><span class="badge">{{.Status}}</span></td></tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <p>No Lightroom XMP lens profiles found.</p>
+  <p>No XMP lens metadata found.</p>
   {{end}}
 </section>
 <form class="card settings-action-card settings-wide-card" method="post" action="{{$.BasePath}}/rescan">
   <input type="hidden" name="_csrf" value="{{$.CSRF}}">
-  <div class="settings-card-heading"><h2>Refresh source metadata</h2><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and Lightroom profiles after source metadata changes.</p></div>
+  <div class="settings-card-heading"><h2>Refresh source metadata</h2><p>Re-read image dimensions, embedded EXIF, adjacent XMP sidecars, and XMP lens metadata after source metadata changes.</p></div>
   <button class="secondary-button">Refresh metadata</button>
 </form>
 <template id="mapping-row-template">
