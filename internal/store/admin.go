@@ -58,6 +58,13 @@ func (s *Store) UpdateGalleryTitle(ctx context.Context, id int64, title string) 
 	return err
 }
 
+// UpdateGalleryDescription changes the introductory text shown above a gallery.
+func (s *Store) UpdateGalleryDescription(ctx context.Context, id int64, description string) error {
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE galleries SET description = ?, updated_at = datetime('now') WHERE id = ?`, description, id)
+	return err
+}
+
 // UpdateGallerySlug changes a gallery's public URL segment. Previous slugs are
 // intentionally not retained as aliases or redirects.
 func (s *Store) UpdateGallerySlug(ctx context.Context, id int64, gallerySlug string) error {

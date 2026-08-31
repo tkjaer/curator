@@ -144,6 +144,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+s.path("/galleries/{id}/preview/_curator/img/{file...}"), s.handleStoryPreviewImage)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/upload"), s.handleUpload)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/title"), s.handleGalleryTitle)
+	mux.HandleFunc("POST "+s.path("/galleries/{id}/description"), s.handleGalleryDescription)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/slug"), s.handleGallerySlug)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/status"), s.handleGalleryStatus)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/presentation"), s.handleGalleryPresentation)

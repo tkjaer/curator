@@ -158,7 +158,7 @@ func (b *Builder) RenderStoryPreview(ctx context.Context, galleryID int64, baseU
 		return err
 	}
 	return b.Theme.Render(w, "gallery-story", render.GalleryView{
-		Title: g.Title, Slug: g.Slug, Type: string(g.Type), Blocks: blockViews,
+		Title: g.Title, Slug: g.Slug, Description: markdownHTML(g.Description), Type: string(g.Type), Blocks: blockViews,
 		Options: b.options, Site: b.site,
 	})
 }
@@ -350,13 +350,14 @@ func copyrightLine(settings map[string]string, currentYear int) string {
 
 func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []render.PhotoView, byItem map[int64]render.PhotoView, kids []model.Gallery, covers map[int64]render.Source) error {
 	view := render.GalleryView{
-		Title:      g.Title,
-		Slug:       g.Slug,
-		Type:       string(g.Type),
-		Breadcrumb: b.breadcrumb(g.ID),
-		Children:   b.cards(kids, covers, nil),
-		Options:    b.options,
-		Site:       b.site,
+		Title:       g.Title,
+		Slug:        g.Slug,
+		Description: markdownHTML(g.Description),
+		Type:        string(g.Type),
+		Breadcrumb:  b.breadcrumb(g.ID),
+		Children:    b.cards(kids, covers, nil),
+		Options:     b.options,
+		Site:        b.site,
 	}
 
 	if g.Type == model.GalleryStory {

@@ -49,7 +49,8 @@ func TestRenderStoryPreviewIncludesDraftStoryWithoutPublishing(t *testing.T) {
 		t.Fatal(err)
 	}
 	galleryID, err := st.CreateGallery(ctx, model.Gallery{
-		Slug: "draft-story", Title: "Draft Story", Type: model.GalleryStory, Status: model.GalleryDraft,
+		Slug: "draft-story", Title: "Draft Story", Description: "Gallery **introduction**.<script>alert('unsafe')</script>",
+		Type: model.GalleryStory, Status: model.GalleryDraft,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -68,8 +69,14 @@ func TestRenderStoryPreviewIncludesDraftStoryWithoutPublishing(t *testing.T) {
 	if err := New(st, th, cfg).RenderStoryPreview(ctx, galleryID, "/galleries/1/preview", &preview); err != nil {
 		t.Fatal(err)
 	}
-	if body := preview.String(); !strings.Contains(body, "Draft Story") || !strings.Contains(body, "<h2>Arrival</h2>") || !strings.Contains(body, "<strong>private</strong>") || !strings.Contains(body, `/galleries/1/preview/_curator/assets/theme.css`) {
+	body := preview.String()
+	if !strings.Contains(body, "Draft Story") || !strings.Contains(body, "<strong>introduction</strong>") ||
+		!strings.Contains(body, "<h2>Arrival</h2>") || !strings.Contains(body, "<strong>private</strong>") ||
+		!strings.Contains(body, `/galleries/1/preview/_curator/assets/theme.css`) {
 		t.Fatalf("preview missing draft story content or scoped assets:\n%s", body)
+	}
+	if strings.Contains(body, "alert('unsafe')") {
+		t.Fatal("preview rendered unsafe gallery introduction HTML")
 	}
 	if _, err := os.Stat(filepath.Join(cfg.OutputDir, "draft-story", "index.html")); !os.IsNotExist(err) {
 		t.Fatalf("preview wrote public story page: %v", err)
@@ -107,7 +114,7 @@ func TestBuildProducesSite(t *testing.T) {
 	}
 
 	gid, err := st.CreateGallery(ctx, model.Gallery{
-		Slug: "trip", Title: "Trip", Type: model.GalleryGrid, Status: model.GalleryPublished,
+		Slug: "trip", Title: "Trip", Description: "A **memorable** trip.", Type: model.GalleryGrid, Status: model.GalleryPublished,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +139,7 @@ func TestBuildProducesSite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(page), "Visible title") || !strings.Contains(string(page), "Visible description") {
+	if !strings.Contains(string(page), "<strong>memorable</strong>") || !strings.Contains(string(page), "Visible title") || !strings.Contains(string(page), "Visible description") {
 		t.Fatal("inherited title and description defaults were not rendered")
 	}
 	unchanged, err := New(st, th, cfg).BuildReport(ctx)
