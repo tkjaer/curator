@@ -181,6 +181,9 @@ func TestSyncGalleryHierarchyIsIdempotent(t *testing.T) {
 	if err := st.UpdateGalleryStatus(context.Background(), childID, model.GalleryPublished); err != nil {
 		t.Fatal(err)
 	}
+	if err := st.UpdateGalleryDescription(context.Background(), childID, "A Curator introduction."); err != nil {
+		t.Fatal(err)
+	}
 	if got, gotSlug := put("collection-2", `{"title":"Norway 2026","parent_external_id":"set-1","status":"draft"}`, http.StatusOK); got != childID || gotSlug != "norway" {
 		t.Fatalf("repeated sync = (%d, %q), want (%d, norway)", got, gotSlug, childID)
 	}
@@ -188,8 +191,17 @@ func TestSyncGalleryHierarchyIsIdempotent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if child.Title != "Norway 2026" || child.Slug != "norway" || child.Status != model.GalleryPublished || child.ParentID == nil || *child.ParentID != parentID {
+	if child.Title != "Norway 2026" || child.Description != "A Curator introduction." || child.Slug != "norway" ||
+		child.Status != model.GalleryPublished || child.ParentID == nil || *child.ParentID != parentID {
 		t.Fatalf("synchronized child = %#v", child)
+	}
+	put("collection-2", `{"title":"Norway 2026","description":"","parent_external_id":"set-1"}`, http.StatusOK)
+	child, err = st.Gallery(context.Background(), childID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if child.Description != "" {
+		t.Fatalf("explicitly cleared description = %q", child.Description)
 	}
 	_, synchronizedSlug := put("collection-2", `{"title":"Norway 2026","slug":"norway-new","parent_external_id":"set-1","status":"draft"}`, http.StatusOK)
 	child, err = st.Gallery(context.Background(), childID)

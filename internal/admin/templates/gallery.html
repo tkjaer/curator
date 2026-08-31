@@ -59,6 +59,11 @@
               <p class="url-warning" id="url-name-warning"><span><strong>Changing this breaks existing and descendant links.</strong> No redirects are kept.</span>{{if .LightroomManaged}}<span>Republish from Lightroom to refresh its website link.</span>{{end}}</p>
             </form>
           </div>
+          <form class="identity-introduction" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/description">
+            <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+            <label><span>Introduction</span><textarea name="description" rows="5" placeholder="Tell visitors about this gallery...">{{.Gallery.Description}}</textarea></label>
+            <p class="field-note">Shown below the gallery title. Markdown is supported.</p>
+          </form>
         </div>
       </section>
       <section class="gallery-option-section organization-setting">

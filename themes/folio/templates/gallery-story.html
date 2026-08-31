@@ -2,6 +2,7 @@
 {{template "breadcrumbs" .Breadcrumb}}
 <article class="story">
   <h1 class="visually-hidden">{{.Title}}</h1>
+  {{if .Description}}<div class="prose description gallery-intro">{{.Description}}</div>{{end}}
   {{range .Blocks}}
   {{if eq .Type "grid"}}{{template "grid" .Rows}}
   {{else if eq .Type "image"}}<figure class="story-image">

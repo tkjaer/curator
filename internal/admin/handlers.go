@@ -278,6 +278,19 @@ func (s *Server) handleGalleryTitle(w http.ResponseWriter, r *http.Request) {
 	s.redirect(w, r, s.galleryLink(id), "Title updated")
 }
 
+func (s *Server) handleGalleryDescription(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	description := strings.TrimSpace(r.FormValue("description"))
+	if err := s.store.UpdateGalleryDescription(r.Context(), id, description); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not update introduction: "+err.Error())
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Introduction updated")
+}
+
 func (s *Server) handleGallerySlug(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {

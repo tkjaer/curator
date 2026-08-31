@@ -128,11 +128,11 @@ type createGalleryRequest struct {
 }
 
 type syncGalleryRequest struct {
-	Title            string `json:"title"`
-	Slug             string `json:"slug"`
-	ParentExternalID string `json:"parent_external_id"`
-	Description      string `json:"description"`
-	Status           string `json:"status"`
+	Title            string  `json:"title"`
+	Slug             string  `json:"slug"`
+	ParentExternalID string  `json:"parent_external_id"`
+	Description      *string `json:"description"`
+	Status           string  `json:"status"`
 }
 
 func (a *API) handleUpsertGallery(w http.ResponseWriter, r *http.Request) {
@@ -178,12 +178,26 @@ func (a *API) handleUpsertGallery(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "status must be draft, unlisted, or published")
 		return
 	}
+	description := ""
+	if input.Description != nil {
+		description = *input.Description
+	} else if existingID, found, err := a.store.ExternalGalleryID(r.Context(), "lightroom", externalID); err != nil {
+		writeError(w, http.StatusInternalServerError, "could not load synchronized gallery")
+		return
+	} else if found {
+		existing, err := a.store.Gallery(r.Context(), existingID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "could not load synchronized gallery")
+			return
+		}
+		description = existing.Description
+	}
 	gallerySlug := slug.Make(input.Slug)
 	if gallerySlug == "" {
 		gallerySlug = slug.Make(input.Title)
 	}
 	id, created, err := a.store.UpsertExternalGallery(r.Context(), "lightroom", externalID, model.Gallery{
-		ParentID: parentID, Slug: gallerySlug, Title: input.Title, Description: input.Description,
+		ParentID: parentID, Slug: gallerySlug, Title: input.Title, Description: description,
 		Type: model.GalleryGrid, Status: status, SortMode: model.SortDefault,
 	})
 	if err != nil {

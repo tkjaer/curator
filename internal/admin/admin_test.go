@@ -1165,6 +1165,40 @@ func TestLocalGalleryTitleCanChangeWithoutChangingSlug(t *testing.T) {
 	}
 }
 
+func TestGalleryIntroductionCanBeUpdated(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	id, err := srv.store.CreateGallery(ctx, model.Gallery{Slug: "introduced", Title: "Introduced"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	form := url.Values{"description": {" First paragraph.\n\nSecond paragraph. "}}
+	req := httptest.NewRequest("POST", "/galleries/1/description", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Curator-Async", "true")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Introduction updated") {
+		t.Fatalf("description response = %d %q", rec.Code, rec.Body.String())
+	}
+	g, err := srv.store.Gallery(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Description != "First paragraph.\n\nSecond paragraph." {
+		t.Fatalf("description = %q", g.Description)
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/galleries/1", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, `action="/galleries/1/description"`) ||
+		!strings.Contains(body, "First paragraph.\n\nSecond paragraph.</textarea>") {
+		t.Fatal("gallery page did not render the introduction editor and saved value")
+	}
+}
+
 func TestLightroomGalleryTitleIsManagedButSlugCanChange(t *testing.T) {
 	srv, _ := newTestServer(t)
 	ctx := context.Background()

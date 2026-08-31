@@ -283,6 +283,7 @@
   .identity-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
   .identity-grid > * { min-width: 0; }
   .identity-url { grid-column: 2 / 4; }
+  .identity-introduction { grid-column: 1 / 4; }
   .identity-setting > label, .identity-setting form label { display: block; }
   .identity-setting input { width: 100%; }
   .option-label-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .4rem; color: var(--muted); font-size: .7rem; font-weight: 700; }
@@ -481,7 +482,7 @@
     .gallery-option-section { grid-template-columns: 1fr; gap: .75rem; }
     .gallery-option-section h3 { margin: 0; }
     .identity-grid, .organization-controls, .exif-setting form { grid-template-columns: 1fr; }
-    .identity-url, .organization-controls .order-setting { grid-column: auto; }
+    .identity-url, .identity-introduction, .organization-controls .order-setting { grid-column: auto; }
     .option-action-content { align-items: flex-start; flex-direction: column; }
     .compact-form, .add-block { grid-template-columns: 1fr; }
     .section-heading { align-items: stretch; flex-direction: column; }
