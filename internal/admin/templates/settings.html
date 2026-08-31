@@ -54,6 +54,7 @@
         <label class="choice-row"><input type="checkbox" name="default_gallery_show_title"{{if .DefaultShowTitle}} checked{{end}}> <span><strong>Titles</strong><small>Show imported or edited photo titles.</small></span></label>
         <label class="choice-row"><input type="checkbox" name="default_gallery_show_description"{{if .DefaultShowDescription}} checked{{end}}> <span><strong>Descriptions</strong><small>Show longer descriptive text.</small></span></label>
         <label class="choice-row"><input type="checkbox" name="default_gallery_show_exif"{{if .DefaultShowEXIF}} checked{{end}}> <span><strong>EXIF</strong><small>Show camera details in lightboxes.</small></span></label>
+        <label class="choice-row"><input type="checkbox" name="default_gallery_show_sharing"{{if .DefaultShowSharing}} checked{{end}}> <span><strong>Photo sharing controls</strong><small>Offer copy-link and embed options in public lightboxes.</small></span></label>
       </div>
       <p class="field-help">Individual galleries can inherit or override each choice.</p>
     </section>
@@ -76,7 +77,8 @@
     <div class="override-reset-row"><span><strong>Titles</strong><small>Reset title visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="title">Reset titles</button></div>
     <div class="override-reset-row"><span><strong>Descriptions</strong><small>Reset description visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="description">Reset descriptions</button></div>
     <div class="override-reset-row"><span><strong>EXIF</strong><small>Reset EXIF visibility in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="exif">Reset EXIF</button></div>
-    <div class="override-reset-all"><span>Reset all three visibility choices at once.</span><button class="secondary-button" type="submit" name="field" value="all" onclick="return confirm('Reset all photo detail overrides for every gallery?')">Reset all overrides</button></div>
+    <div class="override-reset-row"><span><strong>Sharing</strong><small>Reset sharing controls in every gallery.</small></span><button class="secondary-button" type="submit" name="field" value="sharing">Reset sharing</button></div>
+    <div class="override-reset-all"><span>Reset all photo display choices at once.</span><button class="secondary-button" type="submit" name="field" value="all" onclick="return confirm('Reset all photo display overrides for every gallery?')">Reset all overrides</button></div>
   </form>
 </section>
 {{end}}

@@ -127,6 +127,13 @@
               <option value="hide"{{if eq (printf "%d" .Gallery.ShowEXIF) "2"}} selected{{end}}>Hide</option>
             </select>
           </label>
+          <label><span>Sharing controls</span>
+            <select name="show_sharing">
+              <option value="inherit"{{if eq (printf "%d" .Gallery.ShowSharing) "0"}} selected{{end}}>Default: {{if .PresentationDefaults.ShowSharing}}Show{{else}}Hide{{end}}</option>
+              <option value="show"{{if eq (printf "%d" .Gallery.ShowSharing) "1"}} selected{{end}}>Show</option>
+              <option value="hide"{{if eq (printf "%d" .Gallery.ShowSharing) "2"}} selected{{end}}>Hide</option>
+            </select>
+          </label>
         </form>
       </section>
       <section class="gallery-option-section reset-options">

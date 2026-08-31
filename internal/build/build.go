@@ -356,6 +356,7 @@ func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []ren
 		Type:        string(g.Type),
 		Breadcrumb:  b.breadcrumb(g.ID),
 		Children:    b.cards(kids, covers, nil),
+		ShowSharing: g.Status != model.GalleryProtected && g.ShowSharing.Resolve(b.settings["site.default_gallery_show_sharing"] == "true"),
 		Options:     b.options,
 		Site:        b.site,
 	}

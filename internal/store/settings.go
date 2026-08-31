@@ -107,6 +107,7 @@ func (s *Store) GalleryPresentationDefaults(ctx context.Context) (model.GalleryP
 		ShowEXIF:        settings["site.default_gallery_show_exif"] == "true",
 		ShowTitle:       settings["site.default_gallery_show_title"] != "false",
 		ShowDescription: settings["site.default_gallery_show_description"] != "false",
+		ShowSharing:     settings["site.default_gallery_show_sharing"] == "true",
 	}, nil
 }
 

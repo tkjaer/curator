@@ -142,6 +142,35 @@ func TestBuildProducesSite(t *testing.T) {
 	if !strings.Contains(string(page), "<strong>memorable</strong>") || !strings.Contains(string(page), "Visible title") || !strings.Contains(string(page), "Visible description") {
 		t.Fatal("inherited title and description defaults were not rendered")
 	}
+	if strings.Contains(string(page), `class="lb-btn lb-share"`) {
+		t.Fatal("photo sharing controls were rendered while the default was off")
+	}
+	if err := st.SetSetting(ctx, "site.default_gallery_show_sharing", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatalf("rebuild with sharing enabled: %v", err)
+	}
+	page, err = os.ReadFile(galleryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(page), `class="lb-btn lb-share"`) || !strings.Contains(string(page), `data-share-src="/_curator/img/`) {
+		t.Fatal("enabled sharing controls or share derivative were not rendered")
+	}
+	if err := st.UpdateGalleryPresentation(ctx, gid, model.VisibilityInherit, model.VisibilityInherit, model.VisibilityInherit, model.VisibilityHide); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, th, cfg).Build(ctx); err != nil {
+		t.Fatalf("rebuild with sharing override: %v", err)
+	}
+	page, err = os.ReadFile(galleryPage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(page), `class="lb-btn lb-share"`) {
+		t.Fatal("gallery sharing override did not hide sharing controls")
+	}
 	unchanged, err := New(st, th, cfg).BuildReport(ctx)
 	if err != nil {
 		t.Fatalf("unchanged rebuild: %v", err)
@@ -179,7 +208,7 @@ func TestBuildProducesSite(t *testing.T) {
 	if strings.Contains(string(page), "Visible title") || strings.Contains(string(page), "Visible description") {
 		t.Fatal("hidden inherited title or description was rendered")
 	}
-	if err := st.UpdateGalleryPresentation(ctx, gid, model.VisibilityInherit, model.VisibilityShow, model.VisibilityInherit); err != nil {
+	if err := st.UpdateGalleryPresentation(ctx, gid, model.VisibilityInherit, model.VisibilityShow, model.VisibilityInherit, model.VisibilityInherit); err != nil {
 		t.Fatal(err)
 	}
 	if err := New(st, th, cfg).Build(ctx); err != nil {
@@ -849,9 +878,12 @@ func TestBuildEmitsNginxAuth(t *testing.T) {
 	if err := st.SetSetting(ctx, "site.server_root", "/srv/site"); err != nil {
 		t.Fatal(err)
 	}
+	if err := st.SetSetting(ctx, "site.default_gallery_show_sharing", "true"); err != nil {
+		t.Fatal(err)
+	}
 
 	gid, err := st.CreateGallery(ctx, model.Gallery{
-		Slug: "secret", Title: "Secret", Type: model.GalleryGrid, Status: model.GalleryProtected,
+		Slug: "secret", Title: "Secret", Type: model.GalleryGrid, Status: model.GalleryProtected, ShowSharing: model.VisibilityShow,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -894,6 +926,13 @@ func TestBuildEmitsNginxAuth(t *testing.T) {
 	}
 	if !strings.HasPrefix(string(htp), "bob:$apr1$") {
 		t.Errorf(".htpasswd content = %q", htp)
+	}
+	protectedPage, err := os.ReadFile(filepath.Join(cfg.OutputDir, "secret", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(protectedPage), `class="lb-btn lb-share"`) {
+		t.Fatal("protected gallery rendered sharing controls")
 	}
 
 	// Protected derivatives must live under the auth-guarded gallery path, not

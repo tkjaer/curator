@@ -10,6 +10,10 @@
   const caption = dialog.querySelector(".lb-caption");
   const exif = dialog.querySelector(".lb-exif");
   const tags = dialog.querySelector(".lb-tags");
+  const shareButton = dialog.querySelector(".lb-share");
+  const sharePanel = dialog.querySelector(".lb-share-panel");
+  const shareStatus = dialog.querySelector(".lb-share-status");
+  const systemShare = dialog.querySelector('[data-share-action="system"]');
   if (!img || !imageButton) return;
   const links = [];
   const indexByID = new Map();
@@ -137,8 +141,54 @@
     if (location.hash) location.hash = "";
   }
 
+  function closeShare() {
+    if (!shareButton || !sharePanel) return;
+    shareButton.setAttribute("aria-expanded", "false");
+    sharePanel.hidden = true;
+    if (shareStatus) shareStatus.textContent = "";
+  }
+
+  function shareValues() {
+    const link = links[index];
+    const pageURL = new URL(location.href);
+    if (link.dataset.id) pageURL.hash = "photo-" + link.dataset.id;
+    const imageURL = new URL(link.dataset.shareSrc || link.href, location.href).href;
+    const alt = link.dataset.title || link.dataset.description || link.dataset.caption || "";
+    const anchor = document.createElement("a");
+    const shareImage = document.createElement("img");
+    anchor.href = pageURL.href;
+    shareImage.src = imageURL;
+    shareImage.alt = alt;
+    shareImage.loading = "lazy";
+    anchor.append(shareImage);
+    return {
+      title: link.dataset.title || document.title,
+      link: pageURL.href,
+      markdown: `[![${alt.replace(/[\\\[\]]/g, "\\$&")}](${imageURL})](${pageURL.href})`,
+      html: anchor.outerHTML
+    };
+  }
+
+  async function copyText(value) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+      return;
+    }
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.append(field);
+    field.select();
+    const copied = document.execCommand("copy");
+    field.remove();
+    if (!copied) throw new Error("copy failed");
+  }
+
   function render(i) {
     resetZoom();
+    closeShare();
     index = (i + links.length) % links.length;
     const link = links[index];
     const src = link.getAttribute("href");
@@ -196,6 +246,35 @@
   bindClick(".lb-next", () => navigate(1));
   bindClick(".lb-prev", () => navigate(-1));
   bindClick(".lb-close", () => dialog.close());
+  if (systemShare && typeof navigator.share === "function") systemShare.hidden = false;
+  if (shareButton && sharePanel) {
+    shareButton.addEventListener("click", () => {
+      const open = sharePanel.hidden;
+      closeShare();
+      sharePanel.hidden = !open;
+      shareButton.setAttribute("aria-expanded", String(open));
+    });
+    sharePanel.querySelector("[data-share-close]")?.addEventListener("click", () => {
+      closeShare();
+      shareButton.focus();
+    });
+    sharePanel.addEventListener("click", async (e) => {
+      const action = e.target.closest("[data-share-action]")?.dataset.shareAction;
+      if (!action) return;
+      const values = shareValues();
+      try {
+        if (action === "system") {
+          await navigator.share({ title: values.title, url: values.link });
+          if (shareStatus) shareStatus.textContent = "Shared";
+          return;
+        }
+        await copyText(values[action]);
+        if (shareStatus) shareStatus.textContent = action === "link" ? "Link copied" : `${action === "html" ? "HTML" : "Markdown"} copied`;
+      } catch (err) {
+        if (err?.name !== "AbortError" && shareStatus) shareStatus.textContent = "Could not copy";
+      }
+    });
+  }
   imageButton.addEventListener("click", toggleZoom);
   imageButton.addEventListener("pointerdown", () => imageButton.classList.remove("suppress-focus-ring"));
   dialog.addEventListener("pointermove", panZoom);

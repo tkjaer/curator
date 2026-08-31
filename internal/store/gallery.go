@@ -24,16 +24,16 @@ func (s *Store) CreateGallery(ctx context.Context, g model.Gallery) (int64, erro
 	res, err := s.DB.ExecContext(ctx,
 		`INSERT INTO galleries
 			(parent_id, slug, title, description, type, status, sort_mode, sort_direction, sort_order,
-			 show_exif, show_title, show_description, published_at)
+			 show_exif, show_title, show_description, show_sharing, published_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?,
 			CASE WHEN ? <> 0 THEN ?
 			     WHEN EXISTS (SELECT 1 FROM galleries WHERE parent_id IS ? AND sort_order <> 0)
 			     THEN (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM galleries WHERE parent_id IS ?)
 			     ELSE 0 END,
-			?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
+			?, ?, ?, ?, CASE WHEN ? = 'published' THEN datetime('now') END)`,
 		g.ParentID, g.Slug, g.Title, g.Description, g.Type, g.Status, g.SortMode, g.SortDirection,
 		g.SortOrder, g.SortOrder, g.ParentID, g.ParentID,
-		g.ShowEXIF, g.ShowTitle, g.ShowDescription, g.Status)
+		g.ShowEXIF, g.ShowTitle, g.ShowDescription, g.ShowSharing, g.Status)
 	if err != nil {
 		return 0, err
 	}
@@ -57,7 +57,7 @@ func (s *Store) Galleries(ctx context.Context) ([]model.Gallery, error) {
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
 		        cover_item_id, sort_mode, sort_direction, sort_order, theme,
-		        show_exif, show_title, show_description, published_at
+		        show_exif, show_title, show_description, show_sharing, published_at
 		   FROM galleries
 		  ORDER BY sort_order, id`)
 	if err != nil {
@@ -75,7 +75,7 @@ func (s *Store) Galleries(ctx context.Context) ([]model.Gallery, error) {
 		)
 		if err := rows.Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description,
 			&g.Type, &g.Status, &cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
-			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription, &published); err != nil {
+			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription, &g.ShowSharing, &published); err != nil {
 			return nil, err
 		}
 		g.ParentID = nullInt(parent)

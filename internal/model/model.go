@@ -133,6 +133,7 @@ type GalleryPresentationDefaults struct {
 	ShowEXIF        bool
 	ShowTitle       bool
 	ShowDescription bool
+	ShowSharing     bool
 }
 
 // Gallery is a node in the gallery tree.
@@ -152,6 +153,7 @@ type Gallery struct {
 	ShowEXIF        Visibility
 	ShowTitle       Visibility
 	ShowDescription Visibility
+	ShowSharing     Visibility
 	PublishedAt     *time.Time
 }
 

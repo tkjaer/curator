@@ -63,6 +63,7 @@ type PhotoView struct {
 	Thumb       Source
 	Display     Source
 	Zoom        Source
+	Share       Source
 	Srcset      []Source
 	Href        string
 	Exif        *ExifView
@@ -143,6 +144,7 @@ type GalleryView struct {
 	Children    []GalleryCard
 	Rows        []GridRow
 	Blocks      []BlockView
+	ShowSharing bool
 	Options     map[string]any
 	Site        SiteView
 }
@@ -159,10 +161,11 @@ type FacetItem struct {
 
 // FacetIndexView lists the values of one facet (e.g. all cameras).
 type FacetIndexView struct {
-	Title   string
-	Items   []FacetItem
-	Options map[string]any
-	Site    SiteView
+	Title       string
+	Items       []FacetItem
+	ShowSharing bool
+	Options     map[string]any
+	Site        SiteView
 }
 
 // FacetValueView shows the photos for a single facet value.
@@ -173,6 +176,7 @@ type FacetValueView struct {
 	PageCount   int
 	PreviousURL string
 	NextURL     string
+	ShowSharing bool
 	Options     map[string]any
 	Site        SiteView
 }
