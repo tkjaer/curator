@@ -612,6 +612,13 @@ func assertAdminTagValues(t *testing.T, srv *Server, itemID int64, want []string
 func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 	srv, _ := newTestServer(t)
 	handler := srv.Handler()
+	initialDefaults, err := srv.store.GalleryPresentationDefaults(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if initialDefaults.ShowSharing {
+		t.Fatal("photo sharing controls should default off")
+	}
 
 	settings := url.Values{
 		"default_gallery_order":            {"date"},
@@ -619,6 +626,7 @@ func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 		"default_gallery_show_exif":        {"on"},
 		"default_gallery_show_title":       {"on"},
 		"default_gallery_show_description": {"on"},
+		"default_gallery_show_sharing":     {"on"},
 	}
 	req := httptest.NewRequest(http.MethodPost, "/settings", strings.NewReader(settings.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -644,14 +652,14 @@ func TestGalleryDefaultsCanBeSavedAndApplied(t *testing.T) {
 		t.Fatalf("gallery defaults not applied: %#v", galleries)
 	}
 	g := galleries[0]
-	if g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit || g.ShowDescription != model.VisibilityInherit {
+	if g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit || g.ShowDescription != model.VisibilityInherit || g.ShowSharing != model.VisibilityInherit {
 		t.Fatalf("new gallery presentation should inherit: %#v", g)
 	}
 	defaults, err := srv.store.GalleryPresentationDefaults(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !g.ShowEXIF.Resolve(defaults.ShowEXIF) || !g.ShowTitle.Resolve(defaults.ShowTitle) || !g.ShowDescription.Resolve(defaults.ShowDescription) {
+	if !g.ShowEXIF.Resolve(defaults.ShowEXIF) || !g.ShowTitle.Resolve(defaults.ShowTitle) || !g.ShowDescription.Resolve(defaults.ShowDescription) || !g.ShowSharing.Resolve(defaults.ShowSharing) {
 		t.Fatalf("gallery presentation defaults not resolved: %#v", defaults)
 	}
 }
@@ -663,7 +671,7 @@ func TestGalleryPresentationOverridesCanBeReset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := srv.store.UpdateGalleryPresentation(ctx, id, model.VisibilityShow, model.VisibilityHide, model.VisibilityShow); err != nil {
+	if err := srv.store.UpdateGalleryPresentation(ctx, id, model.VisibilityShow, model.VisibilityHide, model.VisibilityShow, model.VisibilityHide); err != nil {
 		t.Fatal(err)
 	}
 
@@ -679,7 +687,7 @@ func TestGalleryPresentationOverridesCanBeReset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gallery.ShowTitle != model.VisibilityInherit || gallery.ShowEXIF != model.VisibilityShow || gallery.ShowDescription != model.VisibilityShow {
+	if gallery.ShowTitle != model.VisibilityInherit || gallery.ShowEXIF != model.VisibilityShow || gallery.ShowDescription != model.VisibilityShow || gallery.ShowSharing != model.VisibilityHide {
 		t.Fatalf("selective gallery presentation reset changed other fields: %#v", gallery)
 	}
 
@@ -692,7 +700,7 @@ func TestGalleryPresentationOverridesCanBeReset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gallery.ShowEXIF != model.VisibilityInherit || gallery.ShowTitle != model.VisibilityInherit || gallery.ShowDescription != model.VisibilityInherit {
+	if gallery.ShowEXIF != model.VisibilityInherit || gallery.ShowTitle != model.VisibilityInherit || gallery.ShowDescription != model.VisibilityInherit || gallery.ShowSharing != model.VisibilityInherit {
 		t.Fatalf("gallery presentation not reset: %#v", gallery)
 	}
 }
@@ -1268,7 +1276,7 @@ func TestGalleryOptionsCanBeResetToDefaults(t *testing.T) {
 	id, err := srv.store.CreateGallery(ctx, model.Gallery{
 		ParentID: &parentID, Slug: "custom", Title: "Custom", Status: model.GalleryPublished,
 		SortMode: model.SortByFilename, SortDirection: model.SortDescending,
-		ShowEXIF: model.VisibilityHide, ShowTitle: model.VisibilityShow, ShowDescription: model.VisibilityHide,
+		ShowEXIF: model.VisibilityHide, ShowTitle: model.VisibilityShow, ShowDescription: model.VisibilityHide, ShowSharing: model.VisibilityShow,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -1292,7 +1300,8 @@ func TestGalleryOptionsCanBeResetToDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if g.SortMode != model.SortDefault || g.SortDirection != model.SortDirectionDefault ||
-		g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit || g.ShowDescription != model.VisibilityInherit {
+		g.ShowEXIF != model.VisibilityInherit || g.ShowTitle != model.VisibilityInherit ||
+		g.ShowDescription != model.VisibilityInherit || g.ShowSharing != model.VisibilityInherit {
 		t.Fatalf("reset options = %#v", g)
 	}
 	if g.Title != "Custom" || g.Slug != "custom" || g.Status != model.GalleryPublished || g.ParentID == nil || *g.ParentID != parentID {

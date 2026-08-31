@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -247,7 +248,21 @@ func TestUserTagMigrationMergesCanonicalVariants(t *testing.T) {
 		}
 	}
 
-	_, itemIDs := makeGalleryWithItems(t, st, 3)
+	result, err := st.DB.ExecContext(ctx, `INSERT INTO galleries (slug, title) VALUES ('gallery', 'Gallery')`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	galleryID, err := result.LastInsertId()
+	if err != nil {
+		t.Fatal(err)
+	}
+	itemIDs := make([]int64, 3)
+	for index := range itemIDs {
+		itemIDs[index], err = st.CreateItem(ctx, model.Item{GalleryID: galleryID, Filename: fmt.Sprintf("photo-%d.jpg", index)})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	first, err := st.DB.ExecContext(ctx, `INSERT INTO tags (namespace, value) VALUES ('user', 'Tag-Name')`)
 	if err != nil {
 		t.Fatal(err)

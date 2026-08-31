@@ -166,6 +166,22 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
 .lb-prev { left: 1rem; }
 .lb-next { right: 1rem; }
 .lb-close { top: 1rem; right: 1rem; transform: none; font-size: 1.5rem; }
+.lb-share { top: 1rem; right: 4.4rem; transform: none; display: flex; min-width: 0; padding: .65rem .8rem; align-items: center; gap: .45rem; background: #171717d9; border: 1px solid #ffffff70; border-radius: 4px; font-size: .82rem; }
+.lb-share svg, .lb-share-panel svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.lb-share-panel { position: fixed; top: 4.35rem; right: 1rem; z-index: 3; display: grid; width: min(15.5rem, calc(100vw - 2rem)); overflow: hidden; color: #f5f5f5; background: #171717f7; border: 1px solid #ffffff38; border-radius: 6px; box-shadow: 0 18px 48px #000b; backdrop-filter: blur(14px); }
+.lb-share-panel[hidden] { display: none; }
+.lb-share-heading { display: flex; min-height: 3.25rem; padding: .65rem .7rem .65rem 1rem; align-items: center; justify-content: space-between; border-bottom: 1px solid #ffffff20; }
+.lb-share-heading strong { font-size: .86rem; font-weight: 650; }
+.lb-share-heading button { display: grid; width: 2rem; height: 2rem; padding: 0; place-items: center; color: #aaa; background: transparent; border: 0; border-radius: 3px; cursor: pointer; }
+.lb-share-heading button:hover, .lb-share-heading button:focus-visible { color: #fff; background: #ffffff18; outline: none; }
+.lb-share-actions { display: grid; padding: .35rem; }
+.lb-share-actions button { display: flex; min-height: 2.6rem; padding: .45rem .65rem; align-items: center; gap: .7rem; color: #ddd; background: transparent; border: 0; border-radius: 3px; font: inherit; font-size: .84rem; text-align: left; cursor: pointer; }
+.lb-share-actions button:hover, .lb-share-actions button:focus-visible { color: #fff; background: #ffffff14; outline: none; }
+.lb-share-actions button:focus-visible { box-shadow: inset 0 0 0 1px #ffffff70; }
+.lb-share-actions svg { color: #aaa; }
+.lb-share-actions button:hover svg, .lb-share-actions button:focus-visible svg { color: #fff; }
+.lb-share-status { margin: 0; padding: .6rem 1rem .75rem; color: #bbb; border-top: 1px solid #ffffff20; font-size: .76rem; }
+.lb-share-status:empty { display: none; }
 .lb-details { position: fixed; right: 4rem; bottom: .8rem; left: 4rem; z-index: 2; display: grid; justify-items: center; gap: .3rem; color: #fff; text-align: center; pointer-events: none; text-shadow: 0 1px 3px #000; }
 .lb-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: .35rem; }
 .lb-tags:empty { display: none; }
@@ -183,6 +199,7 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
   .lightbox { padding: .5rem; }
   .lb-image-button { max-width: calc(100vw - 1rem); }
   .lightbox .lb-img { max-width: 100%; max-height: calc(100vh - 1rem); max-height: calc(100dvh - 1rem); }
+  .lb-share-panel { top: 4.1rem; right: .5rem; width: min(15.5rem, calc(100vw - 1rem)); }
   .lb-details { right: 3.5rem; bottom: .5rem; left: 3.5rem; }
 }
 

@@ -37,6 +37,7 @@ func samplePhotos() []render.PhotoView {
 			Thumb:   render.Source{URL: "/_curator/img/" + alt + "-t.jpg", Width: 400},
 			Display: render.Source{URL: "/_curator/img/" + alt + "-d.jpg", Width: 1600},
 			Zoom:    render.Source{URL: "/_curator/img/" + alt + "-2400.jpg", Width: 2400},
+			Share:   render.Source{URL: "/_curator/img/" + alt + "-800.jpg", Width: 800},
 			Srcset: []render.Source{
 				{URL: "/_curator/img/" + alt + "-800.jpg", Width: 800},
 				{URL: "/_curator/img/" + alt + "-1600.jpg", Width: 1600},
@@ -60,11 +61,12 @@ func TestRenderGalleryGrid(t *testing.T) {
 	rows := render.Justify(samplePhotos(), 1000, 300, 8, true)
 
 	view := render.GalleryView{
-		Title:   "Spring Trip",
-		Type:    "grid",
-		Rows:    rows,
-		Options: th.Manifest.Defaults(),
-		Site:    sampleSite(),
+		Title:       "Spring Trip",
+		Type:        "grid",
+		Rows:        rows,
+		ShowSharing: true,
+		Options:     th.Manifest.Defaults(),
+		Site:        sampleSite(),
 	}
 
 	var buf bytes.Buffer
@@ -73,7 +75,7 @@ func TestRenderGalleryGrid(t *testing.T) {
 	}
 	out := buf.String()
 
-	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", `theme.css?v=asset-test`, `theme.js?v=asset-test`, `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`, `data-zoom-src="/_curator/img/a-2400.jpg"`} {
+	for _, want := range []string{"Spring Trip", "My Photos", "srcset=", "flex-basis:", `theme.css?v=asset-test`, `theme.js?v=asset-test`, `href="/browse/camera/"`, `data-title="Harbor light"`, `data-description="Boats at dusk"`, `data-zoom-src="/_curator/img/a-2400.jpg"`, `data-share-src="/_curator/img/a-800.jpg"`, `class="lb-btn lb-share"`, `data-share-action="markdown"`} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q", want)
 		}
@@ -252,8 +254,8 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 				t.Fatal(err)
 			}
 			for file, wants := range map[string][]string{
-				"theme.css": {".lightbox:focus { outline: none; }", ".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", ".lightbox.is-loading:not(.is-opening) .lb-img", ".lightbox.is-opening .lb-img", "cursor: zoom-in", "cursor: zoom-out"},
-				"theme.js":  {"function toggleZoom", "function panZoom", "function navigate", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `classList.add("is-loading")`, `classList.contains("is-loading")`, "request !== imageRequest", `img.removeAttribute("src")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`, "imageButton.classList.add(\"suppress-focus-ring\");\n    if (document.activeElement === imageButton)"},
+				"theme.css": {".lightbox:focus { outline: none; }", ".lightbox[open]:not(.is-zoomed)", "place-items: center", ".lightbox.is-zoomed .lb-img", ".lightbox.is-loading:not(.is-opening) .lb-img", ".lightbox.is-opening .lb-img", ".lb-share-panel[hidden]", "cursor: zoom-in", "cursor: zoom-out"},
+				"theme.js":  {"function toggleZoom", "function panZoom", "function navigate", "function shareValues", "navigator.clipboard.writeText", "navigator.share", "anchor.outerHTML", "dataset.shareSrc", "gainX", "dataset.zoomSrc", "preload.decode", `classList.add("is-zoomed")`, `classList.add("is-loading")`, `classList.contains("is-loading")`, "request !== imageRequest", `img.removeAttribute("src")`, `addEventListener("pointermove", panZoom)`, `querySelector(".lb-tags")`, "tags.replaceChildren()", `querySelector(".lightbox-tags-source")`, "imageButton.classList.add(\"suppress-focus-ring\");\n    if (document.activeElement === imageButton)"},
 			} {
 				content, err := fs.ReadFile(assets, file)
 				if err != nil {

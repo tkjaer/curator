@@ -149,10 +149,16 @@ func (b *Builder) derive(ctx context.Context, it model.Item, presets []model.Pre
 		case p.Kind == "width":
 			pv.Srcset = append(pv.Srcset, src)
 		}
+		if p.Name == "w800" {
+			pv.Share = src
+		}
 	}
 
 	if pv.Display.URL == "" && len(pv.Srcset) > 0 {
 		pv.Display = pv.Srcset[len(pv.Srcset)-1]
+	}
+	if pv.Share.URL == "" {
+		pv.Share = pv.Display
 	}
 	pv.Zoom = pv.Display
 	for _, src := range pv.Srcset {

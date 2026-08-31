@@ -810,7 +810,8 @@ func (s *Server) handleGalleryPresentation(w http.ResponseWriter, r *http.Reques
 	if err := s.store.UpdateGalleryPresentation(r.Context(), id,
 		model.ParseVisibility(r.FormValue("show_exif")),
 		model.ParseVisibility(r.FormValue("show_title")),
-		model.ParseVisibility(r.FormValue("show_description"))); err != nil {
+		model.ParseVisibility(r.FormValue("show_description")),
+		model.ParseVisibility(r.FormValue("show_sharing"))); err != nil {
 		s.redirect(w, r, s.galleryLink(id), "Could not update metadata display")
 		return
 	}
@@ -843,6 +844,7 @@ type settingsData struct {
 	DefaultShowEXIF        bool
 	DefaultShowTitle       bool
 	DefaultShowDescription bool
+	DefaultShowSharing     bool
 }
 
 type lensMappingRow struct {
@@ -936,6 +938,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		DefaultShowEXIF:        settings["site.default_gallery_show_exif"] == "true",
 		DefaultShowTitle:       settings["site.default_gallery_show_title"] != "false",
 		DefaultShowDescription: settings["site.default_gallery_show_description"] != "false",
+		DefaultShowSharing:     settings["site.default_gallery_show_sharing"] == "true",
 		DefaultOrder: func() string {
 			mode := model.SortMode(settings["site.default_gallery_order"])
 			if mode == model.SortByDateAdded || mode == model.SortByFilename {
@@ -1039,9 +1042,11 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	defaultShowEXIF := strconv.FormatBool(r.FormValue("default_gallery_show_exif") == "on")
 	defaultShowTitle := strconv.FormatBool(r.FormValue("default_gallery_show_title") == "on")
 	defaultShowDescription := strconv.FormatBool(r.FormValue("default_gallery_show_description") == "on")
+	defaultShowSharing := strconv.FormatBool(r.FormValue("default_gallery_show_sharing") == "on")
 	if settings["site.default_gallery_show_exif"] != defaultShowEXIF ||
 		settings["site.default_gallery_show_title"] != defaultShowTitle ||
-		settings["site.default_gallery_show_description"] != defaultShowDescription {
+		settings["site.default_gallery_show_description"] != defaultShowDescription ||
+		settings["site.default_gallery_show_sharing"] != defaultShowSharing {
 		buildNeeded = true
 	}
 	if err := s.store.SetSetting(ctx, "site.default_gallery_show_exif", defaultShowEXIF); err != nil {
@@ -1053,6 +1058,10 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := s.store.SetSetting(ctx, "site.default_gallery_show_description", defaultShowDescription); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.default_gallery_show_sharing", defaultShowSharing); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
@@ -1072,7 +1081,7 @@ func (s *Server) handleResetGalleryPresentation(w http.ResponseWriter, r *http.R
 		s.redirect(w, r, s.link("settings"), "Could not reset gallery metadata display")
 		return
 	}
-	label := map[string]string{"title": "Title", "description": "Description", "exif": "EXIF", "all": "All photo details"}[field]
+	label := map[string]string{"title": "Title", "description": "Description", "exif": "EXIF", "sharing": "Sharing", "all": "All photo display"}[field]
 	s.redirect(w, r, s.link("settings"), label+" overrides reset; build site to publish changes")
 }
 

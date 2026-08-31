@@ -19,11 +19,11 @@ func (s *Store) Gallery(ctx context.Context, id int64) (model.Gallery, error) {
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
 		        cover_item_id, sort_mode, sort_direction, sort_order, theme,
-		        show_exif, show_title, show_description
+		        show_exif, show_title, show_description, show_sharing
 		   FROM galleries WHERE id = ?`, id).
 		Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description, &g.Type, &g.Status,
 			&cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
-			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription)
+			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription, &g.ShowSharing)
 	if err != nil {
 		return model.Gallery{}, err
 	}
@@ -95,11 +95,11 @@ func (s *Store) UpdateGallerySlug(ctx context.Context, id int64, gallerySlug str
 }
 
 // UpdateGalleryPresentation sets a gallery's metadata visibility overrides.
-func (s *Store) UpdateGalleryPresentation(ctx context.Context, id int64, showEXIF, showTitle, showDescription model.Visibility) error {
+func (s *Store) UpdateGalleryPresentation(ctx context.Context, id int64, showEXIF, showTitle, showDescription, showSharing model.Visibility) error {
 	_, err := s.DB.ExecContext(ctx,
 		`UPDATE galleries
-		    SET show_exif = ?, show_title = ?, show_description = ?, updated_at = datetime('now')
-		  WHERE id = ?`, showEXIF, showTitle, showDescription, id)
+		    SET show_exif = ?, show_title = ?, show_description = ?, show_sharing = ?, updated_at = datetime('now')
+		  WHERE id = ?`, showEXIF, showTitle, showDescription, showSharing, id)
 	return err
 }
 
@@ -114,9 +114,11 @@ func (s *Store) ResetGalleryPresentationOverrides(ctx context.Context, field str
 		query = `UPDATE galleries SET show_description = 0, updated_at = datetime('now')`
 	case "exif":
 		query = `UPDATE galleries SET show_exif = 0, updated_at = datetime('now')`
+	case "sharing":
+		query = `UPDATE galleries SET show_sharing = 0, updated_at = datetime('now')`
 	case "all":
 		query = `UPDATE galleries
-		            SET show_exif = 0, show_title = 0, show_description = 0, updated_at = datetime('now')`
+		            SET show_exif = 0, show_title = 0, show_description = 0, show_sharing = 0, updated_at = datetime('now')`
 	default:
 		return errors.New("invalid gallery presentation field")
 	}
@@ -383,11 +385,11 @@ func (s *Store) ResetGalleryOptions(ctx context.Context, galleryID int64) error 
 	if _, err := tx.ExecContext(ctx,
 		`UPDATE galleries
 		    SET sort_mode = ?, sort_direction = ?,
-		        show_exif = ?, show_title = ?, show_description = ?,
+		        show_exif = ?, show_title = ?, show_description = ?, show_sharing = ?,
 		        updated_at = datetime('now')
 		  WHERE id = ?`,
 		model.SortDefault, model.SortDirectionDefault,
-		model.VisibilityInherit, model.VisibilityInherit, model.VisibilityInherit,
+		model.VisibilityInherit, model.VisibilityInherit, model.VisibilityInherit, model.VisibilityInherit,
 		galleryID); err != nil {
 		return err
 	}
