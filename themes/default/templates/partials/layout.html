@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{.Title}} &middot; {{.Site.Title}}</title>
+<title>{{if eq .Title .Site.Title}}{{.Site.Title}}{{else}}{{.Title}} &middot; {{.Site.Title}}{{end}}</title>
 <link rel="stylesheet" href="{{.Site.BaseURL}}/_curator/assets/theme.css{{with .Site.AssetVersion}}?v={{.}}{{end}}">
 {{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
 {{end}}<style>:root{
@@ -11,16 +11,18 @@
 {{end}}  --gap: {{.Options.gridGap}}px;
 }</style>
 </head>
-<body>
+<body id="top">
 <header class="site-header">
-  <a class="site-title" href="{{.Site.BaseURL}}/">{{.Site.Title}}</a>
-  {{template "nav" .Site}}
+  <div class="site-header-inner">
+    <a class="site-title" href="{{.Site.BaseURL}}/">{{.Site.Title}}</a>
+    {{template "nav" .Site}}
+  </div>
 </header>
-<main>
+<main class="site-main">
 {{end}}
 
 {{define "site-foot"}}</main>
-<footer class="site-footer"><div class="footer-meta">{{with .Site.Copyright}}<span>{{.}}</span>{{end}}<span>Powered by <a href="https://github.com/tkjaer/curator">Curator</a></span></div></footer>
+<footer class="site-footer"><div class="site-footer-inner"><div class="footer-meta">{{with .Site.Copyright}}<span>{{.}}</span>{{end}}<span>Powered by <a href="https://github.com/tkjaer/curator">Curator</a></span></div><a class="back-to-top" href="#top">Back to top</a></div></footer>
 {{template "lightbox" .}}
 <script src="{{.Site.BaseURL}}/_curator/assets/theme.js{{with .Site.AssetVersion}}?v={{.}}{{end}}" defer></script>
 </body>

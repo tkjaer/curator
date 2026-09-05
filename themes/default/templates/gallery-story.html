@@ -1,8 +1,10 @@
 {{define "gallery-story"}}{{template "site-head" .}}
 {{template "breadcrumbs" .Breadcrumb}}
 <article class="story">
-  <h1>{{.Title}}</h1>
-  {{if .Description}}<div class="prose description gallery-intro">{{.Description}}</div>{{end}}
+  <header class="page-head story-head">
+    <h1>{{.Title}}</h1>
+    {{if .Description}}<div class="prose description gallery-intro">{{.Description}}</div>{{end}}
+  </header>
   {{range .Blocks}}
   {{if eq .Type "grid"}}{{template "grid" .Rows}}
   {{else if eq .Type "image"}}{{template "story-image" .Photo}}

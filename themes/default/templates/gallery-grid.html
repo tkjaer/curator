@@ -1,9 +1,11 @@
 {{define "gallery-grid"}}{{template "site-head" .}}
 {{template "breadcrumbs" .Breadcrumb}}
 <article class="gallery">
-  <h1>{{.Title}}</h1>
-  {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
-  {{if .Children}}{{template "cards" .Children}}{{end}}
-  {{template "grid" .Rows}}
+  <header class="page-head">
+    <h1>{{.Title}}</h1>
+    {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  </header>
+  {{if .Children}}<section class="gallery-folders" aria-label="Folders">{{template "cards" .Children}}</section>{{end}}
+  <section class="photo-section" aria-label="Photographs">{{template "grid" .Rows}}</section>
 </article>
 {{template "site-foot" .}}{{end}}

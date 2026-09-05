@@ -1,7 +1,7 @@
 {{define "facet-value"}}{{template "site-head" .}}
 {{template "breadcrumbs" .Breadcrumb}}
 <article class="facet-value">
-  <h1>{{.Title}}</h1>
+  <header class="page-head"><h1>{{.Title}}</h1></header>
   <div data-facet-page>{{template "grid" .Rows}}</div>
   {{if gt .PageCount 1}}<nav class="facet-pagination" aria-label="Browse pages">
     {{if .PreviousURL}}<a class="facet-prev" href="{{.PreviousURL}}">Previous</a>{{end}}
