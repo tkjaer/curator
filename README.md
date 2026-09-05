@@ -21,6 +21,25 @@ IPTC keywords, and Lightroom Classic. Curator tracks each assignment source so
 metadata refreshes and Lightroom republishes do not erase tags entered in the
 admin.
 
+## Themes and browsing
+
+Curator ships four responsive public themes:
+
+- **Default** — a simple, neutral reference theme
+- **Folio** — an editorial presentation
+- **Darkroom** — a cinematic, image-first theme
+- **Nordic** — a restrained contemporary gallery
+
+Choose a theme and configure its available colors, spacing, hero, and layout
+options under **Settings → Appearance**. Themes share Curator's accessible
+lightbox and responsive-image behavior while retaining their own composition
+and styling.
+
+Under **Settings → Metadata → Public browsing**, Curator can generate static
+browse pages for cameras, lenses, tags, and EXIF capture dates. Date archives
+can stop at year, month, or day depth. They include only dated photos in fully
+public galleries and do not create or alter galleries or Lightroom collections.
+
 ## Screenshots
 
 ![Curator gallery administration dashboard](docs/images/admin-galleries.png)
