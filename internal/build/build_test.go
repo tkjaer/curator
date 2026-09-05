@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/tkjaer/curator/internal/config"
 	"github.com/tkjaer/curator/internal/imaging"
@@ -918,6 +919,168 @@ func TestDerivativeHashIncludesProcessingVersion(t *testing.T) {
 	legacyHash := hex.EncodeToString(legacy[:])[:16]
 	if got := deriveHash(fileHash, preset); got == legacyHash {
 		t.Fatalf("deriveHash = %q, still matches the pre-orientation cache key", got)
+	}
+}
+
+func TestBuildDateArchiveLevelsFromEXIF(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	publicID, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "public-dates", Title: "Public dates", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectedID, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "private-dates", Title: "Private dates", Type: model.GalleryGrid, Status: model.GalleryProtected,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unlistedID, err := st.CreateGallery(ctx, model.Gallery{
+		Slug: "unlisted-dates", Title: "Unlisted dates", Type: model.GalleryGrid, Status: model.GalleryUnlisted,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectedChildID, err := st.CreateGallery(ctx, model.Gallery{
+		ParentID: &protectedID, Slug: "nested-public", Title: "Nested public", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addPhoto := func(galleryID int64, gallerySlug, filename, title string, takenAt *time.Time, seed int) {
+		t.Helper()
+		relative := filepath.Join(gallerySlug, filename)
+		writeSourceImage(t, filepath.Join(cfg.OriginalsDir(), relative), seed)
+		if _, err := st.CreateItem(ctx, model.Item{
+			GalleryID: galleryID, OriginalPath: relative, Filename: filename, Title: title,
+			Width: 600, Height: 400, Aspect: model.AspectLandscape, Status: model.ItemPublished,
+			TakenAt: takenAt,
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	date := func(year int, month time.Month, day int) *time.Time {
+		taken := time.Date(year, month, day, 12, 0, 0, 0, time.UTC)
+		return &taken
+	}
+	addPhoto(publicID, "public-dates", "five-a.jpg", "September Five A", date(2025, time.September, 5), 1)
+	addPhoto(publicID, "public-dates", "five-b.jpg", "September Five B", date(2025, time.September, 5), 2)
+	addPhoto(publicID, "public-dates", "four.jpg", "September Four", date(2025, time.September, 4), 3)
+	addPhoto(publicID, "public-dates", "august.jpg", "August One", date(2025, time.August, 1), 4)
+	addPhoto(publicID, "public-dates", "old.jpg", "Old Year", date(2024, time.December, 31), 5)
+	addPhoto(publicID, "public-dates", "undated.jpg", "No Date", nil, 6)
+	addPhoto(protectedID, "private-dates", "private.jpg", "Private Date", date(2025, time.September, 5), 7)
+	addPhoto(unlistedID, "unlisted-dates", "unlisted.jpg", "Unlisted Date", date(2025, time.September, 5), 8)
+	addPhoto(protectedChildID, filepath.Join("private-dates", "nested-public"), "nested.jpg", "Nested Private Date", date(2025, time.September, 5), 9)
+
+	th, err := theme.Load(os.DirFS("../../themes/default"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	set := func(key, value string) {
+		t.Helper()
+		if err := st.SetSetting(ctx, key, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	build := func() {
+		t.Helper()
+		if err := New(st, th, cfg).Build(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	read := func(parts ...string) string {
+		t.Helper()
+		body, err := os.ReadFile(filepath.Join(append([]string{cfg.OutputDir}, parts...)...))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(body)
+	}
+
+	set("metadata.facet_pagination_enabled", "false")
+	set("metadata.date_archive_year", "true")
+	build()
+	root := read("browse", "date", "index.html")
+	if !strings.Contains(root, `class="card-title">2025`) || !strings.Contains(root, `class="card-title">2024`) {
+		t.Fatalf("year index missing years:\n%s", root)
+	}
+	year := read("browse", "date", "2025", "index.html")
+	for _, title := range []string{"September Five A", "September Five B", "August One"} {
+		if !strings.Contains(year, title) {
+			t.Errorf("year page missing %q", title)
+		}
+	}
+	mustNotExist(t, filepath.Join(cfg.OutputDir, "browse", "date", "2025", "09", "index.html"))
+
+	set("metadata.date_archive_month", "true")
+	build()
+	year = read("browse", "date", "2025", "index.html")
+	if !strings.Contains(year, `class="card-title">September`) || !strings.Contains(year, `class="card-title">August`) {
+		t.Fatalf("year page missing month folders:\n%s", year)
+	}
+	month := read("browse", "date", "2025", "09", "index.html")
+	if !strings.Contains(month, "September Five A") || !strings.Contains(month, "September Four") {
+		t.Fatalf("month page missing photos:\n%s", month)
+	}
+	mustNotExist(t, filepath.Join(cfg.OutputDir, "browse", "date", "2025", "09", "05", "index.html"))
+
+	set("metadata.date_archive_day", "true")
+	set("metadata.facet_pagination_enabled", "true")
+	set("metadata.facet_page_size", "1")
+	build()
+	month = read("browse", "date", "2025", "09", "index.html")
+	if !strings.Contains(month, `class="card-title">5 September`) || !strings.Contains(month, `class="card-title">4 September`) {
+		t.Fatalf("month page missing day folders:\n%s", month)
+	}
+	if !strings.Contains(month, `href="/browse/date/2025/">2025</a>`) {
+		t.Fatalf("month page missing year breadcrumb:\n%s", month)
+	}
+	day := read("browse", "date", "2025", "09", "05", "index.html")
+	if !strings.Contains(day, "September Five") {
+		t.Fatalf("day page missing photo:\n%s", day)
+	}
+	mustExist(t, filepath.Join(cfg.OutputDir, "browse", "date", "2025", "09", "05", "page", "2", "index.html"))
+	homepage := read("index.html")
+	if !strings.Contains(homepage, `href="/browse/date/"`) {
+		t.Fatal("site navigation is missing the date archive")
+	}
+
+	var archive strings.Builder
+	for _, path := range []string{
+		filepath.Join("browse", "date", "index.html"),
+		filepath.Join("browse", "date", "2025", "index.html"),
+		filepath.Join("browse", "date", "2025", "09", "index.html"),
+		filepath.Join("browse", "date", "2025", "09", "05", "index.html"),
+	} {
+		archive.WriteString(read(path))
+	}
+	for _, excluded := range []string{"No Date", "Private Date", "Nested Private Date", "Unlisted Date"} {
+		if strings.Contains(archive.String(), excluded) {
+			t.Errorf("date archive included %q", excluded)
+		}
+	}
+
+	set("metadata.date_archive_year", "false")
+	build()
+	mustNotExist(t, filepath.Join(cfg.OutputDir, "browse", "date", "index.html"))
+	homepage = read("index.html")
+	if strings.Contains(homepage, `href="/browse/date/"`) {
+		t.Fatal("disabled date archive remained in site navigation")
 	}
 }
 

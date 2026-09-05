@@ -28,8 +28,9 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 	if err != nil {
 		return nil, nil, err
 	}
+	public := galleryIsPublic(g.ID, b.byID)
 	itemTags := map[int64][]string{}
-	if g.Status == model.GalleryPublished {
+	if public {
 		itemTags, err = b.Store.GalleryItemUserTags(ctx, g.ID)
 		if err != nil {
 			return nil, nil, err
@@ -62,7 +63,7 @@ func (b *Builder) galleryPhotos(ctx context.Context, g model.Gallery, presets []
 		if g.ShowEXIF.Resolve(b.settings["site.default_gallery_show_exif"] == "true") {
 			pv.Exif = exifView(it)
 		}
-		if g.Status == model.GalleryPublished {
+		if public {
 			visibleTags := visibleUserTags(itemTags[it.ID], b.settings)
 			for _, value := range visibleTags {
 				tag := render.TagView{Label: value}

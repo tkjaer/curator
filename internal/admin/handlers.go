@@ -1091,6 +1091,9 @@ type metadataSettingsData struct {
 	TagBrowseEnabled  bool
 	PaginationEnabled bool
 	PageSize          int
+	DateArchiveYear   bool
+	DateArchiveMonth  bool
+	DateArchiveDay    bool
 }
 
 type publishingSettingsData struct {
@@ -1518,6 +1521,9 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 		TagBrowseEnabled:  tagBrowseEnabled,
 		PaginationEnabled: settings["metadata.facet_pagination_enabled"] != "false",
 		PageSize:          pageSize,
+		DateArchiveYear:   settings["metadata.date_archive_year"] == "true",
+		DateArchiveMonth:  settings["metadata.date_archive_month"] == "true",
+		DateArchiveDay:    settings["metadata.date_archive_day"] == "true",
 	})
 }
 
@@ -1781,6 +1787,19 @@ func (s *Server) handleSaveMetadataSettings(w http.ResponseWriter, r *http.Reque
 	if err := s.store.SetSetting(ctx, "metadata.tag_selection", strings.Join(selectedTags, "\n")); err != nil {
 		s.redirect(w, r, s.link("settings", "metadata"), "Could not save tag visibility")
 		return
+	}
+	dateArchiveYear := r.FormValue("date_archive_year") == "on"
+	dateArchiveMonth := dateArchiveYear && r.FormValue("date_archive_month") == "on"
+	dateArchiveDay := dateArchiveMonth && r.FormValue("date_archive_day") == "on"
+	for key, enabled := range map[string]bool{
+		"metadata.date_archive_year":  dateArchiveYear,
+		"metadata.date_archive_month": dateArchiveMonth,
+		"metadata.date_archive_day":   dateArchiveDay,
+	} {
+		if err := s.store.SetSetting(ctx, key, strconv.FormatBool(enabled)); err != nil {
+			s.redirect(w, r, s.link("settings", "metadata"), "Could not save date archive settings")
+			return
+		}
 	}
 	facets, err := s.store.FacetConfigs(ctx)
 	if err != nil {

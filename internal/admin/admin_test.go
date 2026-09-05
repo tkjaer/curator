@@ -1831,6 +1831,9 @@ func TestLensMetadataSettings(t *testing.T) {
 		"tag_browse_enabled":         {"on"},
 		"facet_pagination_enabled":   {"on"},
 		"facet_page_size":            {"60"},
+		"date_archive_year":          {"on"},
+		"date_archive_month":         {"on"},
+		"date_archive_day":           {"on"},
 	}
 	req := httptest.NewRequest("POST", "/settings/metadata", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -1856,6 +1859,14 @@ func TestLensMetadataSettings(t *testing.T) {
 	if settings["metadata.facet_pagination_enabled"] != "true" || settings["metadata.facet_page_size"] != "60" {
 		t.Fatalf("pagination settings = %q, %q", settings["metadata.facet_pagination_enabled"], settings["metadata.facet_page_size"])
 	}
+	if settings["metadata.date_archive_year"] != "true" ||
+		settings["metadata.date_archive_month"] != "true" ||
+		settings["metadata.date_archive_day"] != "true" {
+		t.Fatalf("date archive settings = %q, %q, %q",
+			settings["metadata.date_archive_year"],
+			settings["metadata.date_archive_month"],
+			settings["metadata.date_archive_day"])
+	}
 	if settings["metadata.tag_visibility"] != "hide_selected" || settings["metadata.tag_selection"] != "Private\nPublic" {
 		t.Fatalf("tag settings = %q, %q", settings["metadata.tag_visibility"], settings["metadata.tag_selection"])
 	}
@@ -1879,8 +1890,38 @@ func TestLensMetadataSettings(t *testing.T) {
 		!strings.Contains(rec.Body.String(), `name="tag_browse_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_pagination_enabled" checked`) ||
 		!strings.Contains(rec.Body.String(), `name="facet_page_size" value="60"`) ||
+		!strings.Contains(rec.Body.String(), `name="date_archive_year" checked`) ||
+		!strings.Contains(rec.Body.String(), `name="date_archive_month" checked`) ||
+		!strings.Contains(rec.Body.String(), `name="date_archive_day" checked`) ||
 		!strings.Contains(rec.Body.String(), `<strong>Camera</strong><small>Generate a public Camera browse page.</small>`) {
 		t.Fatal("settings page did not retain lens metadata settings")
+	}
+}
+
+func TestDateArchiveSettingsRequireParentLevels(t *testing.T) {
+	srv, _ := newTestServer(t)
+	form := url.Values{
+		"date_archive_month": {"on"},
+		"date_archive_day":   {"on"},
+		"tag_visibility":     {"show_all"},
+		"facet_page_size":    {"100"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/settings/metadata", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["metadata.date_archive_year"] != "false" ||
+		settings["metadata.date_archive_month"] != "false" ||
+		settings["metadata.date_archive_day"] != "false" {
+		t.Fatalf("orphaned date levels were retained: %q, %q, %q",
+			settings["metadata.date_archive_year"],
+			settings["metadata.date_archive_month"],
+			settings["metadata.date_archive_day"])
 	}
 }
 
