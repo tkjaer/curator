@@ -23,6 +23,7 @@ import (
 	"github.com/tkjaer/curator/internal/deploy"
 	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
+	"github.com/tkjaer/curator/internal/theme"
 )
 
 //go:embed templates/*.html
@@ -54,6 +55,7 @@ type Options struct {
 	StoryPreview  StoryPreviewFunc
 	PreviewAssets StoryPreviewAssetsFunc
 	Themes        []string
+	ThemeOptions  map[string][]theme.Option
 }
 
 // Server is the admin HTTP application.
@@ -68,6 +70,7 @@ type Server struct {
 	previewAssets StoryPreviewAssetsFunc
 	tmpl          *template.Template
 	themes        []string
+	themeOptions  map[string][]theme.Option
 	version       string
 	publishAPI    *publishapi.API
 
@@ -115,6 +118,7 @@ func New(st *store.Store, cfg config.Config, opts Options) (*Server, error) {
 		previewAssets: opts.PreviewAssets,
 		tmpl:          tmpl,
 		themes:        opts.Themes,
+		themeOptions:  opts.ThemeOptions,
 		version:       opts.Version,
 		trustProxy:    opts.TrustProxy,
 		throttle:      newThrottle(),
@@ -145,6 +149,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/upload"), s.handleUpload)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/title"), s.handleGalleryTitle)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/description"), s.handleGalleryDescription)
+	mux.HandleFunc("POST "+s.path("/galleries/{id}/hero-source"), s.handleGalleryHeroSource)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/slug"), s.handleGallerySlug)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/status"), s.handleGalleryStatus)
 	mux.HandleFunc("POST "+s.path("/galleries/{id}/presentation"), s.handleGalleryPresentation)
@@ -171,6 +176,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET "+s.path("/settings"), s.handleSettings)
 	mux.HandleFunc("POST "+s.path("/settings/gallery-presentation/reset"), s.handleResetGalleryPresentation)
 	mux.HandleFunc("POST "+s.path("/settings"), s.handleSaveSettings)
+	mux.HandleFunc("GET "+s.path("/settings/appearance"), s.handleAppearanceSettings)
+	mux.HandleFunc("POST "+s.path("/settings/appearance"), s.handleSaveAppearanceSettings)
+	mux.HandleFunc("POST "+s.path("/settings/appearance/reset"), s.handleResetAppearanceSettings)
 	mux.HandleFunc("GET "+s.path("/settings/metadata"), s.handleMetadataSettings)
 	mux.HandleFunc("POST "+s.path("/settings/metadata"), s.handleSaveMetadataSettings)
 	mux.HandleFunc("GET "+s.path("/settings/publishing"), s.handlePublishingSettings)

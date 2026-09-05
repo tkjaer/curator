@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"strconv"
 )
 
 // Option is a theme setting declared in the manifest. The admin renders these
@@ -18,6 +19,8 @@ type Option struct {
 	Type    string `json:"type"`
 	Label   string `json:"label"`
 	Default any    `json:"default"`
+	Min     *int   `json:"min,omitempty"`
+	Max     *int   `json:"max,omitempty"`
 }
 
 // Manifest is a theme's metadata and declared options.
@@ -136,6 +139,32 @@ func (m Manifest) Defaults() map[string]any {
 	out := make(map[string]any, len(m.Options))
 	for _, o := range m.Options {
 		out[o.Key] = o.Default
+	}
+	return out
+}
+
+// ResolveOptions overlays persisted theme settings on manifest defaults,
+// preserving the declared option types.
+func (m Manifest) ResolveOptions(settings map[string]string) map[string]any {
+	out := m.Defaults()
+	prefix := "theme." + m.Name + "."
+	for _, option := range m.Options {
+		raw, ok := settings[prefix+option.Key]
+		if !ok {
+			continue
+		}
+		switch option.Type {
+		case "bool":
+			if value, err := strconv.ParseBool(raw); err == nil {
+				out[option.Key] = value
+			}
+		case "int":
+			if value, err := strconv.Atoi(raw); err == nil {
+				out[option.Key] = value
+			}
+		default:
+			out[option.Key] = raw
+		}
 	}
 	return out
 }

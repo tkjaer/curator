@@ -94,6 +94,7 @@ func (b *Builder) derive(ctx context.Context, it model.Item, presets []model.Pre
 	}
 
 	pv := render.PhotoView{
+		ID:          it.ID,
 		Slug:        slug.Make(strings.TrimSuffix(it.Filename, filepath.Ext(it.Filename))),
 		Title:       it.Title,
 		Description: it.Description,

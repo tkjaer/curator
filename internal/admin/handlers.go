@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"math"
@@ -17,6 +19,7 @@ import (
 	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/slug"
 	"github.com/tkjaer/curator/internal/store"
+	"github.com/tkjaer/curator/internal/theme"
 )
 
 const maxUpload = 256 << 20 // 256 MiB per upload request
@@ -39,6 +42,88 @@ type galleryRow struct {
 type parentOption struct {
 	ID    int64
 	Label string
+}
+
+func publicHeroSourceOptions(rows []galleryRow, galleries []model.Gallery) []parentOption {
+	byID := make(map[int64]model.Gallery, len(galleries))
+	for _, gallery := range galleries {
+		byID[gallery.ID] = gallery
+	}
+	memo := make(map[int64]bool, len(galleries))
+	var public func(int64) bool
+	public = func(id int64) bool {
+		if value, ok := memo[id]; ok {
+			return value
+		}
+		gallery, ok := byID[id]
+		if !ok || gallery.Status != model.GalleryPublished {
+			memo[id] = false
+			return false
+		}
+		if gallery.ParentID == nil {
+			memo[id] = true
+			return true
+		}
+		memo[id] = public(*gallery.ParentID)
+		return memo[id]
+	}
+	var options []parentOption
+	for _, row := range rows {
+		if public(row.ID) {
+			options = append(options, parentOption{
+				ID: row.ID, Label: strings.Repeat("— ", row.Depth) + row.Title,
+			})
+		}
+	}
+	return options
+}
+
+func descendantHeroSourceOptions(rows []galleryRow, galleries []model.Gallery, parentID int64) []parentOption {
+	children := make(map[int64][]model.Gallery)
+	for _, gallery := range galleries {
+		if gallery.ParentID != nil {
+			children[*gallery.ParentID] = append(children[*gallery.ParentID], gallery)
+		}
+	}
+	allowed := make(map[int64]bool)
+	var walk func(int64)
+	walk = func(id int64) {
+		for _, child := range children[id] {
+			if child.Status != model.GalleryPublished {
+				continue
+			}
+			allowed[child.ID] = true
+			walk(child.ID)
+		}
+	}
+	walk(parentID)
+
+	baseDepth := 0
+	for _, row := range rows {
+		if row.ID == parentID {
+			baseDepth = row.Depth
+			break
+		}
+	}
+	var options []parentOption
+	for _, row := range rows {
+		if allowed[row.ID] {
+			depth := max(0, row.Depth-baseDepth-1)
+			options = append(options, parentOption{
+				ID: row.ID, Label: strings.Repeat("— ", depth) + row.Title,
+			})
+		}
+	}
+	return options
+}
+
+func optionContains(options []parentOption, id int64) bool {
+	for _, option := range options {
+		if option.ID == id {
+			return true
+		}
+	}
+	return false
 }
 
 type dashboardData struct {
@@ -291,6 +376,27 @@ func (s *Server) handleGalleryDescription(w http.ResponseWriter, r *http.Request
 	s.redirect(w, r, s.galleryLink(id), "Introduction updated")
 }
 
+func (s *Server) handleGalleryHeroSource(w http.ResponseWriter, r *http.Request) {
+	id, ok := parseID(w, r)
+	if !ok {
+		return
+	}
+	var sourceID *int64
+	if value := r.FormValue("hero_gallery"); value != "" {
+		parsed, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			s.redirect(w, r, s.galleryLink(id), "Hero source is invalid")
+			return
+		}
+		sourceID = &parsed
+	}
+	if err := s.store.UpdateGalleryHeroSource(r.Context(), id, sourceID); err != nil {
+		s.redirect(w, r, s.galleryLink(id), "Could not update hero source: "+err.Error())
+		return
+	}
+	s.redirect(w, r, s.galleryLink(id), "Hero source updated")
+}
+
 func (s *Server) handleGallerySlug(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(w, r)
 	if !ok {
@@ -344,7 +450,9 @@ type galleryData struct {
 	AccessUsers           []accessUserGrant
 	Children              []galleryRow
 	MoveTargets           []parentOption
+	HeroSources           []parentOption
 	CurrentParentID       int64
+	CurrentHeroGalleryID  int64
 	IsStory               bool
 	StoryPreviewAvailable bool
 	Blocks                []blockRow
@@ -663,6 +771,10 @@ func (s *Server) handleGallery(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+			data.HeroSources = descendantHeroSourceOptions(s.orderRows(all), all, id)
+			if g.HeroGalleryID != nil && optionContains(data.HeroSources, *g.HeroGalleryID) {
+				data.CurrentHeroGalleryID = *g.HeroGalleryID
+			}
 			data.Children = append(data.Children, galleryRow{
 				ID: child.ID, Title: child.Title, Slug: child.Slug, Status: string(child.Status),
 				Count: n, URL: s.link("galleries", strconv.FormatInt(child.ID, 10)),
@@ -832,12 +944,11 @@ func (s *Server) handleGalleryOptionsReset(w http.ResponseWriter, r *http.Reques
 
 type settingsData struct {
 	Title                  string
+	Introduction           string
 	BaseURL                string
 	CopyrightHolder        string
 	CopyrightYear          string
 	CurrentYear            int
-	Theme                  string
-	Themes                 []string
 	DefaultOrder           string
 	DefaultDirection       string
 	DefaultPublished       bool
@@ -845,6 +956,111 @@ type settingsData struct {
 	DefaultShowTitle       bool
 	DefaultShowDescription bool
 	DefaultShowSharing     bool
+}
+
+type appearanceSettingsData struct {
+	Theme         string
+	Themes        []string
+	ThemeOptions  []themeOptionField
+	HeroGalleryID int64
+	HeroSources   []parentOption
+}
+
+type themeOptionField struct {
+	Key        string
+	Type       string
+	Label      string
+	Value      string
+	Checked    bool
+	Min        *int
+	Max        *int
+	AllowBlank bool
+}
+
+func themeOptionFields(themeName string, options []theme.Option, settings map[string]string) []themeOptionField {
+	fields := make([]themeOptionField, 0, len(options))
+	for _, option := range options {
+		value := ""
+		switch typed := option.Default.(type) {
+		case string:
+			value = typed
+		case bool:
+			value = strconv.FormatBool(typed)
+		case float64:
+			value = strconv.FormatFloat(typed, 'f', -1, 64)
+		case int:
+			value = strconv.Itoa(typed)
+		}
+		if stored, ok := settings["theme."+themeName+"."+option.Key]; ok {
+			value = stored
+		}
+		fields = append(fields, themeOptionField{
+			Key: option.Key, Type: option.Type, Label: option.Label,
+			Value: value, Checked: value == "true", Min: option.Min,
+			Max: option.Max, AllowBlank: optionAllowsBlank(option),
+		})
+	}
+	return fields
+}
+
+func (s *Server) saveThemeOptions(ctx context.Context, r *http.Request, themeName string, settings map[string]string) (bool, error) {
+	if r.FormValue("theme_options_for") != themeName {
+		return false, nil
+	}
+	values := make(map[string]string)
+	for _, option := range s.themeOptions[themeName] {
+		field := "theme_option_" + option.Key
+		var value string
+		switch option.Type {
+		case "bool":
+			value = strconv.FormatBool(r.FormValue(field) == "on")
+		case "int":
+			parsed, err := strconv.Atoi(strings.TrimSpace(r.FormValue(field)))
+			if err != nil {
+				return false, fmt.Errorf("%s must be a whole number", option.Label)
+			}
+			if option.Min != nil && parsed < *option.Min {
+				return false, fmt.Errorf("%s must be at least %d", option.Label, *option.Min)
+			}
+			if option.Max != nil && parsed > *option.Max {
+				return false, fmt.Errorf("%s must be at most %d", option.Label, *option.Max)
+			}
+			value = strconv.Itoa(parsed)
+		case "color":
+			value = strings.TrimSpace(r.FormValue(field))
+			if optionAllowsBlank(option) && r.FormValue(field+"_automatic") == "on" {
+				value = ""
+			} else if !validHexColor(value) {
+				return false, fmt.Errorf("%s must be a six-digit hex color", option.Label)
+			}
+		default:
+			value = strings.TrimSpace(r.FormValue(field))
+		}
+		values["theme."+themeName+"."+option.Key] = value
+	}
+	changed := false
+	for key, value := range values {
+		if settings[key] != value {
+			changed = true
+		}
+		if err := s.store.SetSetting(ctx, key, value); err != nil {
+			return false, err
+		}
+	}
+	return changed, nil
+}
+
+func optionAllowsBlank(option theme.Option) bool {
+	value, ok := option.Default.(string)
+	return option.Type == "color" && ok && value == ""
+}
+
+func validHexColor(value string) bool {
+	if len(value) != 7 || value[0] != '#' {
+		return false
+	}
+	_, err := strconv.ParseUint(value[1:], 16, 24)
+	return err == nil
 }
 
 type lensMappingRow struct {
@@ -926,14 +1142,13 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.render(w, r, "settings", "Settings", s.flash(r), settingsData{
+	data := settingsData{
 		Title:                  settings["site.title"],
+		Introduction:           settings["site.introduction"],
 		BaseURL:                settings["site.base_url"],
 		CopyrightHolder:        settings["site.copyright_holder"],
 		CopyrightYear:          settings["site.copyright_start_year"],
 		CurrentYear:            time.Now().Year(),
-		Theme:                  themeOr(settings["site.theme"]),
-		Themes:                 s.themes,
 		DefaultPublished:       settings["site.default_gallery_published"] == "true",
 		DefaultShowEXIF:        settings["site.default_gallery_show_exif"] == "true",
 		DefaultShowTitle:       settings["site.default_gallery_show_title"] != "false",
@@ -952,7 +1167,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			}
 			return string(model.SortAscending)
 		}(),
-	})
+	}
+	s.render(w, r, "settings", "Settings", s.flash(r), data)
 }
 
 func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
@@ -967,6 +1183,7 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	title := r.FormValue("title")
+	introduction := strings.TrimSpace(r.FormValue("introduction"))
 	baseURL := strings.TrimRight(strings.TrimSpace(r.FormValue("base_url")), "/")
 	copyrightHolder := strings.TrimSpace(r.FormValue("copyright_holder"))
 	copyrightYear := strings.TrimSpace(r.FormValue("copyright_start_year"))
@@ -980,17 +1197,17 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	theme := themeOr(settings["site.theme"])
-	if requestedTheme := r.FormValue("theme"); s.validTheme(requestedTheme) {
-		theme = requestedTheme
-	}
 	buildNeeded := settings["site.title"] != title ||
+		settings["site.introduction"] != introduction ||
 		settings["site.base_url"] != baseURL ||
 		settings["site.copyright_holder"] != copyrightHolder ||
-		settings["site.copyright_start_year"] != copyrightYear ||
-		themeOr(settings["site.theme"]) != theme
+		settings["site.copyright_start_year"] != copyrightYear
 
 	if err := s.store.SetSetting(ctx, "site.title", title); err != nil {
+		s.redirect(w, r, s.link("settings"), "Could not save settings")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.introduction", introduction); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
 	}
@@ -1005,12 +1222,6 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 	if err := s.store.SetSetting(ctx, "site.copyright_start_year", copyrightYear); err != nil {
 		s.redirect(w, r, s.link("settings"), "Could not save settings")
 		return
-	}
-	if s.validTheme(theme) {
-		if err := s.store.SetSetting(ctx, "site.theme", theme); err != nil {
-			s.redirect(w, r, s.link("settings"), "Could not save settings")
-			return
-		}
 	}
 	defaultOrder := model.SortMode(r.FormValue("default_gallery_order"))
 	if defaultOrder != model.SortByDateAdded && defaultOrder != model.SortByFilename {
@@ -1070,6 +1281,117 @@ func (s *Server) handleSaveSettings(w http.ResponseWriter, r *http.Request) {
 		message += "; build site to publish changes"
 	}
 	s.redirect(w, r, s.link("settings"), message)
+}
+
+func (s *Server) handleAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	galleries, err := s.store.Galleries(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	active := themeOr(settings["site.theme"])
+	data := appearanceSettingsData{
+		Theme:        active,
+		Themes:       s.themes,
+		ThemeOptions: themeOptionFields(active, s.themeOptions[active], settings),
+		HeroSources:  publicHeroSourceOptions(s.orderRows(galleries), galleries),
+	}
+	if id, err := strconv.ParseInt(settings["site.hero_gallery_id"], 10, 64); err == nil && optionContains(data.HeroSources, id) {
+		data.HeroGalleryID = id
+	}
+	s.render(w, r, "appearance-settings", "Appearance settings", s.flash(r), data)
+}
+
+func (s *Server) handleSaveAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not save appearance")
+		return
+	}
+	ctx := r.Context()
+	settings, err := s.store.Settings(ctx)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	active := themeOr(settings["site.theme"])
+	selected := r.FormValue("theme")
+	if !s.validTheme(selected) {
+		s.redirect(w, r, s.link("settings", "appearance"), "Theme is invalid")
+		return
+	}
+	heroGalleryID, err := s.validateHomepageHeroSource(ctx, r.FormValue("hero_gallery"))
+	if err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), err.Error())
+		return
+	}
+	changed := active != selected || settings["site.hero_gallery_id"] != heroGalleryID
+	if err := s.store.SetSetting(ctx, "site.theme", selected); err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not save appearance")
+		return
+	}
+	if err := s.store.SetSetting(ctx, "site.hero_gallery_id", heroGalleryID); err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not save appearance")
+		return
+	}
+	optionsChanged, err := s.saveThemeOptions(ctx, r, selected, settings)
+	if err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not save theme options: "+err.Error())
+		return
+	}
+	message := "Appearance settings saved"
+	if changed || optionsChanged {
+		message += "; build site to publish changes"
+	}
+	s.redirect(w, r, s.link("settings", "appearance"), message)
+}
+
+func (s *Server) validateHomepageHeroSource(ctx context.Context, value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", nil
+	}
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return "", errors.New("homepage hero source is invalid")
+	}
+	galleries, err := s.store.Galleries(ctx)
+	if err != nil {
+		return "", err
+	}
+	if !optionContains(publicHeroSourceOptions(s.orderRows(galleries), galleries), id) {
+		return "", errors.New("homepage hero source must be a published gallery")
+	}
+	return strconv.FormatInt(id, 10), nil
+}
+
+func (s *Server) handleResetAppearanceSettings(w http.ResponseWriter, r *http.Request) {
+	settings, err := s.store.Settings(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	active := themeOr(settings["site.theme"])
+	themeName := r.FormValue("theme_options_for")
+	if themeName != active || !s.validTheme(themeName) {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not reset options for an inactive theme")
+		return
+	}
+	options := s.themeOptions[themeName]
+	keys := make([]string, 0, len(options))
+	for _, option := range options {
+		keys = append(keys, "theme."+themeName+"."+option.Key)
+	}
+	if err := s.store.DeleteSettings(r.Context(), keys); err != nil {
+		s.redirect(w, r, s.link("settings", "appearance"), "Could not reset theme options")
+		return
+	}
+	s.redirect(w, r, s.link("settings", "appearance"), "Theme options reset; build site to publish changes")
 }
 
 func (s *Server) handleResetGalleryPresentation(w http.ResponseWriter, r *http.Request) {

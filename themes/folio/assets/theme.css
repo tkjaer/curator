@@ -58,9 +58,11 @@ body {
   margin: 0;
   color: var(--ink);
   background-color: var(--paper);
+  font: 400 var(--text-base)/1.6 var(--font-sans);
+}
+.has-grid-background {
   background-image: linear-gradient(#11120f08 1px, transparent 1px), linear-gradient(90deg, #11120f08 1px, transparent 1px);
   background-size: 48px 48px;
-  font: 400 var(--text-base)/1.6 var(--font-sans);
 }
 a { color: inherit; }
 img { max-width: 100%; }
@@ -243,7 +245,7 @@ h1 { max-width: 12ch; margin: 0; font-size: var(--text-display); line-height: 1;
 
 @media (prefers-color-scheme: dark) {
   :root { --paper: #111210; --surface: #1c1d1a; --ink: #f1f2ee; --muted: #a3a69e; --line: #343630; --wash: #26354c; }
-  body { background-image: linear-gradient(#ffffff08 1px, transparent 1px), linear-gradient(90deg, #ffffff08 1px, transparent 1px); }
+  .has-grid-background { background-image: linear-gradient(#ffffff08 1px, transparent 1px), linear-gradient(90deg, #ffffff08 1px, transparent 1px); }
   .site-header { background: #111210e8; }
   .site-nav a:hover, .site-nav a:focus-visible { background: var(--surface); }
 }

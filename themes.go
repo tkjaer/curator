@@ -46,6 +46,16 @@ func availableThemes() []string {
 	return names
 }
 
+func availableThemeOptions() map[string][]theme.Option {
+	options := make(map[string][]theme.Option)
+	for _, name := range availableThemes() {
+		if loaded, err := loadTheme(name); err == nil {
+			options[name] = loaded.Manifest.Options
+		}
+	}
+	return options
+}
+
 // loadSiteTheme loads the theme named by the site.theme setting, falling back to
 // the default theme when the setting is unset or the theme cannot be loaded.
 func loadSiteTheme(ctx context.Context, st *store.Store) (*theme.Theme, error) {

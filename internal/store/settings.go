@@ -27,6 +27,21 @@ func (s *Store) Settings(ctx context.Context) (map[string]string, error) {
 	return out, rows.Err()
 }
 
+// DeleteSettings removes the named settings atomically.
+func (s *Store) DeleteSettings(ctx context.Context, keys []string) error {
+	tx, err := s.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	for _, key := range keys {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM settings WHERE key = ?`, key); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
 // DefaultGallerySortMode returns the system ordering inherited by galleries
 // whose sort mode is default.
 func (s *Store) DefaultGallerySortMode(ctx context.Context) (model.SortMode, error) {

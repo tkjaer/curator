@@ -5,6 +5,7 @@
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
   <a href="{{$.BasePath}}/settings" aria-current="page">Site</a>
+  <a href="{{$.BasePath}}/settings/appearance">Appearance</a>
   <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
   <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
@@ -15,19 +16,22 @@
     <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
   </div>
   <div class="settings-grid">
-    <section class="settings-panel settings-panel-wide">
-      <div class="settings-card-heading"><h2>Identity and appearance</h2><p>The name, address, and theme visitors see.</p></div>
-      <div class="settings-field-grid">
-        <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
-        {{$cur := .Theme}}
-        <label class="field"><span>Site theme</span>
-          <select name="theme">
-            {{range .Themes}}<option value="{{.}}"{{if eq . $cur}} selected{{end}}>{{.}}</option>{{end}}
-          </select>
-        </label>
-      </div>
+    <section class="settings-panel">
+      <div class="settings-card-heading"><h2>Site identity</h2><p>The name, address, and attribution visitors see.</p></div>
+      <label class="field"><span>Site title</span><input name="title" value="{{.Title}}"></label>
       <label class="field"><span>Base URL</span><input id="base_url" name="base_url" value="{{.BaseURL}}" placeholder="https://photos.example.com"></label>
       <p class="field-help">Used for canonical links, feeds, and public gallery addresses.</p>
+      <div class="settings-field-grid settings-field-grid-copyright">
+        <label class="field"><span>Copyright holder</span><input name="copyright_holder" value="{{.CopyrightHolder}}" placeholder="Name or organization"></label>
+        <label class="field"><span>Start year</span><input type="number" name="copyright_start_year" value="{{.CopyrightYear}}" min="1" max="{{.CurrentYear}}" inputmode="numeric" placeholder="{{.CurrentYear}}"></label>
+      </div>
+      <p class="field-help">Optional footer attribution; the ending year updates automatically.</p>
+    </section>
+
+    <section class="settings-panel">
+      <div class="settings-card-heading"><h2>Homepage introduction</h2><p>Editorial text shown before the top-level galleries.</p></div>
+      <label class="field"><span>Homepage introduction</span><textarea name="introduction" rows="2" placeholder="Photography by...">{{.Introduction}}</textarea></label>
+      <p class="field-help">Optional text that themes can feature on the homepage.</p>
     </section>
 
     <section class="settings-panel">
@@ -59,14 +63,6 @@
       <p class="field-help">Individual galleries can inherit or override each choice.</p>
     </section>
 
-    <section class="settings-panel settings-panel-wide">
-      <div class="settings-card-heading"><h2>Copyright</h2><p>Optional attribution added to the generated site footer.</p></div>
-      <div class="settings-field-grid settings-field-grid-copyright">
-        <label class="field"><span>Copyright holder</span><input name="copyright_holder" value="{{.CopyrightHolder}}" placeholder="Name or organization"></label>
-        <label class="field"><span>Start year</span><input type="number" name="copyright_start_year" value="{{.CopyrightYear}}" min="1" max="{{.CurrentYear}}" inputmode="numeric" placeholder="{{.CurrentYear}}"></label>
-      </div>
-      <p class="field-help">The ending year updates automatically when the site is rebuilt.</p>
-    </section>
   </div>
 </form>
 
