@@ -791,7 +791,7 @@ func TestNestedCoverFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(index), "background-image") {
+	if !strings.Contains(string(index), `class="card-cover"><img`) {
 		t.Error("folder gallery card should inherit a cover from its nested child")
 	}
 
@@ -1016,7 +1016,7 @@ func TestBuildDateArchiveLevelsFromEXIF(t *testing.T) {
 	set("metadata.date_archive_year", "true")
 	build()
 	root := read("browse", "date", "index.html")
-	if !strings.Contains(root, `class="card-title">2025`) || !strings.Contains(root, `class="card-title">2024`) {
+	if !strings.Contains(root, `class="card-title"><span>2025</span>`) || !strings.Contains(root, `class="card-title"><span>2024</span>`) {
 		t.Fatalf("year index missing years:\n%s", root)
 	}
 	year := read("browse", "date", "2025", "index.html")
@@ -1030,7 +1030,7 @@ func TestBuildDateArchiveLevelsFromEXIF(t *testing.T) {
 	set("metadata.date_archive_month", "true")
 	build()
 	year = read("browse", "date", "2025", "index.html")
-	if !strings.Contains(year, `class="card-title">September`) || !strings.Contains(year, `class="card-title">August`) {
+	if !strings.Contains(year, `class="card-title"><span>September</span>`) || !strings.Contains(year, `class="card-title"><span>August</span>`) {
 		t.Fatalf("year page missing month folders:\n%s", year)
 	}
 	month := read("browse", "date", "2025", "09", "index.html")
@@ -1044,7 +1044,7 @@ func TestBuildDateArchiveLevelsFromEXIF(t *testing.T) {
 	set("metadata.facet_page_size", "1")
 	build()
 	month = read("browse", "date", "2025", "09", "index.html")
-	if !strings.Contains(month, `class="card-title">5 September`) || !strings.Contains(month, `class="card-title">4 September`) {
+	if !strings.Contains(month, `class="card-title"><span>5 September</span>`) || !strings.Contains(month, `class="card-title"><span>4 September</span>`) {
 		t.Fatalf("month page missing day folders:\n%s", month)
 	}
 	if !strings.Contains(month, `href="/browse/date/2025/">2025</a>`) {

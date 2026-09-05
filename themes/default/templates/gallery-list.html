@@ -1,8 +1,10 @@
 {{define "gallery-list"}}{{template "site-head" .}}
 {{template "breadcrumbs" .Breadcrumb}}
 <article class="gallery">
-  <h1>{{.Title}}</h1>
-  {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
-  {{template "cards" .Children}}
+  <header class="page-head">
+    <h1>{{.Title}}</h1>
+    {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  </header>
+  <section class="gallery-folders" aria-label="Folders">{{template "cards" .Children}}</section>
 </article>
 {{template "site-foot" .}}{{end}}

@@ -145,6 +145,43 @@ func TestRenderStoryImageTags(t *testing.T) {
 	}
 }
 
+func TestDefaultThemeReferenceStructure(t *testing.T) {
+	th := loadDefault(t)
+	site := sampleSite()
+	view := render.GalleryView{
+		Title: site.Title,
+		Children: []render.GalleryCard{
+			{Title: "Portrait", Href: "/portrait/", Cover: render.Source{URL: "/portrait.jpg", Width: 800, Height: 533}, Count: 1},
+			{Title: "Trips", Href: "/trips/", Count: 3},
+		},
+		Options: th.Manifest.Defaults(),
+		Site:    site,
+	}
+
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		"<title>My Photos</title>",
+		`class="site-header-inner"`,
+		`class="site-main"`,
+		`class="page-head"`,
+		`<img src="/portrait.jpg" width="800" height="533" alt=""`,
+		"1 photo",
+		"3 photos",
+		`class="back-to-top" href="#top"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("default theme output missing %q", want)
+		}
+	}
+	if strings.Contains(out, "My Photos &middot; My Photos") {
+		t.Error("homepage document title repeats the site title")
+	}
+}
+
 func TestManifestOptions(t *testing.T) {
 	th := loadDefault(t)
 	defaults := th.Manifest.Defaults()
