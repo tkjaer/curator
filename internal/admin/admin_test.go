@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"html"
 	"image"
 	"image/jpeg"
@@ -1986,11 +1987,14 @@ func TestXMPProfileRows(t *testing.T) {
 func TestCameraLensSuggestions(t *testing.T) {
 	clues := []store.CameraLensClue{
 		{Camera: "FUJIFILM XF10", Focal: "18.5 mm", MaxApertureAPEX: "297/100", Count: 27},
-		{Camera: "FUJIFILM GFX 50R", XMPProfile: "Voigtlander 12mm", Count: 4},
-		{Camera: "FUJIFILM GFX 50R", XMPProfile: "Voigtlander 15mm", Count: 3},
+		{Camera: "FUJIFILM GFX 50R", Count: 7},
+	}
+	profiles := []store.XMPProfileUsage{
+		{Camera: "FUJIFILM GFX 50R", Profile: "Voigtlander 12mm", Count: 4},
+		{Camera: "FUJIFILM GFX 50R", Profile: "Voigtlander 15mm", Count: 3},
 	}
 
-	suggestions := cameraLensSuggestions(clues, true)
+	suggestions := cameraLensSuggestions(clues, profiles, true)
 	if got := suggestions["FUJIFILM XF10"]; got.Lens != "FUJIFILM XF10 18.5mm f/2.8" ||
 		!strings.Contains(got.Evidence, "27 photos") || !strings.Contains(got.Evidence, "max f/2.8") {
 		t.Fatalf("XF10 suggestion = %+v", got)
@@ -2002,16 +2006,18 @@ func TestCameraLensSuggestions(t *testing.T) {
 }
 
 func TestCameraLensSuggestionExplainsXMPFallbackState(t *testing.T) {
-	clues := []store.CameraLensClue{{
-		Camera: "FUJIFILM X100S", XMPProfile: "Fujifilm X100S", Count: 12,
-	}}
+	clues := []store.CameraLensClue{
+		{Camera: "FUJIFILM X100S", Focal: "23 mm", MaxApertureAPEX: "2/1", Count: 19, TotalCount: 19},
+	}
+	profiles := []store.XMPProfileUsage{{Camera: "FUJIFILM X100S", Profile: "Fujinon 23mm f/2", Count: 8}}
 
-	enabled := cameraLensSuggestions(clues, true)["FUJIFILM X100S"]
-	if enabled.XMPName != "Fujifilm X100S" || !enabled.XMPFallbackActive || enabled.CanEnableFallback {
+	enabled := cameraLensSuggestions(clues, profiles, true)["FUJIFILM X100S"]
+	if enabled.XMPName != "Fujinon 23mm f/2" || enabled.XMPCount != 8 || enabled.CameraCount != 19 ||
+		!enabled.XMPFallbackActive || enabled.CanEnableFallback {
 		t.Errorf("enabled suggestion = %+v", enabled)
 	}
-	disabled := cameraLensSuggestions(clues, false)["FUJIFILM X100S"]
-	if disabled.XMPName != "Fujifilm X100S" || disabled.XMPFallbackActive || !disabled.CanEnableFallback {
+	disabled := cameraLensSuggestions(clues, profiles, false)["FUJIFILM X100S"]
+	if disabled.XMPName != "Fujinon 23mm f/2" || disabled.XMPFallbackActive || !disabled.CanEnableFallback {
 		t.Errorf("disabled suggestion = %+v", disabled)
 	}
 }
@@ -2078,11 +2084,17 @@ func TestMetadataSettingsMakeDisabledXMPFallbackActionable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := srv.store.CreateItem(ctx, model.Item{
-		GalleryID: galleryID, OriginalPath: "xmp-lens/photo.jpg", Filename: "photo.jpg",
-		Camera: "FUJIFILM X100S", XMPLens: "Fujifilm X100S", Status: model.ItemPublished,
-	}); err != nil {
-		t.Fatal(err)
+	for i := 0; i < 19; i++ {
+		item := model.Item{
+			GalleryID: galleryID, OriginalPath: fmt.Sprintf("xmp-lens/photo-%d.jpg", i), Filename: fmt.Sprintf("photo-%d.jpg", i),
+			Camera: "FUJIFILM X100S", Status: model.ItemPublished,
+		}
+		if i < 8 {
+			item.XMPLens = "Fujinon 23mm f/2"
+		}
+		if _, err := srv.store.CreateItem(ctx, item); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	render := func() string {
@@ -2095,7 +2107,7 @@ func TestMetadataSettingsMakeDisabledXMPFallbackActionable(t *testing.T) {
 		return rec.Body.String()
 	}
 	body := render()
-	if !strings.Contains(body, `Found in XMP: <strong>Fujifilm X100S</strong>`) ||
+	if !strings.Contains(body, `8 of 19 photos report XMP lens metadata: <strong>Fujinon 23mm f/2</strong>`) ||
 		!strings.Contains(body, `class="xmp-enable secondary-button" type="button">Enable XMP lens fallback</button>`) {
 		t.Fatal("disabled XMP evidence did not show its value and enable action")
 	}
@@ -2107,7 +2119,7 @@ func TestMetadataSettingsMakeDisabledXMPFallbackActionable(t *testing.T) {
 	if strings.Contains(mappedBody, `>Enable XMP lens fallback</button>`) {
 		t.Fatal("mapped camera should not offer to enable XMP fallback")
 	}
-	if !strings.Contains(mappedBody, `Found in XMP: <strong>Fujifilm X100S</strong>`) ||
+	if !strings.Contains(mappedBody, `8 of 19 photos report XMP lens metadata: <strong>Fujinon 23mm f/2</strong>`) ||
 		!strings.Contains(mappedBody, `The mapping takes precedence.`) {
 		t.Fatal("mapped camera did not retain its XMP evidence and precedence explanation")
 	}

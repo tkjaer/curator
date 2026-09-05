@@ -1069,6 +1069,8 @@ type lensMappingRow struct {
 	Suggestion        string
 	Evidence          string
 	XMPName           string
+	XMPCount          int
+	CameraCount       int
 	XMPFallbackActive bool
 	CanEnableFallback bool
 }
@@ -1473,13 +1475,14 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 	}
 
 	useXMPFallback := settings["metadata.use_lightroom_lens_profile"] == "true"
-	suggestions := cameraLensSuggestions(clues, useXMPFallback)
+	suggestions := cameraLensSuggestions(clues, profileUsages, useXMPFallback)
 	rows := make([]lensMappingRow, 0, len(mappings)+len(suggestions))
 	for camera, lens := range mappings {
 		suggestion := suggestions[camera]
 		rows = append(rows, lensMappingRow{
 			Camera: camera, Lens: lens, Evidence: suggestion.Evidence,
-			XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
+			XMPName: suggestion.XMPName, XMPCount: suggestion.XMPCount, CameraCount: suggestion.CameraCount,
+			XMPFallbackActive: suggestion.XMPFallbackActive,
 			CanEnableFallback: suggestion.CanEnableFallback,
 		})
 	}
@@ -1491,7 +1494,8 @@ func (s *Server) handleMetadataSettings(w http.ResponseWriter, r *http.Request) 
 			suggestion := suggestions[camera]
 			rows = append(rows, lensMappingRow{
 				Camera: camera, Suggestion: suggestion.Lens, Evidence: suggestion.Evidence,
-				XMPName: suggestion.XMPName, XMPFallbackActive: suggestion.XMPFallbackActive,
+				XMPName: suggestion.XMPName, XMPCount: suggestion.XMPCount, CameraCount: suggestion.CameraCount,
+				XMPFallbackActive: suggestion.XMPFallbackActive,
 				CanEnableFallback: suggestion.CanEnableFallback,
 			})
 		}
@@ -1531,49 +1535,61 @@ type cameraLensSuggestion struct {
 	Lens              string
 	Evidence          string
 	XMPName           string
+	XMPCount          int
+	CameraCount       int
 	XMPFallbackActive bool
 	CanEnableFallback bool
 }
 
-func cameraLensSuggestions(clues []store.CameraLensClue, useXMPFallback bool) map[string]cameraLensSuggestion {
+func cameraLensSuggestions(clues []store.CameraLensClue, profileUsages []store.XMPProfileUsage, useXMPFallback bool) map[string]cameraLensSuggestion {
 	type evidence struct {
-		count     int
-		focals    map[string]bool
-		apertures map[string]bool
-		profiles  map[string]bool
+		count        int
+		total        int
+		profileCount int
+		focals       map[string]bool
+		apertures    map[string]bool
+		profiles     map[string]int
 	}
 	byCamera := map[string]*evidence{}
 	for _, clue := range clues {
 		e := byCamera[clue.Camera]
 		if e == nil {
-			e = &evidence{focals: map[string]bool{}, apertures: map[string]bool{}, profiles: map[string]bool{}}
+			e = &evidence{focals: map[string]bool{}, apertures: map[string]bool{}, profiles: map[string]int{}}
 			byCamera[clue.Camera] = e
 		}
 		e.count += clue.Count
+		e.total = max(e.total, clue.TotalCount)
 		if clue.Focal != "" {
 			e.focals[clue.Focal] = true
 		}
 		if aperture := formatMaxAperture(clue.MaxApertureAPEX); aperture != "" {
 			e.apertures[aperture] = true
 		}
-		if clue.XMPProfile != "" {
-			e.profiles[clue.XMPProfile] = true
+	}
+	for _, usage := range profileUsages {
+		if e := byCamera[usage.Camera]; e != nil {
+			e.profiles[usage.Profile] += usage.Count
+			e.profileCount += usage.Count
 		}
 	}
 
 	out := make(map[string]cameraLensSuggestion, len(byCamera))
 	for camera, e := range byCamera {
-		parts := []string{pluralize(e.count, "photo")}
+		if e.total == 0 {
+			e.total = e.count
+		}
+		var parts []string
+		if len(e.profiles) != 1 {
+			parts = append(parts, pluralize(e.total, "photo"))
+		}
 		if len(e.focals) == 1 {
 			parts = append(parts, firstKey(e.focals))
 		}
 		if len(e.apertures) == 1 {
 			parts = append(parts, "max "+firstKey(e.apertures))
 		}
-		if len(e.profiles) == 1 {
-			parts = append(parts, "XMP lens metadata found")
-		} else if len(e.profiles) > 1 {
-			parts = append(parts, pluralize(len(e.profiles), "different XMP lens name")+"; one mapping would affect all photos")
+		if len(e.profiles) > 1 {
+			parts = append(parts, pluralize(e.profileCount, "photo")+" report "+pluralize(len(e.profiles), "different XMP lens name")+"; one mapping would affect all photos")
 		}
 
 		var lens string
@@ -1583,18 +1599,20 @@ func cameraLensSuggestions(clues []store.CameraLensClue, useXMPFallback bool) ma
 		}
 		suggestion := cameraLensSuggestion{
 			Lens: lens, Evidence: strings.Join(parts, " · "),
+			CameraCount:       e.total,
 			XMPFallbackActive: len(e.profiles) == 1 && useXMPFallback,
 			CanEnableFallback: len(e.profiles) == 1 && !useXMPFallback,
 		}
 		if len(e.profiles) == 1 {
 			suggestion.XMPName = firstKey(e.profiles)
+			suggestion.XMPCount = e.profiles[suggestion.XMPName]
 		}
 		out[camera] = suggestion
 	}
 	return out
 }
 
-func firstKey(values map[string]bool) string {
+func firstKey[T any](values map[string]T) string {
 	for value := range values {
 		return value
 	}

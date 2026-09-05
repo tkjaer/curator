@@ -34,7 +34,7 @@
           <label><span>Camera</span><input name="mapping_camera" value="{{.Camera}}" placeholder="Camera model"></label>
           <label><span>Lens</span><input name="mapping_lens" value="{{.Lens}}" placeholder="Lens name"></label>
           <button class="mapping-remove" type="button" aria-label="Remove mapping" title="Remove mapping">&times;</button>
-          {{if .Evidence}}<div class="mapping-evidence"><span>{{.Evidence}}{{if .XMPName}} · Found in XMP: <strong>{{.XMPName}}</strong>. <span{{if and .CanEnableFallback (not .Lens)}} data-xmp-fallback-status{{end}}>{{if .Lens}}The mapping takes precedence.{{else if .XMPFallbackActive}}Curator will use this when no higher-priority lens is available.{{else if .CanEnableFallback}}Fallback is off.{{end}}</span>{{end}}</span>{{if and .CanEnableFallback (not .Lens)}}<button class="xmp-enable secondary-button" type="button">Enable XMP lens fallback</button>{{else if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
+          {{if or .Evidence .XMPName}}<div class="mapping-evidence"><span>{{if .XMPName}}{{.XMPCount}} of {{.CameraCount}} photos report XMP lens metadata: <strong>{{.XMPName}}</strong>.{{if .Evidence}} {{.Evidence}}.{{end}} <span{{if and .CanEnableFallback (not .Lens)}} data-xmp-fallback-status{{end}}>{{if .Lens}}The mapping takes precedence.{{else if .XMPFallbackActive}}Curator will use this when no higher-priority lens is available.{{else if .CanEnableFallback}}Fallback is off.{{end}}</span>{{else}}{{.Evidence}}{{end}}</span>{{if and .CanEnableFallback (not .Lens)}}<button class="xmp-enable secondary-button" type="button">Enable XMP lens fallback</button>{{else if and .Suggestion (not .Lens)}}<button class="mapping-use secondary-button" type="button" data-suggestion="{{.Suggestion}}">Use {{.Suggestion}}</button>{{end}}</div>{{end}}
         </div>
         {{end}}
       </div>
@@ -115,7 +115,7 @@
   </div>
 </form>
 <section class="card xmp-profiles settings-wide-card">
-  <div class="settings-card-heading"><h2>Detected XMP lens metadata</h2><p>Read-only direct lens names and Adobe lens profile names found in embedded or sidecar XMP.</p></div>
+  <div class="settings-card-heading"><h2>Detected XMP lens metadata</h2><p>Read-only direct lens names and Adobe lens profile names found across all photos in embedded or sidecar XMP. Camera-identifying profile names are excluded.</p></div>
   {{if .XMPProfiles}}
   <table>
     <thead><tr><th>Lens name</th><th>Camera</th><th>Photos</th><th>Status</th></tr></thead>

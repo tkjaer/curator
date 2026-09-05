@@ -142,7 +142,8 @@ func TestXMPLensFallback(t *testing.T) {
 	f.Write([]byte{0xff, 0xd9})
 	f.Close()
 
-	if got := xmpLens(path); got != "Voigtlander VM 15mm f/4.5" {
+	lens, profile := xmpLens(path)
+	if got := xmpLensValue("", lens, profile); got != "Voigtlander VM 15mm f/4.5" {
 		t.Fatalf("XMP lens = %q", got)
 	}
 	meta, err := Extract(path)
@@ -155,6 +156,93 @@ func TestXMPLensFallback(t *testing.T) {
 	direct := []byte(`<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="urn:aux" xmlns:crs="urn:crs" aux:Lens="Direct lens" crs:LensProfileName="Adobe (Profile lens)"/>`)
 	if got := parseXMPLens(direct); got != "Direct lens" {
 		t.Fatalf("direct XMP lens = %q", got)
+	}
+}
+
+func TestXMPLensValueRejectsCameraEquivalentProfile(t *testing.T) {
+	for _, profile := range []string{
+		"Fujifilm X100S",
+		" FUJIFILM   X100S ",
+		"FUJIFILM-X100S",
+		"Fujifilm X100-S",
+	} {
+		if got := xmpLensValue("FUJIFILM X100S", "", profile); got != "" {
+			t.Errorf("camera-equivalent profile %q = %q, want empty", profile, got)
+		}
+	}
+	if got := xmpLensValue("FUJIFILM X100S", "", "Fujinon 23mm f/2"); got != "Fujinon 23mm f/2" {
+		t.Errorf("real profile = %q", got)
+	}
+	if got := xmpLensValue("FUJIFILM X100S", "Fujifilm X100S", "Camera profile"); got != "Fujifilm X100S" {
+		t.Errorf("explicit XMP lens = %q", got)
+	}
+}
+
+func TestExtractRejectsCameraEquivalentProfileButPreservesDirectLens(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "x100s.jpg")
+	profile := []byte(`<rdf:Description xmlns:rdf="urn:rdf" xmlns:crs="urn:crs" crs:LensProfileName="Adobe (Fujifilm-X100 S)"/>`)
+	writeEXIFXMPJPEG(t, path, "FUJIFILM", "X100S", profile)
+
+	meta, err := Extract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Camera != "FUJIFILM X100S" || meta.XMPLens != "" {
+		t.Fatalf("camera profile extraction = %+v", meta)
+	}
+
+	direct := []byte(`<rdf:Description xmlns:rdf="urn:rdf" xmlns:aux="urn:aux" aux:Lens="Fujifilm-X100 S"/>`)
+	writeEXIFXMPJPEG(t, path, "FUJIFILM", "X100S", direct)
+	meta, err = Extract(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.XMPLens != "Fujifilm-X100 S" {
+		t.Fatalf("direct lens extraction = %+v", meta)
+	}
+}
+
+func writeEXIFXMPJPEG(t *testing.T, path, makeName, modelName string, xmp []byte) {
+	t.Helper()
+	makeValue := append([]byte(makeName), 0)
+	modelValue := append([]byte(modelName), 0)
+	const dataOffset = 8 + 2 + 2*12 + 4
+
+	var tiff bytes.Buffer
+	tiff.WriteString("II")
+	binary.Write(&tiff, binary.LittleEndian, uint16(42))
+	binary.Write(&tiff, binary.LittleEndian, uint32(8))
+	binary.Write(&tiff, binary.LittleEndian, uint16(2))
+	for _, entry := range []struct {
+		tag    uint16
+		value  []byte
+		offset uint32
+	}{
+		{tag: 0x010f, value: makeValue, offset: dataOffset},
+		{tag: 0x0110, value: modelValue, offset: dataOffset + uint32(len(makeValue))},
+	} {
+		binary.Write(&tiff, binary.LittleEndian, entry.tag)
+		binary.Write(&tiff, binary.LittleEndian, uint16(2))
+		binary.Write(&tiff, binary.LittleEndian, uint32(len(entry.value)))
+		binary.Write(&tiff, binary.LittleEndian, entry.offset)
+	}
+	binary.Write(&tiff, binary.LittleEndian, uint32(0))
+	tiff.Write(makeValue)
+	tiff.Write(modelValue)
+
+	var data bytes.Buffer
+	data.Write([]byte{0xff, 0xd8})
+	for _, payload := range [][]byte{
+		append([]byte("Exif\x00\x00"), tiff.Bytes()...),
+		append(append([]byte{}, xmpHeader...), xmp...),
+	} {
+		data.Write([]byte{0xff, 0xe1})
+		binary.Write(&data, binary.BigEndian, uint16(len(payload)+2))
+		data.Write(payload)
+	}
+	data.Write([]byte{0xff, 0xd9})
+	if err := os.WriteFile(path, data.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 

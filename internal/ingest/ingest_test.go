@@ -273,6 +273,69 @@ func TestResolveCamera(t *testing.T) {
 	}
 }
 
+func TestRescanClearsStaleXMPLensAndPreservesCameraMapping(t *testing.T) {
+	tmp := t.TempDir()
+	cfg := config.New(tmp, filepath.Join(tmp, "output"))
+	ctx := context.Background()
+	st, err := store.Open(cfg.DBPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	if err := st.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "metadata.lens_mappings", "FUJIFILM X100S = Fujinon 23mm f/2"); err != nil {
+		t.Fatal(err)
+	}
+	galleryID, err := st.CreateGallery(ctx, model.Gallery{Slug: "x100s", Title: "X100S"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalPath := filepath.Join("x100s", "photo.jpg")
+	fullPath := filepath.Join(cfg.OriginalsDir(), originalPath)
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Create(fullPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := jpeg.Encode(f, image.NewRGBA(image.Rect(0, 0, 10, 10)), nil); err != nil {
+		f.Close()
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	itemID, err := st.CreateItem(ctx, model.Item{
+		GalleryID: galleryID, OriginalPath: originalPath, Filename: "photo.jpg",
+		Camera: "FUJIFILM X100S", ManualCamera: "FUJIFILM X100S",
+		Lens: "Fujifilm X100S", XMPLens: "Fujifilm X100S", Status: model.ItemPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if updated, skipped, err := Rescan(ctx, st, cfg); err != nil || updated != 1 || skipped != 0 {
+		t.Fatalf("rescan = %d updated, %d skipped, %v", updated, skipped, err)
+	}
+	item, err := st.Item(ctx, itemID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if item.XMPLens != "" || item.Camera != "FUJIFILM X100S" || item.Lens != "Fujinon 23mm f/2" {
+		t.Fatalf("rescanned item = %+v", item)
+	}
+	settings, err := st.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["metadata.lens_mappings"] != "FUJIFILM X100S = Fujinon 23mm f/2" {
+		t.Fatalf("camera mapping changed to %q", settings["metadata.lens_mappings"])
+	}
+}
+
 func TestParseLensMappingsRejectsInvalidLine(t *testing.T) {
 	if _, err := ParseLensMappings("FUJIFILM XF10"); err == nil {
 		t.Fatal("expected invalid mapping error")

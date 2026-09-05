@@ -56,11 +56,13 @@ matches it; Curator does not need to reopen those image files.
 
 Available XMP lens metadata means Curator detected either a direct lens name
 (`aux:Lens` or `exifEX:LensModel`) or an Adobe Camera Raw lens profile name
-(`crs:LensProfileName`) in embedded or sidecar XMP. Detection alone does not
-make that name active: the fallback setting must be enabled, and any value
-earlier in the resolution order still wins. A camera-to-lens mapping is
-therefore optional when the fallback is enabled, but adding one overrides the
-XMP value.
+(`crs:LensProfileName`) in embedded or sidecar XMP. A profile name that differs
+from the camera make/model only by case, spacing, or punctuation is ignored
+because it does not identify a lens. Direct `Lens` and `LensModel` values are
+preserved. Detection alone does not make a name active: the fallback setting
+must be enabled, and any value earlier in the resolution order still wins. A
+camera-to-lens mapping is therefore optional when the fallback is enabled, but
+adding one overrides the XMP value.
 
 ## Normalize lens names
 
