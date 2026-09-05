@@ -1618,6 +1618,7 @@ func TestThemeOptionsAreRenderedAndSaved(t *testing.T) {
 			{Key: "showHero", Type: "bool", Label: "Show hero image", Default: true},
 		},
 	}
+
 	ctx := context.Background()
 	if err := srv.store.SetSetting(ctx, "site.theme", "darkroom"); err != nil {
 		t.Fatal(err)
@@ -1634,7 +1635,7 @@ func TestThemeOptionsAreRenderedAndSaved(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `name="theme_option_showHero" checked`) {
 		t.Fatal("settings page did not render the active theme option")
 	}
-	if !strings.Contains(rec.Body.String(), `type="color" name="theme_option_accent" value="#c43d32"`) {
+	if !strings.Contains(rec.Body.String(), `type="color" data-theme-color-picker name="theme_option_accent" value="#c43d32"`) {
 		t.Fatal("settings page did not render the signal color picker")
 	}
 	if !strings.Contains(rec.Body.String(), `name="hero_gallery"`) {
@@ -1709,6 +1710,43 @@ func TestThemeOptionsAreRenderedAndSaved(t *testing.T) {
 	srv.Handler().ServeHTTP(rec, req)
 	if location := rec.Header().Get("Location"); !strings.Contains(location, "must+be+at+most+100") {
 		t.Fatalf("above-maximum redirect = %q", location)
+	}
+}
+
+func TestAutomaticThemeColorCanBecomeCustom(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"nordic"}
+	srv.themeOptions = map[string][]theme.Option{
+		"nordic": {{Key: "accent", Type: "color", Label: "Accent color", Default: ""}},
+	}
+	ctx := context.Background()
+	if err := srv.store.SetSetting(ctx, "site.theme", "nordic"); err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings/appearance", nil))
+	body := rec.Body.String()
+	if !strings.Contains(body, `data-theme-color-automatic name="theme_option_accent_automatic" checked`) ||
+		!strings.Contains(body, `data-theme-color-picker name="theme_option_accent"`) {
+		t.Fatal("automatic theme color control is missing its linked inputs")
+	}
+
+	form := url.Values{
+		"theme":               {"nordic"},
+		"theme_options_for":   {"nordic"},
+		"theme_option_accent": {"#456789"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/settings/appearance", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	settings, err := srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["theme.nordic.accent"] != "#456789" {
+		t.Fatalf("custom Nordic accent = %q", settings["theme.nordic.accent"])
 	}
 }
 
