@@ -497,6 +497,9 @@ func TestNordicTheme(t *testing.T) {
 	if options["showHero"] != false {
 		t.Fatal("Nordic should default to its compact hero-free layout")
 	}
+	if options["showHomeHeading"] != true {
+		t.Fatal("Nordic should show the homepage heading by default")
+	}
 	options["showHero"] = true
 	view := render.GalleryView{
 		Title: "Outer Hebrides", Type: "grid", Hero: &photos[0],
@@ -524,6 +527,27 @@ func TestNordicTheme(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), `class="gallery-hero`) || !strings.Contains(buf.String(), `class="gallery-heading"`) {
 		t.Error("Nordic did not render its compact hero-free heading")
+	}
+
+	view.IsHome = true
+	view.Title = view.Site.Title
+	view.Options["showHomeHeading"] = false
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">My Photos</h1>`) ||
+		strings.Contains(buf.String(), `<h1>My Photos</h1>`) {
+		t.Error("Nordic did not hide the optional homepage heading semantically")
+	}
+	view.Options["showHero"] = true
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `class="gallery-hero has-image home-heading-hidden"`) ||
+		!strings.Contains(buf.String(), `sizes="100vw"`) {
+		t.Error("Nordic hidden-heading hero did not render at full responsive width")
 	}
 
 	assets, err := th.Assets()

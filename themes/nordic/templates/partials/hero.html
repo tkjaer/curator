@@ -1,16 +1,19 @@
-{{define "gallery-hero"}}<header class="gallery-hero{{if .Hero}} has-image{{end}}">
+{{define "gallery-hero"}}<header class="gallery-hero{{if .Hero}} has-image{{end}}{{if and .IsHome (not .Options.showHomeHeading)}} home-heading-hidden{{end}}">
+  {{if and .IsHome (not .Options.showHomeHeading)}}<h1 class="visually-hidden">{{.Title}}</h1>{{else}}
   <div class="hero-copy">
     {{template "breadcrumbs" .Breadcrumb}}
     <h1>{{if and .IsHome .Site.Introduction}}{{.Site.Introduction}}{{else}}{{.Title}}{{end}}</h1>
     {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
-  </div>
+  </div>{{end}}
   {{with .Hero}}<a class="hero-media" href="{{.Display.URL}}" data-lightbox{{if .ID}} data-lightbox-key="{{.ID}}"{{end}} data-zoom-src="{{if .Zoom.URL}}{{.Zoom.URL}}{{else}}{{.Display.URL}}{{end}}" data-share-src="{{.Share.URL}}" data-id="{{.Slug}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
-    <img src="{{.Display.URL}}" srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}" sizes="(max-width: 800px) 100vw, 62vw" width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" fetchpriority="high" decoding="async">
+    <img src="{{.Display.URL}}" srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}" sizes="{{if and $.IsHome (not $.Options.showHomeHeading)}}100vw{{else}}(max-width: 800px) 100vw, 62vw{{end}}" width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" fetchpriority="high" decoding="async">
   </a>{{template "lightbox-tags-source" .Tags}}{{end}}
 </header>{{end}}
 
-{{define "gallery-heading"}}<header class="gallery-heading">
+{{define "gallery-heading"}}<header class="gallery-heading{{if and .IsHome (not .Options.showHomeHeading)}} home-heading-hidden{{end}}">
+  {{if and .IsHome (not .Options.showHomeHeading)}}<h1 class="visually-hidden">{{.Title}}</h1>{{else}}
   {{template "breadcrumbs" .Breadcrumb}}
   <h1>{{if and .IsHome .Site.Introduction}}{{.Site.Introduction}}{{else}}{{.Title}}{{end}}</h1>
   {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  {{end}}
 </header>{{end}}

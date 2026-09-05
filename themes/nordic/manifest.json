@@ -6,6 +6,7 @@
   "options": [
     { "key": "accent",        "type": "color", "label": "Accent color",                "default": "" },
     { "key": "showHero",      "type": "bool",  "label": "Show hero image",             "default": false },
+    { "key": "showHomeHeading", "type": "bool", "label": "Show homepage heading",       "default": true },
     { "key": "gridGap",       "type": "int",   "label": "Grid gap (px)",              "default": 16,  "min": 0 },
     { "key": "rowHeight",     "type": "int",   "label": "Target row height",           "default": 380, "min": 1 },
     { "key": "panoFullWidth", "type": "bool",  "label": "Prefer full-width panoramas", "default": true }

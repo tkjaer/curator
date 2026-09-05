@@ -25,6 +25,8 @@ img { max-width: 100%; }
 .site-main { min-height: calc(100vh - 160px); }
 .gallery-hero { display: grid; width: min(100% - 4rem, var(--maxw)); min-height: min(72vh, 720px); margin: 0 auto; grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr); gap: clamp(2rem, 6vw, 7rem); align-items: center; }
 .gallery-hero:not(.has-image) { min-height: 420px; grid-template-columns: 1fr; }
+.gallery-hero.home-heading-hidden { min-height: 0; grid-template-columns: 1fr; }
+.gallery-hero.home-heading-hidden .hero-media { width: 100%; }
 .hero-copy { padding: 4rem 0; }
 .hero-media { display: block; height: min(64vh, 640px); overflow: hidden; background: var(--soft); order: 2; }
 .hero-media img { display: block; width: 100%; height: 100%; object-fit: cover; filter: saturate(.88); transition: filter .3s; }
@@ -41,10 +43,11 @@ h1 { max-width: 12ch; margin: 0; font-size: clamp(3rem, 5vw, 5.5rem); font-weigh
 .gallery-hero .breadcrumbs a:last-of-type,
 .gallery-heading .breadcrumbs a:last-of-type,
 .story-head .breadcrumbs a:last-of-type { display: none; }
-.gallery-heading, .page-head, .empty { width: min(100% - 4rem, var(--maxw)); margin: 0 auto; padding: clamp(3rem, 6vw, 5.5rem) 0 clamp(2rem, 4vw, 3.5rem); }
-.gallery-heading h1, .page-head h1, .empty h1 { max-width: 18ch; font-size: clamp(2.5rem, 4.5vw, 4.5rem); }
+.gallery-heading, .empty { width: min(100% - 4rem, var(--maxw)); margin: 0 auto; padding: clamp(3rem, 6vw, 5.5rem) 0 clamp(2rem, 4vw, 3.5rem); }
+.gallery-heading h1, .empty h1 { max-width: 18ch; font-size: clamp(2.5rem, 4.5vw, 4.5rem); }
+.gallery-heading.home-heading-hidden { height: 0; padding: 0; }
 .gallery-heading + .gallery-section { padding-top: clamp(1.5rem, 3vw, 3rem); }
-.gallery-section, .listing-page { width: min(100% - 4rem, var(--maxw)); margin: 0 auto; padding-top: clamp(4.5rem, 8vw, 8rem); }
+.gallery-section { width: min(100% - 4rem, var(--maxw)); margin: 0 auto; padding-top: clamp(4.5rem, 8vw, 8rem); }
 .gallery-hero + .photo-section { padding-top: clamp(2rem, 4vw, 4rem); }
 .section-head { display: flex; margin-bottom: 2rem; padding-bottom: .8rem; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--line); }
 .section-head h2 { margin: 0; font-size: clamp(1.8rem, 3vw, 3rem); font-weight: 520; letter-spacing: -.045em; }
@@ -81,8 +84,10 @@ h1 { max-width: 12ch; margin: 0; font-size: clamp(3rem, 5vw, 5.5rem); font-weigh
 .story-image, .story .grid { width: min(1180px, calc(100vw - 2.5rem)); margin: 4rem 0 4rem 50%; transform: translateX(-50%); }
 .story-image img { display: block; width: 100%; height: auto; }
 .story-image figcaption { margin-top: .6rem; color: var(--muted); font-size: .75rem; }
-.listing-page { padding-bottom: 7rem; }
-.listing-page > .breadcrumbs { margin-top: 3rem; }
+.listing-page { width: min(100% - 4rem, var(--maxw)); margin: 0 auto; padding: clamp(3rem, 6vw, 5rem) 0 7rem; }
+.listing-page > .breadcrumbs { margin: 0 0 2rem; }
+.listing-page .page-head { width: 100%; margin: 0; padding: 0 0 clamp(2rem, 4vw, 3.5rem); }
+.listing-page .page-head h1 { max-width: 18ch; font-size: clamp(2.5rem, 4.5vw, 4.5rem); }
 .facet-pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; margin: 3rem 0; }
 .facet-pagination a { padding: .6rem 1rem; background: var(--surface); border: 1px solid var(--line); text-decoration: none; }
 .facet-page-status { color: var(--muted); font-size: .75rem; }
