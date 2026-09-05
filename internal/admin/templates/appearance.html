@@ -1,0 +1,68 @@
+{{define "appearance-settings"}}{{template "head" .}}
+{{with .Data}}
+<div class="page-head">
+  <div><h1>Settings</h1><p>Choose the public theme and tune its presentation.</p></div>
+</div>
+<nav class="settings-tabs" aria-label="Settings sections">
+  <a href="{{$.BasePath}}/settings">Site</a>
+  <a href="{{$.BasePath}}/settings/appearance" aria-current="page">Appearance</a>
+  <a href="{{$.BasePath}}/settings/metadata">Metadata</a>
+  <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
+</nav>
+<form class="settings-form" method="post" action="{{$.BasePath}}/settings/appearance" data-dirty-form>
+  <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+  <div class="settings-save-row" data-dirty="false">
+    <button data-save-button disabled>Save appearance</button>
+    <span class="settings-save-status" data-save-status aria-live="polite">No unsaved changes</span>
+  </div>
+  <div class="settings-grid">
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-card-heading"><h2>Theme and presentation</h2><p>Select the visual system and tune the controls it provides.</p></div>
+      {{$current := .Theme}}
+      <label class="field appearance-theme-field"><span>Active theme</span>
+        <select name="theme">
+          {{range .Themes}}<option value="{{.}}"{{if eq . $current}} selected{{end}}>{{.}}</option>{{end}}
+        </select>
+      </label>
+      <p class="field-help">Save after switching themes to load that theme's controls.</p>
+
+      {{if .ThemeOptions}}
+      <div class="settings-subsection-heading"><h3>{{.Theme}} options</h3><p>Only this theme uses these values.</p></div>
+      <input type="hidden" name="theme_options_for" value="{{.Theme}}">
+      <div class="settings-field-grid theme-options-grid">
+      {{range .ThemeOptions}}
+        {{if eq .Type "bool"}}
+        <label class="choice-row"><input type="checkbox" name="theme_option_{{.Key}}"{{if .Checked}} checked{{end}}> <span><strong>{{.Label}}</strong></span></label>
+        {{else if eq .Type "int"}}
+        <label class="field"><span>{{.Label}}</span><input type="number" name="theme_option_{{.Key}}" value="{{.Value}}"{{with .Min}} min="{{.}}"{{end}}{{with .Max}} max="{{.}}"{{end}}></label>
+        {{else if eq .Type "color"}}
+        <div class="field">
+          <label><span>{{.Label}}</span><input type="color" name="theme_option_{{.Key}}" value="{{if .Value}}{{.Value}}{{else}}#1a1a1a{{end}}"></label>
+          {{if .AllowBlank}}<label class="choice-row"><input type="checkbox" name="theme_option_{{.Key}}_automatic"{{if not .Value}} checked{{end}}> <span><strong>Automatic color</strong><small>Let the theme choose for light and dark mode.</small></span></label>{{end}}
+        </div>
+        {{else}}
+        <label class="field"><span>{{.Label}}</span><input name="theme_option_{{.Key}}" value="{{.Value}}"></label>
+        {{end}}
+      {{end}}
+      </div>
+      <div class="settings-panel-actions">
+        <button class="secondary-button" type="submit" formaction="{{$.BasePath}}/settings/appearance/reset" formmethod="post" formnovalidate onclick="return confirm('Reset all {{.Theme}} theme options to their defaults?')">Reset theme options</button>
+      </div>
+      {{end}}
+    </section>
+
+    <section class="settings-panel settings-panel-wide">
+      <div class="settings-card-heading"><h2>Homepage image</h2><p>Choose the cover image used by themes with a homepage hero.</p></div>
+      {{$hero := .HeroGalleryID}}
+      <label class="field appearance-theme-field"><span>Hero source gallery</span>
+        <select name="hero_gallery">
+          <option value=""{{if eq $hero 0}} selected{{end}}>Automatic: first gallery with a cover</option>
+          {{range .HeroSources}}<option value="{{.ID}}"{{if eq .ID $hero}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+      </label>
+      <p class="field-help">Uses the selected gallery's cover. Themes without a homepage hero ignore this setting.</p>
+    </section>
+  </div>
+</form>
+{{end}}
+{{template "foot" .}}{{end}}

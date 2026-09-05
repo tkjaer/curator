@@ -56,7 +56,7 @@ func validateGalleryRootSlug(parentID *int64, gallerySlug string) error {
 func (s *Store) Galleries(ctx context.Context) ([]model.Gallery, error) {
 	rows, err := s.DB.QueryContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
-		        cover_item_id, sort_mode, sort_direction, sort_order, theme,
+		        cover_item_id, hero_gallery_id, sort_mode, sort_direction, sort_order, theme,
 		        show_exif, show_title, show_description, show_sharing, published_at
 		   FROM galleries
 		  ORDER BY sort_order, id`)
@@ -71,15 +71,17 @@ func (s *Store) Galleries(ctx context.Context) ([]model.Gallery, error) {
 			g         model.Gallery
 			parent    sql.NullInt64
 			cover     sql.NullInt64
+			hero      sql.NullInt64
 			published sql.NullString
 		)
 		if err := rows.Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description,
-			&g.Type, &g.Status, &cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
+			&g.Type, &g.Status, &cover, &hero, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
 			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription, &g.ShowSharing, &published); err != nil {
 			return nil, err
 		}
 		g.ParentID = nullInt(parent)
 		g.CoverItemID = nullInt(cover)
+		g.HeroGalleryID = nullInt(hero)
 		g.PublishedAt = nullTime(published)
 		out = append(out, g)
 	}

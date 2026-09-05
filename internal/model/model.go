@@ -146,6 +146,7 @@ type Gallery struct {
 	Type            GalleryType
 	Status          GalleryStatus
 	CoverItemID     *int64
+	HeroGalleryID   *int64
 	SortMode        SortMode
 	SortDirection   SortDirection
 	SortOrder       int

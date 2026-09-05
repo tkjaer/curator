@@ -1,0 +1,5 @@
+{{define "grid"}}<div class="grid">
+{{range .}}<div class="row{{if .Center}} row-center{{end}}">
+{{range .Photos}}{{template "figure" .}}{{end}}
+</div>
+{{end}}</div>{{end}}

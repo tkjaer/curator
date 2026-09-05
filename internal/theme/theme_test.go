@@ -50,6 +50,9 @@ func samplePhotos() []render.PhotoView {
 		mk(2000, 2000, "square", "b"),
 		mk(3000, 2000, "landscape", "c"),
 	}
+	for index := range photos {
+		photos[index].ID = int64(index + 1)
+	}
 	photos[0].Title = "Harbor light"
 	photos[0].Description = "Boats at dusk"
 	photos[0].Tags = []render.TagView{{Label: "night", Href: "/browse/tag/night/"}, {Label: "stockholm"}}
@@ -153,6 +156,46 @@ func TestManifestOptions(t *testing.T) {
 	}
 }
 
+func TestManifestResolveOptions(t *testing.T) {
+	manifest := Manifest{
+		Name: "example",
+		Options: []Option{
+			{Key: "enabled", Type: "bool", Default: true},
+			{Key: "size", Type: "int", Default: float64(10)},
+			{Key: "accent", Type: "color", Default: "#fff"},
+		},
+	}
+	options := manifest.ResolveOptions(map[string]string{
+		"theme.example.enabled": "false",
+		"theme.example.size":    "24",
+		"theme.example.accent":  "#123456",
+	})
+	if options["enabled"] != false || options["size"] != 24 || options["accent"] != "#123456" {
+		t.Fatalf("resolved options = %#v", options)
+	}
+}
+
+func TestThemesRenderZeroGridGap(t *testing.T) {
+	for _, name := range []string{"darkroom", "default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			options := th.Manifest.Defaults()
+			options["gridGap"] = 0
+			view := render.GalleryView{Title: "Zero gap", Options: options, Site: sampleSite()}
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "gallery-list", view); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(buf.String(), "--gap: 0px;") {
+				t.Errorf("%s did not render zero grid gap", name)
+			}
+		})
+	}
+}
+
 func TestContentVersionIncludesTemplates(t *testing.T) {
 	files := fstest.MapFS{
 		"manifest.json":          {Data: []byte(`{"name":"test","version":"1","engine":"go-html-template"}`)},
@@ -242,8 +285,127 @@ func TestFolioTheme(t *testing.T) {
 	}
 }
 
+func TestFolioGridBackgroundCanBeDisabled(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/folio"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	view := render.GalleryView{Title: "Portfolio", Options: th.Manifest.Defaults(), Site: sampleSite()}
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `class="has-grid-background"`) {
+		t.Error("Folio default lost its grid background")
+	}
+
+	view.Options["showGridBackground"] = false
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), `class="has-grid-background"`) {
+		t.Error("Folio rendered the disabled grid background")
+	}
+}
+
+func TestDarkroomTheme(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/darkroom"))
+	if err != nil {
+		t.Fatalf("load darkroom theme: %v", err)
+	}
+	if th.Manifest.Name != "darkroom" {
+		t.Fatalf("manifest name = %q, want darkroom", th.Manifest.Name)
+	}
+	defaults := th.Manifest.Defaults()
+	if defaults["folderBrightness"] != float64(75) || defaults["folderSaturation"] != float64(50) {
+		t.Fatalf("darkroom folder image defaults = %#v", defaults)
+	}
+
+	photos := samplePhotos()
+	view := render.GalleryView{
+		Title:       "Outer Hebrides",
+		Type:        "grid",
+		Hero:        &photos[0],
+		Rows:        render.Justify(photos, 1000, 420, 4, true),
+		ShowSharing: true,
+		Options:     th.Manifest.Defaults(),
+		Site:        sampleSite(),
+	}
+
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-grid", view); err != nil {
+		t.Fatalf("render darkroom: %v", err)
+	}
+	out := buf.String()
+	for _, want := range []string{
+		`class="gallery-hero has-image"`,
+		`<h2 class="visually-hidden">Photographs</h2>`,
+		`fetchpriority="high"`,
+		`data-id=""`,
+		`alt="a"`,
+		`alt="b"`,
+		`class="lb-btn lb-share"`,
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("darkroom output missing %q", want)
+		}
+	}
+	if strings.Count(out, `alt="a"`) != 2 {
+		t.Error("darkroom cover should remain in the regular grid")
+	}
+	for _, want := range []string{"--folder-brightness: 75%;", "--folder-saturation: 50%;"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("darkroom output missing %q", want)
+		}
+	}
+	if !strings.Contains(out, `data-lightbox-key="1"`) {
+		t.Error("darkroom hero and grid are missing stable lightbox keys")
+	}
+
+	view.Options["showHero"] = false
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-grid", view); err != nil {
+		t.Fatalf("render darkroom without hero: %v", err)
+	}
+	out = buf.String()
+	if strings.Contains(out, `class="gallery-hero`) || !strings.Contains(out, `class="gallery-heading"`) {
+		t.Error("darkroom did not switch to its compact heading")
+	}
+	if strings.Count(out, `alt="a"`) != 1 {
+		t.Error("darkroom without a hero did not restore the first grid photo")
+	}
+	view.Options["showHero"] = true
+
+	view.Title = view.Site.Title
+	view.IsHome = true
+	view.Site.Introduction = "Photography by Example Name"
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatalf("render darkroom homepage: %v", err)
+	}
+	out = buf.String()
+	for _, want := range []string{`class="gallery-hero has-image site-home"`, `<h1>Photography by Example Name</h1>`, `class="lb-btn lb-close"`, `d="m15 5-7 7 7 7"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("darkroom homepage missing %q", want)
+		}
+	}
+	if strings.Contains(out, `<h1>My Photos</h1>`) {
+		t.Error("darkroom homepage repeated the visible site title")
+	}
+
+	view.Site.Introduction = ""
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatalf("render darkroom homepage fallback: %v", err)
+	}
+	if !strings.Contains(buf.String(), `<h1>My Photos</h1>`) {
+		t.Error("darkroom homepage did not fall back to the site title")
+	}
+}
+
 func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -267,12 +429,27 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 					}
 				}
 			}
+			if name == "darkroom" {
+				content, err := fs.ReadFile(assets, "theme.js")
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !strings.Contains(string(content), `closest("figure, .gallery-hero")`) {
+					t.Error("darkroom lightbox does not discover hero tags")
+				}
+				if !strings.Contains(string(content), `indexByItem.get(key)`) {
+					t.Error("darkroom lightbox does not deduplicate the cover hero")
+				}
+				if !strings.Contains(string(content), `!link.closest(".gallery-hero")`) {
+					t.Error("darkroom lightbox does not preserve grid navigation order")
+				}
+			}
 		})
 	}
 }
 
 func TestThemesPreservePhotoAspectOnMobile(t *testing.T) {
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -358,7 +535,7 @@ func TestFolioGalleryTitlesAreVisuallyHidden(t *testing.T) {
 }
 
 func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -392,7 +569,7 @@ func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
 }
 
 func TestThemesRenderCopyrightFooter(t *testing.T) {
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -426,7 +603,7 @@ func TestThemesRenderCopyrightFooter(t *testing.T) {
 }
 
 func TestThemesRenderFacetCards(t *testing.T) {
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {

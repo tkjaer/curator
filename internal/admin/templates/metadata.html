@@ -5,6 +5,7 @@
 </div>
 <nav class="settings-tabs" aria-label="Settings sections">
   <a href="{{$.BasePath}}/settings">Site</a>
+  <a href="{{$.BasePath}}/settings/appearance">Appearance</a>
   <a href="{{$.BasePath}}/settings/metadata" aria-current="page">Metadata</a>
   <a href="{{$.BasePath}}/settings/publishing">Publishing</a>
 </nav>
@@ -37,12 +38,26 @@
         </div>
         {{end}}
       </div>
-      <div class="mapping-heading resolution-control-heading">
-        <div><h3>XMP fallback</h3><p>Use XMP lens metadata only as the last source of a lens name.</p></div>
-      </div>
+    </section>
+
+    <section class="settings-panel">
+      <div class="settings-card-heading"><h2>XMP fallback</h2><p>Use XMP lens metadata only as the last source of a lens name.</p></div>
       <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Accept a direct XMP lens name or Adobe lens profile name when the earlier sources are empty.</small></span></label>
-      <div class="mapping-heading">
-        <div><h3>Lens-name mappings</h3><p>Rename the final lens value regardless of which source supplied it.</p></div>
+    </section>
+
+    <section class="settings-panel" id="public-browse-pages">
+      <div class="settings-card-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
+      <div class="choice-list">
+        {{range .Facets}}
+        <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
+        {{end}}
+        <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
+      </div>
+    </section>
+
+    <section class="settings-panel settings-panel-wide">
+      <div class="mapping-heading settings-card-heading">
+        <div><h2>Lens-name mappings</h2><p>Rename the final lens value regardless of which source supplied it.</p></div>
         <button class="secondary-button" type="button" id="add-lens-name-mapping">Add lens-name mapping</button>
       </div>
       <div class="mapping-list" id="lens-name-mapping-list">
@@ -55,17 +70,7 @@
         {{end}}
       </div>
       <datalist id="lens-name-suggestions">{{range .LensSuggestions}}<option value="{{.Name}}" label="{{.Count}} photo{{if ne .Count 1}}s{{end}}"></option>{{end}}</datalist>
-      <p class="field-help">Save these settings and publish again to update the site. A metadata refresh is not needed.</p>
-    </section>
-
-    <section class="settings-panel" id="public-browse-pages">
-      <div class="settings-card-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
-      <div class="choice-list">
-        {{range .Facets}}
-        <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
-        {{end}}
-        <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
-      </div>
+      <p class="field-help">Save and publish again to update display names. A metadata refresh is not needed.</p>
     </section>
 
     <section class="settings-panel">

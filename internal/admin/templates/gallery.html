@@ -102,6 +102,30 @@
           </div>
         </div>
       </section>
+      <section class="gallery-option-section">
+        <h3>Hero image</h3>
+        {{if .Items}}
+        <div class="option-section-content">
+          <p class="field-help">This gallery's cover is also its hero image. Choose it from the photo editor below.</p>
+        </div>
+        {{else if .HeroSources}}
+        <form class="option-section-content" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/hero-source">
+          <input type="hidden" name="_csrf" value="{{$.CSRF}}">
+          {{$hero := .CurrentHeroGalleryID}}
+          <label><span>Folder hero source</span>
+            <select name="hero_gallery">
+              <option value=""{{if eq $hero 0}} selected{{end}}>Automatic: first child with a cover</option>
+              {{range .HeroSources}}<option value="{{.ID}}"{{if eq .ID $hero}} selected{{end}}>{{.Label}}</option>{{end}}
+            </select>
+          </label>
+          <p class="field-help">This folder has no photos of its own. Use a published descendant's cover as its hero. Lightroom updates that gallery without changing this choice.</p>
+        </form>
+        {{else}}
+        <div class="option-section-content">
+          <p class="field-help">Add photos or a published child gallery to provide a hero image.</p>
+        </div>
+        {{end}}
+      </section>
       <section class="gallery-option-section exif-setting">
         <h3>Photo display</h3>
         <form class="option-section-content" data-async data-autosave method="post" action="{{$.BasePath}}/galleries/{{.Gallery.ID}}/presentation">

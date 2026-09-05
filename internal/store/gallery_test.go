@@ -68,6 +68,57 @@ func TestUpdateGalleryTitleDoesNotChangeSlug(t *testing.T) {
 	}
 }
 
+func TestUpdateGalleryHeroSourceRequiresPublishedDescendant(t *testing.T) {
+	st := newTestStore(t)
+	ctx := context.Background()
+	parentID, err := st.CreateGallery(ctx, model.Gallery{Slug: "parent", Title: "Parent", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childID, err := st.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "child", Title: "Child", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	protectedID, err := st.CreateGallery(ctx, model.Gallery{ParentID: &parentID, Slug: "private", Title: "Private", Status: model.GalleryProtected})
+	if err != nil {
+		t.Fatal(err)
+	}
+	nestedID, err := st.CreateGallery(ctx, model.Gallery{ParentID: &protectedID, Slug: "nested", Title: "Nested", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+	siblingID, err := st.CreateGallery(ctx, model.Gallery{Slug: "sibling", Title: "Sibling", Status: model.GalleryPublished})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := st.UpdateGalleryHeroSource(ctx, parentID, &childID); err != nil {
+		t.Fatal(err)
+	}
+	gallery, err := st.Gallery(ctx, parentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.HeroGalleryID == nil || *gallery.HeroGalleryID != childID {
+		t.Fatalf("hero source = %v, want %d", gallery.HeroGalleryID, childID)
+	}
+	for _, invalid := range []int64{nestedID, siblingID} {
+		if err := st.UpdateGalleryHeroSource(ctx, parentID, &invalid); err == nil {
+			t.Errorf("accepted invalid hero source %d", invalid)
+		}
+	}
+	if err := st.UpdateGalleryHeroSource(ctx, parentID, nil); err != nil {
+		t.Fatal(err)
+	}
+	gallery, err = st.Gallery(ctx, parentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.HeroGalleryID != nil {
+		t.Fatalf("hero source = %v, want nil", gallery.HeroGalleryID)
+	}
+}
+
 func TestUpdateGallerySlugValidatesConflicts(t *testing.T) {
 	st := newTestStore(t)
 	ctx := context.Background()

@@ -51,6 +51,7 @@ func (e ExifView) Line() string {
 // PhotoView is a single image ready to render. FlexBasis is the photo's width
 // as a percentage of its justified row; RowHeight is that row's height in px.
 type PhotoView struct {
+	ID          int64
 	Slug        string
 	Title       string
 	Description string
@@ -125,6 +126,7 @@ type FacetLink struct {
 // SiteView is the site-wide context available to every page.
 type SiteView struct {
 	Title        string
+	Introduction string
 	BaseURL      string
 	AssetVersion string
 	FeedURL      string
@@ -134,14 +136,16 @@ type SiteView struct {
 }
 
 // GalleryView is the model passed to a gallery template. Grid galleries use
-// Rows; story galleries use Blocks.
+// Rows and may additionally feature Hero. Story galleries use Blocks.
 type GalleryView struct {
 	Title       string
 	Slug        string
 	Description template.HTML
 	Type        string
+	IsHome      bool
 	Breadcrumb  []Crumb
 	Children    []GalleryCard
+	Hero        *PhotoView
 	Rows        []GridRow
 	Blocks      []BlockView
 	ShowSharing bool

@@ -27,6 +27,7 @@ import (
 	"github.com/tkjaer/curator/internal/model"
 	"github.com/tkjaer/curator/internal/publishapi"
 	"github.com/tkjaer/curator/internal/store"
+	"github.com/tkjaer/curator/internal/theme"
 )
 
 func newTestServer(t *testing.T) (*Server, chan struct{}) {
@@ -1528,7 +1529,7 @@ func TestSettingsSavePromptsForBuildWhenThemeChanges(t *testing.T) {
 		"webserver":             {"nginx"},
 		"default_gallery_order": {"date"},
 	}
-	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req := httptest.NewRequest("POST", "/settings/appearance", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rec := httptest.NewRecorder()
 	srv.Handler().ServeHTTP(rec, req)
@@ -1536,6 +1537,183 @@ func TestSettingsSavePromptsForBuildWhenThemeChanges(t *testing.T) {
 	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
 		t.Fatalf("redirect = %q, want build prompt", location)
 	}
+
+}
+
+func TestHomepageIntroductionSettings(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"default"}
+	form := url.Values{
+		"title":                 {"My Photos"},
+		"introduction":          {"  Photography by Example Name  "},
+		"theme":                 {"default"},
+		"default_gallery_order": {"date"},
+	}
+	req := httptest.NewRequest("POST", "/settings", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
+		t.Fatalf("redirect = %q, want build prompt", location)
+	}
+
+	settings, err := srv.store.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := settings["site.introduction"]; got != "Photography by Example Name" {
+		t.Fatalf("site introduction = %q", got)
+	}
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/settings", nil))
+	if !strings.Contains(rec.Body.String(), `name="introduction"`) ||
+		!strings.Contains(rec.Body.String(), `>Photography by Example Name</textarea>`) {
+		t.Fatal("settings page did not retain homepage introduction")
+	}
+}
+
+func TestGalleryHeroSourceSetting(t *testing.T) {
+	srv, _ := newTestServer(t)
+	ctx := context.Background()
+	parentID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		Slug: "parent", Title: "Parent", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	childID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		ParentID: &parentID, Slug: "child", Title: "Child", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{"hero_gallery": {strconv.FormatInt(childID, 10)}}
+	req := httptest.NewRequest(http.MethodPost, "/galleries/"+strconv.FormatInt(parentID, 10)+"/hero-source", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	gallery, err := srv.store.Gallery(ctx, parentID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gallery.HeroGalleryID == nil || *gallery.HeroGalleryID != childID {
+		t.Fatalf("hero source = %v, want %d", gallery.HeroGalleryID, childID)
+	}
+
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/galleries/"+strconv.FormatInt(parentID, 10), nil))
+	if !strings.Contains(rec.Body.String(), `name="hero_gallery"`) ||
+		!strings.Contains(rec.Body.String(), `>Child</option>`) {
+		t.Fatal("gallery page did not render its hero source control")
+	}
+}
+
+func TestThemeOptionsAreRenderedAndSaved(t *testing.T) {
+	srv, _ := newTestServer(t)
+	srv.themes = []string{"darkroom"}
+	srv.themeOptions = map[string][]theme.Option{
+		"darkroom": {
+			{Key: "accent", Type: "color", Label: "Signal color", Default: "#c43d32"},
+			{Key: "showHero", Type: "bool", Label: "Show hero image", Default: true},
+		},
+	}
+	ctx := context.Background()
+	if err := srv.store.SetSetting(ctx, "site.theme", "darkroom"); err != nil {
+		t.Fatal(err)
+	}
+	sourceID, err := srv.store.CreateGallery(ctx, model.Gallery{
+		Slug: "portfolio", Title: "Portfolio", Type: model.GalleryGrid, Status: model.GalleryPublished,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/settings/appearance", nil))
+	if !strings.Contains(rec.Body.String(), `name="theme_option_showHero" checked`) {
+		t.Fatal("settings page did not render the active theme option")
+	}
+	if !strings.Contains(rec.Body.String(), `type="color" name="theme_option_accent" value="#c43d32"`) {
+		t.Fatal("settings page did not render the signal color picker")
+	}
+	if !strings.Contains(rec.Body.String(), `name="hero_gallery"`) {
+		t.Fatal("appearance page did not render the homepage hero source")
+	}
+
+	form := url.Values{
+		"title":                 {"My Photos"},
+		"theme":                 {"darkroom"},
+		"theme_options_for":     {"darkroom"},
+		"theme_option_accent":   {"#c43d32"},
+		"hero_gallery":          {strconv.FormatInt(sourceID, 10)},
+		"default_gallery_order": {"date"},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/settings/appearance", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	settings, err := srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings["theme.darkroom.showHero"] != "false" {
+		t.Fatalf("showHero = %q, want false", settings["theme.darkroom.showHero"])
+	}
+	if settings["site.hero_gallery_id"] != strconv.FormatInt(sourceID, 10) {
+		t.Fatalf("homepage hero source = %q", settings["site.hero_gallery_id"])
+	}
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "build+site+to+publish+changes") {
+		t.Fatalf("redirect = %q, want build prompt", location)
+	}
+
+	resetForm := url.Values{"theme_options_for": {"darkroom"}}
+	req = httptest.NewRequest(http.MethodPost, "/settings/appearance/reset", strings.NewReader(resetForm.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	settings, err = srv.store.Settings(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, exists := settings["theme.darkroom.showHero"]; exists {
+		t.Fatal("reset retained the saved showHero override")
+	}
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "Theme+options+reset") {
+		t.Fatalf("reset redirect = %q", location)
+	}
+
+	srv.themeOptions["darkroom"] = []theme.Option{{Key: "rowHeight", Type: "int", Label: "Target row height", Default: float64(420), Min: intPointer(1)}}
+	form = url.Values{
+		"theme":                  {"darkroom"},
+		"theme_options_for":      {"darkroom"},
+		"theme_option_rowHeight": {"0"},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/settings/appearance", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "must+be+at+least+1") {
+		t.Fatalf("invalid integer redirect = %q", location)
+	}
+
+	srv.themeOptions["darkroom"] = []theme.Option{{Key: "folderBrightness", Type: "int", Label: "Folder image brightness (%)", Default: float64(55), Min: intPointer(0), Max: intPointer(100)}}
+	form = url.Values{
+		"theme":                         {"darkroom"},
+		"theme_options_for":             {"darkroom"},
+		"theme_option_folderBrightness": {"101"},
+	}
+	req = httptest.NewRequest(http.MethodPost, "/settings/appearance", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec = httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if location := rec.Header().Get("Location"); !strings.Contains(location, "must+be+at+most+100") {
+		t.Fatalf("above-maximum redirect = %q", location)
+	}
+}
+
+func intPointer(value int) *int {
+	return &value
 }
 
 func TestCopyrightSettings(t *testing.T) {

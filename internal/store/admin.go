@@ -15,20 +15,22 @@ func (s *Store) Gallery(ctx context.Context, id int64) (model.Gallery, error) {
 		g      model.Gallery
 		parent sql.NullInt64
 		cover  sql.NullInt64
+		hero   sql.NullInt64
 	)
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, parent_id, slug, title, description, type, status,
-		        cover_item_id, sort_mode, sort_direction, sort_order, theme,
+		        cover_item_id, hero_gallery_id, sort_mode, sort_direction, sort_order, theme,
 		        show_exif, show_title, show_description, show_sharing
 		   FROM galleries WHERE id = ?`, id).
 		Scan(&g.ID, &parent, &g.Slug, &g.Title, &g.Description, &g.Type, &g.Status,
-			&cover, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
+			&cover, &hero, &g.SortMode, &g.SortDirection, &g.SortOrder, &g.Theme,
 			&g.ShowEXIF, &g.ShowTitle, &g.ShowDescription, &g.ShowSharing)
 	if err != nil {
 		return model.Gallery{}, err
 	}
 	g.ParentID = nullInt(parent)
 	g.CoverItemID = nullInt(cover)
+	g.HeroGalleryID = nullInt(hero)
 	return g, nil
 }
 
@@ -62,6 +64,37 @@ func (s *Store) UpdateGalleryTitle(ctx context.Context, id int64, title string) 
 func (s *Store) UpdateGalleryDescription(ctx context.Context, id int64, description string) error {
 	_, err := s.DB.ExecContext(ctx,
 		`UPDATE galleries SET description = ?, updated_at = datetime('now') WHERE id = ?`, description, id)
+	return err
+}
+
+// UpdateGalleryHeroSource selects a published descendant gallery whose cover is
+// used as this gallery's hero. A nil source restores automatic inheritance.
+func (s *Store) UpdateGalleryHeroSource(ctx context.Context, id int64, sourceID *int64) error {
+	if sourceID == nil {
+		_, err := s.DB.ExecContext(ctx,
+			`UPDATE galleries SET hero_gallery_id = NULL, updated_at = datetime('now') WHERE id = ?`, id)
+		return err
+	}
+	var valid bool
+	if err := s.DB.QueryRowContext(ctx, `
+		WITH RECURSIVE descendants(id) AS (
+			SELECT id FROM galleries WHERE parent_id = ? AND status = 'published'
+			UNION ALL
+			SELECT galleries.id
+			  FROM galleries
+			  JOIN descendants ON galleries.parent_id = descendants.id
+			 WHERE galleries.status = 'published'
+		)
+		SELECT EXISTS(SELECT 1 FROM descendants WHERE id = ?)`,
+		id, *sourceID).Scan(&valid); err != nil {
+		return err
+	}
+	if !valid {
+		return errors.New("hero source must be a published descendant gallery")
+	}
+	_, err := s.DB.ExecContext(ctx,
+		`UPDATE galleries SET hero_gallery_id = ?, updated_at = datetime('now') WHERE id = ?`,
+		*sourceID, id)
 	return err
 }
 
@@ -386,6 +419,7 @@ func (s *Store) ResetGalleryOptions(ctx context.Context, galleryID int64) error 
 		`UPDATE galleries
 		    SET sort_mode = ?, sort_direction = ?,
 		        show_exif = ?, show_title = ?, show_description = ?, show_sharing = ?,
+		        hero_gallery_id = NULL,
 		        updated_at = datetime('now')
 		  WHERE id = ?`,
 		model.SortDefault, model.SortDirectionDefault,

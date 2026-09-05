@@ -129,7 +129,7 @@ func (b *Builder) RenderStoryPreview(ctx context.Context, galleryID int64, baseU
 		return err
 	}
 	b.settings = settings
-	b.options = b.Theme.Manifest.Defaults()
+	b.options = b.Theme.Manifest.ResolveOptions(settings)
 	b.byID = make(map[int64]model.Gallery, len(galleries))
 	for _, gallery := range galleries {
 		b.byID[gallery.ID] = gallery
@@ -141,6 +141,7 @@ func (b *Builder) RenderStoryPreview(ctx context.Context, galleryID int64, baseU
 	}
 	b.site = render.SiteView{
 		Title:        settings["site.title"],
+		Introduction: settings["site.introduction"],
 		BaseURL:      strings.TrimRight(baseURL, "/"),
 		AssetVersion: assetVersion,
 		Copyright:    copyrightLine(settings, time.Now().Year()),
@@ -212,7 +213,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	}
 	b.totalItems, _ = b.Store.CountPublishedItems(ctx)
 
-	b.options = b.Theme.Manifest.Defaults()
+	b.options = b.Theme.Manifest.ResolveOptions(settings)
 	b.byID = make(map[int64]model.Gallery, len(galleries))
 	for _, g := range galleries {
 		b.byID[g.ID] = g
@@ -237,6 +238,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 
 	b.site = render.SiteView{
 		Title:        settings["site.title"],
+		Introduction: settings["site.introduction"],
 		BaseURL:      strings.TrimRight(settings["site.base_url"], "/"),
 		AssetVersion: assetVersion,
 		Copyright:    copyrightLine(settings, time.Now().Year()),
@@ -255,6 +257,7 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	photos := make(map[int64][]render.PhotoView, len(visible))
 	byItem := make(map[int64]map[int64]render.PhotoView, len(visible))
 	covers := make(map[int64]render.Source, len(visible))
+	heroes := make(map[int64]render.PhotoView, len(visible))
 	for _, g := range visible {
 		views, items, err := b.galleryPhotos(ctx, g, presets)
 		if err != nil {
@@ -262,6 +265,9 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 		}
 		photos[g.ID] = views
 		byItem[g.ID] = items
+		if hero, ok := galleryHero(g, views, items); ok && g.Status != model.GalleryProtected {
+			heroes[g.ID] = hero
+		}
 		// Protected galleries get no public cover: the thumbnail would live behind
 		// auth and only break in public listings.
 		if g.Status == model.GalleryProtected {
@@ -280,17 +286,23 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	// Fall back to a nested gallery's cover for folders with no image of their
 	// own, using only published (non-hidden, non-protected) descendants.
 	b.resolveNestedCovers(visible, covers)
+	b.resolveNestedHeroes(children, heroes)
+	sourceHeroes := make(map[int64]render.PhotoView, len(heroes))
+	for id, hero := range heroes {
+		sourceHeroes[id] = hero
+	}
+	heroOverrides := b.applyGalleryHeroSources(visible, photos, heroes)
 
 	// Pass 2: render each gallery page.
 	for i, g := range visible {
 		b.progress("render", i+1, len(visible))
-		if err := b.renderGallery(ctx, g, photos[g.ID], byItem[g.ID], children[g.ID], covers); err != nil {
+		if err := b.renderGallery(ctx, g, photos[g.ID], byItem[g.ID], children[g.ID], covers, heroes, heroOverrides); err != nil {
 			return Report{}, fmt.Errorf("render %q: %w", g.Slug, err)
 		}
 	}
 
 	b.progress("finishing", 0, 0)
-	if err := b.renderIndex(roots, photos, covers); err != nil {
+	if err := b.renderIndex(roots, photos, covers, sourceHeroes); err != nil {
 		return Report{}, err
 	}
 	if err := b.renderFacets(); err != nil {
@@ -348,7 +360,7 @@ func copyrightLine(settings map[string]string, currentYear int) string {
 	return fmt.Sprintf("© %d–%d %s", year, currentYear, holder)
 }
 
-func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []render.PhotoView, byItem map[int64]render.PhotoView, kids []model.Gallery, covers map[int64]render.Source) error {
+func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []render.PhotoView, byItem map[int64]render.PhotoView, kids []model.Gallery, covers map[int64]render.Source, heroes map[int64]render.PhotoView, heroOverrides map[int64]bool) error {
 	view := render.GalleryView{
 		Title:       g.Title,
 		Slug:        g.Slug,
@@ -359,6 +371,18 @@ func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []ren
 		ShowSharing: g.Status != model.GalleryProtected && g.ShowSharing.Resolve(b.settings["site.default_gallery_show_sharing"] == "true"),
 		Options:     b.options,
 		Site:        b.site,
+	}
+	hero, hasHero := render.PhotoView{}, false
+	if heroOverrides[g.ID] {
+		hero, hasHero = heroes[g.ID]
+	} else {
+		hero, hasHero = galleryHero(g, pics, byItem)
+		if !hasHero {
+			hero, hasHero = heroes[g.ID]
+		}
+	}
+	if hasHero {
+		view.Hero = &hero
 	}
 
 	if g.Type == model.GalleryStory {
@@ -378,18 +402,95 @@ func (b *Builder) renderGallery(ctx context.Context, g model.Gallery, pics []ren
 	return b.writeHTML(b.outputPath(g.ID), "gallery-grid", view)
 }
 
-func (b *Builder) renderIndex(roots []model.Gallery, photos map[int64][]render.PhotoView, covers map[int64]render.Source) error {
+func (b *Builder) renderIndex(roots []model.Gallery, photos map[int64][]render.PhotoView, covers map[int64]render.Source, heroes map[int64]render.PhotoView) error {
 	counts := make(map[int64]int, len(photos))
 	for id, p := range photos {
 		counts[id] = len(p)
 	}
 	view := render.GalleryView{
 		Title:    b.site.Title,
+		IsHome:   true,
 		Children: b.cards(roots, covers, counts),
 		Options:  b.options,
 		Site:     b.site,
 	}
+	if hero, ok := homepageHero(roots, heroes, b.byID, b.settings["site.hero_gallery_id"]); ok {
+		view.Hero = &hero
+	}
 	return b.writeHTML(filepath.Join(b.Cfg.OutputDir, "index.html"), "gallery-list", view)
+}
+
+func homepageHero(roots []model.Gallery, heroes map[int64]render.PhotoView, galleries map[int64]model.Gallery, selected string) (render.PhotoView, bool) {
+	if selectedID, err := strconv.ParseInt(selected, 10, 64); err == nil && galleryIsPublic(selectedID, galleries) {
+		if hero, ok := heroes[selectedID]; ok {
+			return hero, true
+		}
+	}
+	for _, root := range roots {
+		if root.Status == model.GalleryPublished {
+			if hero, ok := heroes[root.ID]; ok {
+				return hero, true
+			}
+		}
+	}
+	return render.PhotoView{}, false
+}
+
+func galleryIsPublic(id int64, galleries map[int64]model.Gallery) bool {
+	for {
+		gallery, ok := galleries[id]
+		if !ok || gallery.Status != model.GalleryPublished {
+			return false
+		}
+		if gallery.ParentID == nil {
+			return true
+		}
+		id = *gallery.ParentID
+	}
+}
+
+func (b *Builder) applyGalleryHeroSources(galleries []model.Gallery, photos map[int64][]render.PhotoView, heroes map[int64]render.PhotoView) map[int64]bool {
+	automatic := make(map[int64]render.PhotoView, len(heroes))
+	for id, hero := range heroes {
+		automatic[id] = hero
+	}
+	overrides := make(map[int64]bool)
+	for _, gallery := range galleries {
+		if len(photos[gallery.ID]) > 0 || gallery.HeroGalleryID == nil ||
+			!publishedDescendant(gallery.ID, *gallery.HeroGalleryID, b.byID) {
+			continue
+		}
+		if hero, ok := automatic[*gallery.HeroGalleryID]; ok {
+			heroes[gallery.ID] = hero
+			overrides[gallery.ID] = true
+		}
+	}
+	return overrides
+}
+
+func publishedDescendant(ancestorID, targetID int64, galleries map[int64]model.Gallery) bool {
+	current, ok := galleries[targetID]
+	for ok && current.Status == model.GalleryPublished && current.ParentID != nil {
+		if *current.ParentID == ancestorID {
+			return true
+		}
+		current, ok = galleries[*current.ParentID]
+	}
+	return false
+}
+
+func galleryHero(g model.Gallery, photos []render.PhotoView, byItem map[int64]render.PhotoView) (render.PhotoView, bool) {
+	if len(photos) == 0 {
+		return render.PhotoView{}, false
+	}
+	if g.CoverItemID == nil {
+		return photos[0], true
+	}
+	hero, ok := byItem[*g.CoverItemID]
+	if !ok {
+		return photos[0], true
+	}
+	return hero, true
 }
 
 func (b *Builder) cards(galleries []model.Gallery, covers map[int64]render.Source, counts map[int64]int) []render.GalleryCard {
@@ -656,8 +757,37 @@ func (b *Builder) resolveNestedCovers(visible []model.Gallery, covers map[int64]
 	}
 
 	for _, g := range visible {
-		if _, ok := covers[g.ID]; !ok {
-			resolve(g.ID)
+		if g.Status != model.GalleryProtected {
+			if _, ok := covers[g.ID]; !ok {
+				resolve(g.ID)
+			}
+		}
+	}
+}
+
+// resolveNestedHeroes gives empty folders the first published descendant hero.
+// Protected and unlisted children are intentionally excluded from public pages.
+func (b *Builder) resolveNestedHeroes(children map[int64][]model.Gallery, heroes map[int64]render.PhotoView) {
+	var resolve func(id int64) (render.PhotoView, bool)
+	resolve = func(id int64) (render.PhotoView, bool) {
+		if hero, ok := heroes[id]; ok {
+			return hero, true
+		}
+		for _, child := range children[id] {
+			if child.Status != model.GalleryPublished {
+				continue
+			}
+			if hero, ok := resolve(child.ID); ok {
+				heroes[id] = hero
+				return hero, true
+			}
+		}
+		return render.PhotoView{}, false
+	}
+
+	for parentID := range children {
+		if _, ok := heroes[parentID]; !ok {
+			resolve(parentID)
 		}
 	}
 }

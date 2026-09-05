@@ -437,6 +437,7 @@ func cmdServe(args []string) error {
 		StoryPreview:  renderStoryPreview,
 		PreviewAssets: previewAssets,
 		Themes:        availableThemes(),
+		ThemeOptions:  availableThemeOptions(),
 	})
 	if err != nil {
 		return err

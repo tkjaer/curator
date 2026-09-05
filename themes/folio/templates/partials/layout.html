@@ -8,10 +8,10 @@
 {{if .Site.FeedURL}}<link rel="alternate" type="application/atom+xml" title="{{.Site.Title}}" href="{{.Site.FeedURL}}">
 {{end}}<style>:root{
 {{if .Options.accent}}  --accent: {{.Options.accent}};
-{{end}}  --gap: {{if .Options.gridGap}}{{.Options.gridGap}}{{else}}8{{end}}px;
+{{end}}  --gap: {{.Options.gridGap}}px;
 }</style>
 </head>
-<body id="top">
+<body id="top"{{if .Options.showGridBackground}} class="has-grid-background"{{end}}>
 <header class="site-header">
   <div class="site-header-inner">
     <a class="site-title" href="{{.Site.BaseURL}}/"><span class="site-mark" aria-hidden="true"></span>{{.Site.Title}}</a>
