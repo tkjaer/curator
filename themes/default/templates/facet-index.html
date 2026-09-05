@@ -1,4 +1,5 @@
 {{define "facet-index"}}{{template "site-head" .}}
+{{template "breadcrumbs" .Breadcrumb}}
 <article class="facet-index">
   <h1>{{.Title}}</h1>
   {{template "cards" .Items}}

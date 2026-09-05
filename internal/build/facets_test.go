@@ -83,3 +83,52 @@ func TestFacetPaginationSettings(t *testing.T) {
 		t.Fatalf("configured = %t, %d", enabled, pageSize)
 	}
 }
+
+func TestDateArchiveDepth(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings map[string]string
+		want     int
+	}{
+		{name: "disabled", settings: nil, want: 0},
+		{name: "year", settings: map[string]string{"metadata.date_archive_year": "true"}, want: 1},
+		{name: "month", settings: map[string]string{
+			"metadata.date_archive_year": "true", "metadata.date_archive_month": "true",
+		}, want: 2},
+		{name: "day", settings: map[string]string{
+			"metadata.date_archive_year": "true", "metadata.date_archive_month": "true", "metadata.date_archive_day": "true",
+		}, want: 3},
+		{name: "orphaned month", settings: map[string]string{
+			"metadata.date_archive_month": "true", "metadata.date_archive_day": "true",
+		}, want: 0},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := dateArchiveDepth(test.settings); got != test.want {
+				t.Fatalf("dateArchiveDepth() = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
+func TestDateArchivePaths(t *testing.T) {
+	cfg := config.New(t.TempDir(), filepath.Join(t.TempDir(), "output"))
+	builder := &Builder{Cfg: cfg}
+	builder.site.BaseURL = "https://example.com"
+	parts := []string{"2025", "09", "05"}
+
+	if got := builder.dateArchiveURL(parts); got != "https://example.com/browse/date/2025/09/05/" {
+		t.Fatalf("date URL = %q", got)
+	}
+	if got := builder.dateArchivePageURL(parts, 2); got != "https://example.com/browse/date/2025/09/05/page/2/" {
+		t.Fatalf("date page URL = %q", got)
+	}
+	want := filepath.Join(cfg.OutputDir, "browse", "date", "2025", "09", "05", "page", "2", "index.html")
+	if got := builder.dateArchiveOutput(parts, 2); got != want {
+		t.Fatalf("date output = %q, want %q", got, want)
+	}
+	crumbs := builder.dateArchiveBreadcrumb(parts)
+	if len(crumbs) != 3 || crumbs[0].Title != "Date" || crumbs[1].Title != "2025" || crumbs[2].Title != "September 2025" {
+		t.Fatalf("date breadcrumbs = %#v", crumbs)
+	}
+}

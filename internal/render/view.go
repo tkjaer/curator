@@ -167,6 +167,7 @@ type FacetItem struct {
 type FacetIndexView struct {
 	Title       string
 	Items       []FacetItem
+	Breadcrumb  []Crumb
 	ShowSharing bool
 	Options     map[string]any
 	Site        SiteView
@@ -176,6 +177,7 @@ type FacetIndexView struct {
 type FacetValueView struct {
 	Title       string
 	Rows        []GridRow
+	Breadcrumb  []Crumb
 	Page        int
 	PageCount   int
 	PreviousURL string

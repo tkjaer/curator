@@ -220,12 +220,12 @@ func (b *Builder) BuildReport(ctx context.Context) (Report, error) {
 	}
 	b.kept = map[string]bool{}
 	b.lensPolicy = lensPolicy
+	b.settings = settings
 
 	if err := b.loadFacets(ctx); err != nil {
 		return Report{}, err
 	}
 
-	b.settings = settings
 	visible, children, roots, protected := groupVisible(galleries)
 	if err := b.sortFolderChildren(ctx, children); err != nil {
 		return Report{}, err

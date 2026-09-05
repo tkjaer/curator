@@ -632,3 +632,57 @@ func TestThemesRenderFacetCards(t *testing.T) {
 		})
 	}
 }
+
+func TestThemesRenderFacetBreadcrumbs(t *testing.T) {
+	for _, name := range []string{"darkroom", "default", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			view := render.FacetValueView{
+				Title:      "5 September 2025",
+				Breadcrumb: []render.Crumb{{Title: "Date", Href: "/browse/date/"}, {Title: "2025", Href: "/browse/date/2025/"}},
+				Page:       1,
+				PageCount:  1,
+				Options:    th.Manifest.Defaults(),
+				Site:       sampleSite(),
+			}
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "facet-value", view); err != nil {
+				t.Fatal(err)
+			}
+			for _, want := range []string{`href="/browse/date/"`, `href="/browse/date/2025/"`} {
+				if !strings.Contains(buf.String(), want) {
+					t.Errorf("%s date page missing breadcrumb %q", name, want)
+				}
+			}
+		})
+	}
+}
+
+func TestEditorialThemesRenderSingularPhotoCount(t *testing.T) {
+	for _, name := range []string{"darkroom", "folio"} {
+		t.Run(name, func(t *testing.T) {
+			th, err := Load(os.DirFS("../../themes/" + name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			view := render.FacetIndexView{
+				Title: "Date",
+				Items: []render.FacetItem{{
+					Title: "2024", Href: "/browse/date/2024/", Count: 1,
+				}},
+				Options: th.Manifest.Defaults(),
+				Site:    sampleSite(),
+			}
+			var buf bytes.Buffer
+			if err := th.Render(&buf, "facet-index", view); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(buf.String(), "1 photo") || strings.Contains(buf.String(), "1 photos") {
+				t.Errorf("%s rendered an incorrect singular photo count", name)
+			}
+		})
+	}
+}

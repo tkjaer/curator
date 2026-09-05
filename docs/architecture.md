@@ -302,6 +302,10 @@ published, non-protected items by facet value and emits browseable pages, e.g.
 `/browse/camera/` and `/browse/camera/x-t5/`. Facets are implemented as tags in
 dedicated namespaces, so user tags and EXIF facets share one browse/render
 path. Photos on value pages are ordered newest first, with undated photos last.
+The date archive is a hierarchical virtual facet derived from EXIF capture
+dates. It can stop at year, month, or day depth and emits paths such as
+`/browse/date/2025/09/05/`. Undated photos are omitted, and no galleries or
+Lightroom collection mappings are created or changed.
 By default, value pages are split into static pages of 100 photos; the Metadata
 settings can change that size or disable pagination. Page one keeps the value's
 canonical URL, later pages live below `/page/<number>/`, and progressive loading

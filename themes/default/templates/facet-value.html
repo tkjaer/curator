@@ -1,4 +1,5 @@
 {{define "facet-value"}}{{template "site-head" .}}
+{{template "breadcrumbs" .Breadcrumb}}
 <article class="facet-value">
   <h1>{{.Title}}</h1>
   <div data-facet-page>{{template "grid" .Rows}}</div>

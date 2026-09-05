@@ -38,21 +38,11 @@
         </div>
         {{end}}
       </div>
-    </section>
-
-    <section class="settings-panel">
-      <div class="settings-card-heading"><h2>XMP fallback</h2><p>Use XMP lens metadata only as the last source of a lens name.</p></div>
-      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Accept a direct XMP lens name or Adobe lens profile name when the earlier sources are empty.</small></span></label>
-    </section>
-
-    <section class="settings-panel" id="public-browse-pages">
-      <div class="settings-card-heading"><h2>Browse indexes</h2><p>Metadata pages visitors can explore on the public site.</p></div>
-      <div class="choice-list">
-        {{range .Facets}}
-        <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
-        {{end}}
-        <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
+      <div class="settings-subsection-heading">
+        <h3>XMP fallback</h3>
+        <p>Use XMP lens metadata only as the last source of a lens name.</p>
       </div>
+      <label class="choice-row" id="xmp-lens-fallback"><input type="checkbox" name="use_lightroom_lens_profile"{{if .UseXMPFallback}} checked{{end}}> <span><strong>Use XMP lens metadata as a fallback</strong><small>Accept a direct XMP lens name or Adobe lens profile name when the earlier sources are empty.</small></span></label>
     </section>
 
     <section class="settings-panel settings-panel-wide">
@@ -73,11 +63,37 @@
       <p class="field-help">Save and publish again to update display names. A metadata refresh is not needed.</p>
     </section>
 
-    <section class="settings-panel">
-      <div class="settings-card-heading"><h2>Browse pagination</h2><p>Control the size of generated metadata index pages.</p></div>
-      <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
-      <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
-      <p class="field-help">Photos are ordered newest first.</p>
+    <section class="settings-panel settings-panel-wide" id="public-browse-pages">
+      <div class="settings-card-heading"><h2>Public browsing</h2><p>Choose how visitors explore photos outside the gallery hierarchy.</p></div>
+      <div class="settings-field-grid settings-field-grid-three settings-subpanel-grid">
+        <div class="settings-subpanel">
+          <h3>Browse indexes</h3>
+          <p>Metadata pages generated from photo values.</p>
+          <div class="choice-list">
+            {{range .Facets}}
+            <label class="choice-row"><input type="checkbox" name="facet_{{.Namespace}}"{{if .Enabled}} checked{{end}}> <span><strong>{{.Label}}</strong><small>Generate a public {{.Label}} browse page.</small></span></label>
+            {{end}}
+            <label class="choice-row"><input type="checkbox" name="tag_browse_enabled"{{if .TagBrowseEnabled}} checked{{end}}> <span><strong>Tags</strong><small>Generate public tag browse pages and link visible tags to them.</small></span></label>
+          </div>
+        </div>
+        <div class="settings-subpanel">
+          <h3>Date archive</h3>
+          <p>Virtual folders generated from EXIF capture dates.</p>
+          <div class="choice-list" id="date-archive-levels">
+            <label class="choice-row"><input type="checkbox" id="date-archive-year" name="date_archive_year"{{if .DateArchiveYear}} checked{{end}}> <span><strong>Year</strong><small>Browse photos under folders such as 2025.</small></span></label>
+            <label class="choice-row"><input type="checkbox" id="date-archive-month" name="date_archive_month"{{if .DateArchiveMonth}} checked{{end}}> <span><strong>Month</strong><small>Add month folders beneath each year.</small></span></label>
+            <label class="choice-row"><input type="checkbox" id="date-archive-day" name="date_archive_day"{{if .DateArchiveDay}} checked{{end}}> <span><strong>Day</strong><small>Add day folders beneath each month.</small></span></label>
+          </div>
+          <p class="field-help">Undated and non-public photos are omitted.</p>
+        </div>
+        <div class="settings-subpanel">
+          <h3>Pagination</h3>
+          <p>Control the size of generated browse pages.</p>
+          <label class="choice-row"><input type="checkbox" id="facet-pagination-enabled" name="facet_pagination_enabled"{{if .PaginationEnabled}} checked{{end}}> <span><strong>Paginate browse pages</strong><small>Visitors progressively load additional static pages while scrolling.</small></span></label>
+          <label class="field"><span>Photos per page</span><input type="number" id="facet-page-size" name="facet_page_size" value="{{.PageSize}}" min="1" max="1000" inputmode="numeric"></label>
+          <p class="field-help">Photos are ordered newest first.</p>
+        </div>
+      </div>
     </section>
 
     <section class="settings-panel settings-panel-wide" id="public-tags">
@@ -136,6 +152,9 @@
 (function () {
   var pagination = document.getElementById("facet-pagination-enabled");
   var pageSize = document.getElementById("facet-page-size");
+  var dateYear = document.getElementById("date-archive-year");
+  var dateMonth = document.getElementById("date-archive-month");
+  var dateDay = document.getElementById("date-archive-day");
   var tagVisibility = document.getElementById("tag-visibility");
   var tagSelection = document.getElementById("tag-selection");
   function updatePagination() {
@@ -143,6 +162,16 @@
   }
   pagination.addEventListener("change", updatePagination);
   updatePagination();
+
+  function updateDateArchive() {
+    dateMonth.disabled = !dateYear.checked;
+    if (dateMonth.disabled) dateMonth.checked = false;
+    dateDay.disabled = !dateMonth.checked;
+    if (dateDay.disabled) dateDay.checked = false;
+  }
+  dateYear.addEventListener("change", updateDateArchive);
+  dateMonth.addEventListener("change", updateDateArchive);
+  updateDateArchive();
 
   function updateTagSelection() {
     var selective = tagVisibility.value === "show_selected" || tagVisibility.value === "hide_selected";

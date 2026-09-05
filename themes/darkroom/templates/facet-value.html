@@ -1,5 +1,6 @@
 {{define "facet-value"}}{{template "site-head" .}}
 <article class="listing-page">
+  {{template "breadcrumbs" .Breadcrumb}}
   <header class="page-head"><p class="hero-kicker">Browse</p><h1>{{.Title}}</h1></header>
   <div data-facet-page>{{template "grid" .Rows}}</div>
   {{if gt .PageCount 1}}<nav class="facet-pagination" aria-label="Browse pages">
