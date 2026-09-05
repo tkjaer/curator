@@ -405,6 +405,12 @@ themes/<name>/
 └── static/                  # favicon, self-hosted fonts, etc.
 ```
 
+Core supplies the stable lightbox runtime and structural partials for
+breadcrumbs, navigation, grids, figures, story images, tags, EXIF, and the
+lightbox dialog. A theme can override any shared partial or asset by providing
+the same relative path; theme files take precedence. Page composition and all
+visual styling remain theme-owned.
+
 Curator ships three themes: `default`, the reference implementation of the
 theme contract; `folio`, an editorial presentation; and `darkroom`, a
 cinematic image-first presentation with automatic gallery heroes.

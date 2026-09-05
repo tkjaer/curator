@@ -163,6 +163,7 @@ h1 { font-weight: 600; letter-spacing: -.01em; }
   padding: .5rem .8rem;
   cursor: pointer;
 }
+.lb-btn > svg { width: 1.2rem; height: 1.2rem; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .lb-prev { left: 1rem; }
 .lb-next { right: 1rem; }
 .lb-close { top: 1rem; right: 1rem; transform: none; font-size: 1.5rem; }

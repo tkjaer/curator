@@ -4,13 +4,20 @@ package theme
 
 import (
 	"crypto/sha256"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
 	"io/fs"
+	"path"
 	"strconv"
+	"strings"
+	"testing/fstest"
 )
+
+//go:embed shared/templates/*.html shared/assets/*
+var sharedFS embed.FS
 
 // Option is a theme setting declared in the manifest. The admin renders these
 // as form fields.
@@ -36,6 +43,7 @@ type Manifest struct {
 type Theme struct {
 	Manifest  Manifest
 	fsys      fs.FS
+	assets    fstest.MapFS
 	templates *template.Template
 }
 
@@ -53,16 +61,57 @@ func Load(fsys fs.FS) (*Theme, error) {
 	}
 
 	tmpl := template.New(m.Name)
+	themeTemplates := map[string]*template.Template{}
 	patterns := []string{"templates/*.html", "templates/partials/*.html"}
-	for _, p := range patterns {
-		if matches, _ := fs.Glob(fsys, p); len(matches) > 0 {
-			if _, err := tmpl.ParseFS(fsys, p); err != nil {
-				return nil, fmt.Errorf("parse %s: %w", p, err)
+	for _, pattern := range patterns {
+		matches, _ := fs.Glob(fsys, pattern)
+		for _, match := range matches {
+			parsed, err := template.New(path.Base(match)).ParseFS(fsys, match)
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", match, err)
+			}
+			for _, override := range parsed.Templates() {
+				if override.Tree != nil {
+					themeTemplates[override.Name()] = override
+				}
+			}
+		}
+	}
+	for _, empty := range []bool{true, false} {
+		for name, override := range themeTemplates {
+			isEmpty := override.Tree.Root == nil || len(override.Tree.Root.Nodes) == 0
+			if isEmpty != empty {
+				continue
+			}
+			if _, err := tmpl.New(name).AddParseTree(name, override.Tree); err != nil {
+				return nil, fmt.Errorf("apply template override %s: %w", name, err)
 			}
 		}
 	}
 
-	return &Theme{Manifest: m, fsys: fsys, templates: tmpl}, nil
+	sharedTemplates, err := template.New(m.Name).ParseFS(sharedFS, "shared/templates/*.html")
+	if err != nil {
+		return nil, fmt.Errorf("parse shared templates: %w", err)
+	}
+	for _, shared := range sharedTemplates.Templates() {
+		existing := tmpl.Lookup(shared.Name())
+		if shared.Tree == nil || (existing != nil && existing.Tree != nil) {
+			continue
+		}
+		if _, err := tmpl.New(shared.Name()).AddParseTree(shared.Name(), shared.Tree); err != nil {
+			return nil, fmt.Errorf("apply shared template %s: %w", shared.Name(), err)
+		}
+	}
+
+	assets := fstest.MapFS{}
+	if err := copyFiles(assets, sharedFS, "shared/assets"); err != nil {
+		return nil, fmt.Errorf("load shared assets: %w", err)
+	}
+	if err := copyFiles(assets, fsys, "assets"); err != nil {
+		return nil, fmt.Errorf("load theme assets: %w", err)
+	}
+
+	return &Theme{Manifest: m, fsys: fsys, assets: assets, templates: tmpl}, nil
 }
 
 // Render executes the named template with data.
@@ -72,21 +121,32 @@ func (t *Theme) Render(w io.Writer, name string, data any) error {
 
 // Assets returns the theme's assets directory as a filesystem.
 func (t *Theme) Assets() (fs.FS, error) {
-	return fs.Sub(t.fsys, "assets")
+	return t.assets, nil
 }
 
 // ContentVersion returns a deterministic version of the complete theme,
 // including its manifest, templates, and assets.
 func (t *Theme) ContentVersion() (string, error) {
 	hash := sha256.New()
-	err := fs.WalkDir(t.fsys, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+	err := hashFS(hash, "theme/", t.fsys)
+	if err == nil {
+		err = hashFS(hash, "shared/", sharedFS)
+	}
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func hashFS(hash io.Writer, prefix string, fsys fs.FS) error {
+	return fs.WalkDir(fsys, ".", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil || entry.IsDir() {
 			return walkErr
 		}
-		if _, err := io.WriteString(hash, path+"\x00"); err != nil {
+		if _, err := io.WriteString(hash, prefix+path+"\x00"); err != nil {
 			return err
 		}
-		file, err := t.fsys.Open(path)
+		file, err := fsys.Open(path)
 		if err != nil {
 			return err
 		}
@@ -97,10 +157,30 @@ func (t *Theme) ContentVersion() (string, error) {
 		}
 		return closeErr
 	})
+}
+
+func copyFiles(target fstest.MapFS, source fs.FS, root string) error {
+	sub, err := fs.Sub(source, root)
 	if err != nil {
-		return "", err
+		return err
 	}
-	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+	return fs.WalkDir(sub, ".", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil || entry.IsDir() {
+			return walkErr
+		}
+		data, err := fs.ReadFile(sub, path)
+		if err != nil {
+			return err
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
+		target[strings.TrimPrefix(path, "./")] = &fstest.MapFile{
+			Data: data, Mode: info.Mode(), ModTime: info.ModTime(),
+		}
+		return nil
+	})
 }
 
 // AssetVersion returns a deterministic version for cache-busting asset URLs.

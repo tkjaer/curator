@@ -1,0 +1,10 @@
+{{define "story-image"}}<figure class="story-image">
+  <a href="{{.Display.URL}}" data-lightbox{{if .ID}} data-lightbox-key="{{.ID}}"{{end}} data-zoom-src="{{if .Zoom.URL}}{{.Zoom.URL}}{{else}}{{.Display.URL}}{{end}}" data-share-src="{{.Share.URL}}" data-id="{{.Slug}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
+    <img src="{{.Display.URL}}"
+         srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
+         sizes="(max-width: 1100px) 100vw, 1100px"
+         width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" loading="lazy" decoding="async">
+  </a>
+  {{template "lightbox-tags-source" .Tags}}
+  {{if or .Title .Description .Caption .Tags}}<figcaption>{{with .Title}}<span class="fig-title">{{.}}</span>{{end}}{{with .Description}}<span class="fig-description">{{.}}</span>{{end}}{{with .Caption}}<span class="fig-caption">{{.}}</span>{{end}}{{template "tags" .Tags}}</figcaption>{{end}}
+</figure>{{end}}

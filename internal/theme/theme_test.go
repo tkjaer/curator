@@ -202,6 +202,7 @@ func TestContentVersionIncludesTemplates(t *testing.T) {
 		"templates/gallery.html": {Data: []byte(`{{define "gallery"}}first{{end}}`)},
 		"assets/theme.css":       {Data: []byte(`body { color: black; }`)},
 	}
+
 	first, err := Load(files)
 	if err != nil {
 		t.Fatal(err)
@@ -234,6 +235,85 @@ func TestContentVersionIncludesTemplates(t *testing.T) {
 	}
 	if firstAssets != secondAssets {
 		t.Fatal("template change altered asset-only version")
+	}
+}
+
+func TestLoadProvidesSharedTemplatesAndAssets(t *testing.T) {
+	files := fstest.MapFS{
+		"manifest.json":          {Data: []byte(`{"name":"test","version":"1","engine":"go-html-template"}`)},
+		"templates/gallery.html": {Data: []byte(`{{define "gallery"}}{{template "grid" .Rows}}{{end}}`)},
+		"assets/theme.css":       {Data: []byte(`body { color: black; }`)},
+	}
+	th, err := Load(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery", render.GalleryView{}); err != nil {
+		t.Fatalf("render shared grid: %v", err)
+	}
+	assets, err := th.Assets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fs.ReadFile(assets, "theme.js"); err != nil {
+		t.Fatalf("shared theme.js missing: %v", err)
+	}
+	if css, err := fs.ReadFile(assets, "theme.css"); err != nil || !strings.Contains(string(css), "color: black") {
+		t.Fatalf("theme CSS missing from merged assets: %v", err)
+	}
+}
+
+func TestThemeOverridesSharedTemplateAndAsset(t *testing.T) {
+	files := fstest.MapFS{
+		"manifest.json":               {Data: []byte(`{"name":"test","version":"1","engine":"go-html-template"}`)},
+		"templates/gallery.html":      {Data: []byte(`{{define "gallery"}}{{template "nav" .Site}}{{end}}`)},
+		"templates/partials/nav.html": {Data: []byte(`{{define "nav"}}custom navigation{{end}}`)},
+		"assets/theme.css":            {Data: []byte(`body { color: black; }`)},
+		"assets/theme.js":             {Data: []byte(`console.log("custom");`)},
+	}
+
+	th, err := Load(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery", render.GalleryView{}); err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != "custom navigation" {
+		t.Fatalf("theme template did not override shared template: %q", buf.String())
+	}
+	assets, err := th.Assets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, err := fs.ReadFile(assets, "theme.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(js) != `console.log("custom");` {
+		t.Fatalf("theme asset did not override shared asset: %q", js)
+	}
+}
+
+func TestThemeCanSuppressSharedTemplate(t *testing.T) {
+	files := fstest.MapFS{
+		"manifest.json":               {Data: []byte(`{"name":"test","version":"1","engine":"go-html-template"}`)},
+		"templates/gallery.html":      {Data: []byte(`{{define "gallery"}}before{{template "nav" .Site}}after{{end}}`)},
+		"templates/partials/nav.html": {Data: []byte(`{{define "nav"}}{{end}}`)},
+		"assets/theme.css":            {Data: []byte(`body { color: black; }`)},
+	}
+	th, err := Load(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery", render.GalleryView{}); err != nil {
+		t.Fatal(err)
+	}
+	if buf.String() != "beforeafter" {
+		t.Fatalf("empty theme override was ignored: %q", buf.String())
 	}
 }
 
