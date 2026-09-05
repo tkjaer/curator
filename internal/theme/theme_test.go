@@ -176,7 +176,7 @@ func TestManifestResolveOptions(t *testing.T) {
 }
 
 func TestThemesRenderZeroGridGap(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -484,8 +484,89 @@ func TestDarkroomTheme(t *testing.T) {
 	}
 }
 
+func TestNordicTheme(t *testing.T) {
+	th, err := Load(os.DirFS("../../themes/nordic"))
+	if err != nil {
+		t.Fatalf("load nordic theme: %v", err)
+	}
+	if th.Manifest.Name != "nordic" {
+		t.Fatalf("manifest name = %q, want nordic", th.Manifest.Name)
+	}
+	photos := samplePhotos()
+	options := th.Manifest.Defaults()
+	if options["showHero"] != false {
+		t.Fatal("Nordic should default to its compact hero-free layout")
+	}
+	if options["showHomeHeading"] != true {
+		t.Fatal("Nordic should show the homepage heading by default")
+	}
+	options["showHero"] = true
+	view := render.GalleryView{
+		Title: "Outer Hebrides", Type: "grid", Hero: &photos[0],
+		Rows:    render.Justify(photos, 1000, 380, 16, true),
+		Options: options, Site: sampleSite(),
+	}
+	var buf bytes.Buffer
+	if err := th.Render(&buf, "gallery-grid", view); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	for _, want := range []string{`class="gallery-hero has-image"`, `fetchpriority="high"`, `alt="a"`, `alt="b"`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("Nordic output missing %q", want)
+		}
+	}
+	if strings.Count(out, `alt="a"`) != 2 {
+		t.Error("Nordic cover should remain in the regular grid")
+	}
+
+	view.Options["showHero"] = false
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-grid", view); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(buf.String(), `class="gallery-hero`) || !strings.Contains(buf.String(), `class="gallery-heading"`) {
+		t.Error("Nordic did not render its compact hero-free heading")
+	}
+
+	view.IsHome = true
+	view.Title = view.Site.Title
+	view.Options["showHomeHeading"] = false
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `<h1 class="visually-hidden">My Photos</h1>`) ||
+		strings.Contains(buf.String(), `<h1>My Photos</h1>`) {
+		t.Error("Nordic did not hide the optional homepage heading semantically")
+	}
+	view.Options["showHero"] = true
+	buf.Reset()
+	if err := th.Render(&buf, "gallery-list", view); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), `class="gallery-hero has-image home-heading-hidden"`) ||
+		!strings.Contains(buf.String(), `sizes="100vw"`) {
+		t.Error("Nordic hidden-heading hero did not render at full responsive width")
+	}
+
+	assets, err := th.Assets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	css, err := fs.ReadFile(assets, "theme.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"@media (prefers-color-scheme: dark)", "@media (prefers-reduced-motion: reduce)", "--accent: #8eb9b5", ".lightbox { padding: .5rem; }"} {
+		if !strings.Contains(string(css), want) {
+			t.Errorf("Nordic CSS missing %q", want)
+		}
+	}
+}
+
 func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -529,7 +610,7 @@ func TestThemesIncludeLightboxZoomAssets(t *testing.T) {
 }
 
 func TestThemesPreservePhotoAspectOnMobile(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -615,7 +696,7 @@ func TestFolioGalleryTitlesAreVisuallyHidden(t *testing.T) {
 }
 
 func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -649,7 +730,7 @@ func TestThemesShowEXIFOnlyInLightbox(t *testing.T) {
 }
 
 func TestThemesRenderCopyrightFooter(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -683,7 +764,7 @@ func TestThemesRenderCopyrightFooter(t *testing.T) {
 }
 
 func TestThemesRenderFacetCards(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {
@@ -714,7 +795,7 @@ func TestThemesRenderFacetCards(t *testing.T) {
 }
 
 func TestThemesRenderFacetBreadcrumbs(t *testing.T) {
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		t.Run(name, func(t *testing.T) {
 			th, err := Load(os.DirFS("../../themes/" + name))
 			if err != nil {

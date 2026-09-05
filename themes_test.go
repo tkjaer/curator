@@ -50,7 +50,7 @@ func TestAvailableThemesIncludesBundledThemes(t *testing.T) {
 	for _, name := range availableThemes() {
 		found[name] = true
 	}
-	for _, name := range []string{"darkroom", "default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio", "nordic"} {
 		if !found[name] {
 			t.Errorf("availableThemes() = %v, want it to include %q", availableThemes(), name)
 		}

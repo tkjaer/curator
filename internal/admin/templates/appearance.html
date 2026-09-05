@@ -36,9 +36,9 @@
         {{else if eq .Type "int"}}
         <label class="field"><span>{{.Label}}</span><input type="number" name="theme_option_{{.Key}}" value="{{.Value}}"{{with .Min}} min="{{.}}"{{end}}{{with .Max}} max="{{.}}"{{end}}></label>
         {{else if eq .Type "color"}}
-        <div class="field">
-          <label><span>{{.Label}}</span><input type="color" name="theme_option_{{.Key}}" value="{{if .Value}}{{.Value}}{{else}}#1a1a1a{{end}}"></label>
-          {{if .AllowBlank}}<label class="choice-row"><input type="checkbox" name="theme_option_{{.Key}}_automatic"{{if not .Value}} checked{{end}}> <span><strong>Automatic color</strong><small>Let the theme choose for light and dark mode.</small></span></label>{{end}}
+        <div class="field theme-color-control" data-theme-color-control>
+          <label class="theme-color-picker"><span>{{.Label}}</span><input type="color" data-theme-color-picker name="theme_option_{{.Key}}" value="{{if .Value}}{{.Value}}{{else}}#1a1a1a{{end}}"></label>
+          {{if .AllowBlank}}<label class="choice-row"><input type="checkbox" data-theme-color-automatic name="theme_option_{{.Key}}_automatic"{{if not .Value}} checked{{end}}> <span><strong>Automatic color</strong><small>Use the theme's separate light and dark colors. Uncheck to choose one custom color.</small></span></label>{{end}}
         </div>
         {{else}}
         <label class="field"><span>{{.Label}}</span><input name="theme_option_{{.Key}}" value="{{.Value}}"></label>
@@ -64,5 +64,23 @@
     </section>
   </div>
 </form>
+<script>
+(function () {
+  document.querySelectorAll("[data-theme-color-control]").forEach(function (control) {
+    var picker = control.querySelector("[data-theme-color-picker]");
+    var automatic = control.querySelector("[data-theme-color-automatic]");
+    if (!picker || !automatic) return;
+    function sync() {
+      control.classList.toggle("is-automatic", automatic.checked);
+    }
+    automatic.addEventListener("change", sync);
+    picker.addEventListener("input", function () {
+      automatic.checked = false;
+      sync();
+    });
+    sync();
+  });
+})();
+</script>
 {{end}}
 {{template "foot" .}}{{end}}

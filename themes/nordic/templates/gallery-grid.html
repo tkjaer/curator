@@ -1,0 +1,7 @@
+{{define "gallery-grid"}}{{template "site-head" .}}
+<article class="gallery">
+  {{if .Options.showHero}}{{template "gallery-hero" .}}{{else}}{{template "gallery-heading" .}}{{end}}
+  {{if .Children}}<section class="gallery-section"><header class="section-head"><h2>Collections</h2><span>{{len .Children}}</span></header>{{template "cards" .Children}}</section>{{end}}
+  {{if .Rows}}<section class="gallery-section photo-section">{{if .Children}}<header class="section-head"><h2>Photographs</h2></header>{{else}}<h2 class="visually-hidden">Photographs</h2>{{end}}{{template "grid" .Rows}}</section>{{end}}
+</article>
+{{template "site-foot" .}}{{end}}
