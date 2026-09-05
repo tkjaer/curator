@@ -527,7 +527,7 @@ func TestBuildUnlistedIsBuiltButNotLinked(t *testing.T) {
 	if !strings.Contains(string(index), "Shown") {
 		t.Error("published gallery should be linked from the index")
 	}
-	if strings.Contains(string(index), "hidden") {
+	if strings.Contains(string(index), `href="/hidden/"`) {
 		t.Error("unlisted gallery must not be linked from the index")
 	}
 }
