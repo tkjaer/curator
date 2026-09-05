@@ -1,0 +1,25 @@
+{{define "gallery-story"}}{{template "site-head" .}}
+<article class="story">
+  <header class="story-head">
+    {{template "breadcrumbs" .Breadcrumb}}
+    <p class="hero-kicker">Story</p>
+    <h1>{{.Title}}</h1>
+    {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  </header>
+  {{range .Blocks}}
+  {{if eq .Type "grid"}}{{template "grid" .Rows}}
+  {{else if eq .Type "image"}}<figure class="story-image">
+    <a href="{{.Photo.Display.URL}}" data-lightbox{{if .Photo.ID}} data-lightbox-key="{{.Photo.ID}}"{{end}} data-zoom-src="{{if .Photo.Zoom.URL}}{{.Photo.Zoom.URL}}{{else}}{{.Photo.Display.URL}}{{end}}" data-share-src="{{.Photo.Share.URL}}" data-id="{{.Photo.Slug}}" data-title="{{.Photo.Title}}" data-description="{{.Photo.Description}}" data-caption="{{.Photo.Caption}}"{{with .Photo.Exif}} data-exif="{{.Line}}"{{end}}>
+      <img src="{{.Photo.Display.URL}}"
+           srcset="{{range $i, $s := .Photo.Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
+           sizes="(max-width: 1100px) 100vw, 1100px"
+           width="{{.Photo.Width}}" height="{{.Photo.Height}}" alt="{{.Photo.Alt}}" loading="lazy" decoding="async">
+    </a>
+    {{template "lightbox-tags-source" .Photo.Tags}}
+    {{if or .Photo.Title .Photo.Description .Photo.Caption .Photo.Tags}}<figcaption>{{with .Photo.Title}}<span class="fig-title">{{.}}</span>{{end}}{{with .Photo.Description}}<span class="fig-description">{{.}}</span>{{end}}{{with .Photo.Caption}}<span class="fig-caption">{{.}}</span>{{end}}{{template "tags" .Photo.Tags}}</figcaption>{{end}}
+  </figure>
+  {{else}}<div class="prose">{{.HTML}}</div>
+  {{end}}
+  {{end}}
+</article>
+{{template "site-foot" .}}{{end}}

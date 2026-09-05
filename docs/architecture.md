@@ -196,8 +196,15 @@ Key points:
 - **Galleries nest** to arbitrary depth via `parent_id`.
 - **Ordering** defaults to date taken, with by-filename and full manual
   override available per gallery (`sort_mode` + `sort_order`).
-- **Cover image** is explicit (`cover_item_id`), falling back to the first
-  highlighted item, then the first item.
+- **Cover image** is explicit (`cover_item_id`), falling back to the first item.
+- **Gallery hero** uses that resolved cover, or the first photo in gallery order.
+  Empty folders inherit the first published descendant's hero. Themes may render
+  it once above the remaining automatic grid; Lightroom users control the
+  default simply by changing collection order. Site and folder settings can
+  instead name a source gallery, whose resolved cover becomes the hero without
+  changing Lightroom ownership or photo order. A gallery with its own photos
+  always uses its own cover; source-gallery overrides apply only to empty
+  folders.
 - **Replacing an image** repoints `original_path`; derivatives regenerate
   because their `hash` changes.
 
@@ -376,6 +383,8 @@ A theme is a self-contained directory and the only user-facing extension
 surface. Themes never touch the database; the generator builds a plain
 view-model for each page and executes the theme's templates with it. Stable
 view-model field names are the contract between core and themes.
+Site-wide context includes an optional homepage introduction so themes can
+present editorial identity without repeating the site title.
 
 ```
 themes/<name>/
@@ -392,8 +401,9 @@ themes/<name>/
 └── static/                  # favicon, self-hosted fonts, etc.
 ```
 
-Curator ships two themes: `default`, the reference implementation of the theme
-contract, and `folio`, a more editorial presentation.
+Curator ships three themes: `default`, the reference implementation of the
+theme contract; `folio`, an editorial presentation; and `darkroom`, a
+cinematic image-first presentation with automatic gallery heroes.
 
 ### Front-end approach
 

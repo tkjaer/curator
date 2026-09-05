@@ -50,11 +50,21 @@ func TestAvailableThemesIncludesBundledThemes(t *testing.T) {
 	for _, name := range availableThemes() {
 		found[name] = true
 	}
-	for _, name := range []string{"default", "folio"} {
+	for _, name := range []string{"darkroom", "default", "folio"} {
 		if !found[name] {
 			t.Errorf("availableThemes() = %v, want it to include %q", availableThemes(), name)
 		}
 	}
+}
+
+func TestAvailableThemeOptionsIncludesDarkroomHero(t *testing.T) {
+	options := availableThemeOptions()["darkroom"]
+	for _, option := range options {
+		if option.Key == "showHero" && option.Type == "bool" {
+			return
+		}
+	}
+	t.Fatalf("darkroom options = %#v, want showHero boolean", options)
 }
 
 func TestLoadSiteThemeFallsBackToDefault(t *testing.T) {

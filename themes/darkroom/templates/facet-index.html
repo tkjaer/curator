@@ -1,0 +1,6 @@
+{{define "facet-index"}}{{template "site-head" .}}
+<article class="listing-page">
+  <header class="page-head"><p class="hero-kicker">Browse</p><h1>{{.Title}}</h1></header>
+  {{template "cards" .Items}}
+</article>
+{{template "site-foot" .}}{{end}}

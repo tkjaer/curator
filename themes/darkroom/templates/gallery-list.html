@@ -1,0 +1,6 @@
+{{define "gallery-list"}}{{template "site-head" .}}
+<article class="gallery">
+  {{if .Options.showHero}}{{template "gallery-hero" .}}{{else}}{{template "gallery-heading" .}}{{end}}
+  {{if .Children}}<section class="gallery-section"><header class="section-head"><h2>Collections</h2><span>{{len .Children}}</span></header>{{template "cards" .Children}}</section>{{end}}
+</article>
+{{template "site-foot" .}}{{end}}

@@ -1,0 +1,15 @@
+{
+  "name": "darkroom",
+  "version": "1.0.0",
+  "engine": ">=0.1",
+  "requiresPresets": ["thumb", "display", "w800", "w1600", "w2400"],
+  "options": [
+    { "key": "accent",        "type": "color", "label": "Signal color",                "default": "#c43d32" },
+    { "key": "showHero",      "type": "bool",  "label": "Show hero image",             "default": true },
+    { "key": "folderBrightness", "type": "int", "label": "Folder image brightness (%)", "default": 75, "min": 0, "max": 100 },
+    { "key": "folderSaturation", "type": "int", "label": "Folder image saturation (%)", "default": 50, "min": 0, "max": 100 },
+    { "key": "gridGap",       "type": "int",   "label": "Grid gap (px)",              "default": 4,   "min": 0 },
+    { "key": "rowHeight",     "type": "int",   "label": "Target row height",           "default": 420, "min": 1 },
+    { "key": "panoFullWidth", "type": "bool",  "label": "Prefer full-width panoramas", "default": true }
+  ]
+}

@@ -1,0 +1,22 @@
+{{define "gallery-hero"}}<header class="gallery-hero{{if .Hero}} has-image{{end}}{{if .IsHome}} site-home{{end}}">
+  {{with .Hero}}<a class="hero-media" href="{{.Display.URL}}" data-lightbox{{if .ID}} data-lightbox-key="{{.ID}}"{{end}} data-zoom-src="{{if .Zoom.URL}}{{.Zoom.URL}}{{else}}{{.Display.URL}}{{end}}" data-share-src="{{.Share.URL}}" data-id="{{.Slug}}" data-title="{{.Title}}" data-description="{{.Description}}" data-caption="{{.Caption}}"{{with .Exif}} data-exif="{{.Line}}"{{end}}>
+    <img src="{{.Display.URL}}"
+         srcset="{{range $i, $s := .Srcset}}{{if $i}}, {{end}}{{$s.URL}} {{$s.Width}}w{{end}}"
+         sizes="100vw"
+         width="{{.Width}}" height="{{.Height}}" alt="{{.Alt}}" fetchpriority="high" decoding="async">
+  </a>
+  {{template "lightbox-tags-source" .Tags}}{{end}}
+  <div class="hero-copy">
+    {{template "breadcrumbs" .Breadcrumb}}
+    <p class="hero-kicker">{{if .Breadcrumb}}Collection{{else}}Archive{{end}}</p>
+    {{if .IsHome}}<h1>{{if .Site.Introduction}}{{.Site.Introduction}}{{else}}{{.Title}}{{end}}</h1>{{else}}<h1>{{.Title}}</h1>{{end}}
+    {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+  </div>
+</header>{{end}}
+
+{{define "gallery-heading"}}<header class="gallery-heading">
+  {{template "breadcrumbs" .Breadcrumb}}
+  <p class="hero-kicker">{{if .Breadcrumb}}Collection{{else}}Archive{{end}}</p>
+  <h1>{{if and .IsHome .Site.Introduction}}{{.Site.Introduction}}{{else}}{{.Title}}{{end}}</h1>
+  {{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}
+</header>{{end}}

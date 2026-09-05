@@ -1,0 +1,2 @@
+{{define "tags"}}{{with .}}<span class="fig-tags">{{range .}}{{if .Href}}<a href="{{.Href}}">{{.Label}}</a>{{else}}<span>{{.Label}}</span>{{end}}{{end}}</span>{{end}}{{end}}
+{{define "lightbox-tags-source"}}{{with .}}<span class="lightbox-tags-source" hidden>{{range .}}{{if .Href}}<a href="{{.Href}}">{{.Label}}</a>{{else}}<span>{{.Label}}</span>{{end}}{{end}}</span>{{end}}{{end}}

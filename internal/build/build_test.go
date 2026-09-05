@@ -36,6 +36,122 @@ func TestCardCoverUsesResponsiveSource(t *testing.T) {
 	}
 }
 
+func TestGalleryHeroSelection(t *testing.T) {
+	first := render.PhotoView{Slug: "first"}
+	second := render.PhotoView{Slug: "second"}
+	photos := []render.PhotoView{first, second}
+	items := map[int64]render.PhotoView{10: first, 20: second}
+
+	hero, ok := galleryHero(model.Gallery{}, photos, items)
+	if !ok || hero.Slug != "first" {
+		t.Fatalf("default hero = %q, %t; want first, true", hero.Slug, ok)
+	}
+
+	coverID := int64(20)
+	hero, ok = galleryHero(model.Gallery{CoverItemID: &coverID}, photos, items)
+	if !ok || hero.Slug != "second" {
+		t.Fatalf("explicit hero = %q, %t; want second, true", hero.Slug, ok)
+	}
+}
+
+func TestResolveNestedHeroesUsesFirstPublishedChild(t *testing.T) {
+	parentID := int64(1)
+	protectedID := int64(2)
+	firstPublishedID := int64(3)
+	secondPublishedID := int64(4)
+	children := map[int64][]model.Gallery{
+		parentID: {
+			{ID: protectedID, ParentID: &parentID, Status: model.GalleryProtected},
+			{ID: firstPublishedID, ParentID: &parentID, Status: model.GalleryPublished},
+			{ID: secondPublishedID, ParentID: &parentID, Status: model.GalleryPublished},
+		},
+	}
+	heroes := map[int64]render.PhotoView{
+		protectedID:       {Slug: "private"},
+		firstPublishedID:  {Slug: "first-public"},
+		secondPublishedID: {Slug: "second-public"},
+	}
+
+	(&Builder{}).resolveNestedHeroes(children, heroes)
+	if got := heroes[parentID].Slug; got != "first-public" {
+		t.Fatalf("nested hero = %q, want first-public", got)
+	}
+}
+
+func TestProtectedFolderDoesNotInheritPublicCover(t *testing.T) {
+	protectedID := int64(1)
+	childID := int64(2)
+	visible := []model.Gallery{
+		{ID: protectedID, Status: model.GalleryProtected},
+		{ID: childID, ParentID: &protectedID, Status: model.GalleryPublished},
+	}
+	covers := map[int64]render.Source{childID: {URL: "/public-child.jpg"}}
+
+	(&Builder{}).resolveNestedCovers(visible, covers)
+	if cover := covers[protectedID]; cover.URL != "" {
+		t.Fatalf("protected folder inherited public cover %q", cover.URL)
+	}
+}
+
+func TestHomepageHeroSkipsProtectedRoots(t *testing.T) {
+	roots := []model.Gallery{
+		{ID: 1, Status: model.GalleryProtected},
+		{ID: 2, Status: model.GalleryPublished},
+	}
+	heroes := map[int64]render.PhotoView{
+		1: {Slug: "private"},
+		2: {Slug: "public"},
+	}
+	galleries := map[int64]model.Gallery{
+		1: {ID: 1, Status: model.GalleryProtected},
+		2: {ID: 2, Status: model.GalleryPublished},
+	}
+
+	hero, ok := homepageHero(roots, heroes, galleries, "")
+	if !ok || hero.Slug != "public" {
+		t.Fatalf("homepage hero = %q, %t; want public, true", hero.Slug, ok)
+	}
+}
+
+func TestExplicitHeroSourcesOverrideAutomaticHeroes(t *testing.T) {
+	sourceID := int64(3)
+	galleries := []model.Gallery{
+		{ID: 1, Status: model.GalleryPublished, HeroGalleryID: &sourceID},
+		{ID: 2, ParentID: int64Pointer(1), Status: model.GalleryPublished},
+		{ID: 3, ParentID: int64Pointer(1), Status: model.GalleryPublished},
+	}
+	byID := make(map[int64]model.Gallery, len(galleries))
+	for _, gallery := range galleries {
+		byID[gallery.ID] = gallery
+	}
+	heroes := map[int64]render.PhotoView{
+		1: {Slug: "automatic"},
+		2: {Slug: "first-child"},
+		3: {Slug: "selected"},
+	}
+	builder := &Builder{byID: byID}
+
+	photos := map[int64][]render.PhotoView{}
+	overrides := builder.applyGalleryHeroSources(galleries, photos, heroes)
+	if !overrides[1] || heroes[1].Slug != "selected" {
+		t.Fatalf("explicit hero = %q, override %t; want selected, true", heroes[1].Slug, overrides[1])
+	}
+	photos[1] = []render.PhotoView{{Slug: "own-cover"}}
+	heroes[1] = render.PhotoView{Slug: "own-cover"}
+	overrides = builder.applyGalleryHeroSources(galleries, photos, heroes)
+	if overrides[1] || heroes[1].Slug != "own-cover" {
+		t.Fatalf("gallery with photos used folder override: hero %q, override %t", heroes[1].Slug, overrides[1])
+	}
+	hero, ok := homepageHero(galleries[:1], heroes, byID, "3")
+	if !ok || hero.Slug != "selected" {
+		t.Fatalf("selected homepage hero = %q, %t; want selected, true", hero.Slug, ok)
+	}
+}
+
+func int64Pointer(value int64) *int64 {
+	return &value
+}
+
 func TestRenderStoryPreviewIncludesDraftStoryWithoutPublishing(t *testing.T) {
 	tmp := t.TempDir()
 	cfg := config.New(tmp, filepath.Join(tmp, "output"))
@@ -676,6 +792,46 @@ func TestNestedCoverFallback(t *testing.T) {
 	}
 	if !strings.Contains(string(index), "background-image") {
 		t.Error("folder gallery card should inherit a cover from its nested child")
+	}
+
+	darkroom, err := theme.Load(os.DirFS("../../themes/darkroom"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := st.SetSetting(ctx, "site.introduction", "Photography by Example Name"); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, darkroom, cfg).Build(ctx); err != nil {
+		t.Fatal(err)
+	}
+	folderPage, err := os.ReadFile(filepath.Join(cfg.OutputDir, "2026", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(folderPage), `class="gallery-hero has-image"`) {
+		t.Error("empty folder should inherit a hero from its published descendant")
+	}
+	homepage, err := os.ReadFile(filepath.Join(cfg.OutputDir, "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(homepage), `<h1>Photography by Example Name</h1>`) {
+		t.Error("homepage did not render the configured site introduction")
+	}
+
+	if err := st.SetSetting(ctx, "theme.darkroom.showHero", "false"); err != nil {
+		t.Fatal(err)
+	}
+	if err := New(st, darkroom, cfg).Build(ctx); err != nil {
+		t.Fatal(err)
+	}
+	folderPage, err = os.ReadFile(filepath.Join(cfg.OutputDir, "2026", "index.html"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(folderPage), `class="gallery-hero`) ||
+		!strings.Contains(string(folderPage), `class="gallery-heading"`) {
+		t.Error("disabled Darkroom hero did not render the compact folder heading")
 	}
 }
 
