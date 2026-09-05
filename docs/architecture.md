@@ -411,9 +411,9 @@ lightbox dialog. A theme can override any shared partial or asset by providing
 the same relative path; theme files take precedence. Page composition and all
 visual styling remain theme-owned.
 
-Curator ships three themes: `default`, the reference implementation of the
-theme contract; `folio`, an editorial presentation; and `darkroom`, a
-cinematic image-first presentation with automatic gallery heroes.
+Curator ships four themes: `default`, the reference implementation of the
+theme contract; `folio`, an editorial presentation; `darkroom`, a cinematic
+image-first presentation; and `nordic`, a restrained contemporary gallery.
 
 ### Front-end approach
 

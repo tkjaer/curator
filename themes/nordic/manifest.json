@@ -1,0 +1,13 @@
+{
+  "name": "nordic",
+  "version": "1.0.0",
+  "engine": ">=0.1",
+  "requiresPresets": ["thumb", "display", "w800", "w1600", "w2400"],
+  "options": [
+    { "key": "accent",        "type": "color", "label": "Accent color",                "default": "" },
+    { "key": "showHero",      "type": "bool",  "label": "Show hero image",             "default": false },
+    { "key": "gridGap",       "type": "int",   "label": "Grid gap (px)",              "default": 16,  "min": 0 },
+    { "key": "rowHeight",     "type": "int",   "label": "Target row height",           "default": 380, "min": 1 },
+    { "key": "panoFullWidth", "type": "bool",  "label": "Prefer full-width panoramas", "default": true }
+  ]
+}

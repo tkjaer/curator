@@ -1,0 +1,11 @@
+{{define "gallery-story"}}{{template "site-head" .}}
+<article class="story">
+  <header class="story-head">{{template "breadcrumbs" .Breadcrumb}}<p class="eyebrow">Story</p><h1>{{.Title}}</h1>{{if .Description}}<div class="prose description">{{.Description}}</div>{{end}}</header>
+  {{range .Blocks}}
+  {{if eq .Type "grid"}}{{template "grid" .Rows}}
+  {{else if eq .Type "image"}}{{template "story-image" .Photo}}
+  {{else}}<div class="prose">{{.HTML}}</div>
+  {{end}}
+  {{end}}
+</article>
+{{template "site-foot" .}}{{end}}
