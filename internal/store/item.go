@@ -159,8 +159,8 @@ type CameraLensClue struct {
 	Camera          string
 	Focal           string
 	MaxApertureAPEX string
-	XMPProfile      string
 	Count           int
+	TotalCount      int
 }
 
 // LensSuggestion is an existing effective lens name that can be reused as a
@@ -233,19 +233,19 @@ func (s *Store) LensSuggestions(ctx context.Context) ([]LensSuggestion, error) {
 // lens name. MaxApertureAPEX is retained as a rational for conversion by the UI.
 func (s *Store) CameraLensClues(ctx context.Context) ([]CameraLensClue, error) {
 	rows, err := s.DB.QueryContext(ctx,
-		`SELECT trim(camera), trim(focal),
-		        CASE WHEN json_valid(exif)
-		             THEN COALESCE(json_extract(exif, '$.MaxApertureValue[0]'), '')
+		`SELECT trim(i.camera), trim(i.focal),
+		        CASE WHEN json_valid(i.exif)
+		             THEN COALESCE(json_extract(i.exif, '$.MaxApertureValue[0]'), '')
 		             ELSE '' END,
-		        trim(xmp_lens), count(*)
-		   FROM items
-		  WHERE trim(camera) <> '' AND trim(embedded_lens) = '' AND trim(sidecar_lens) = ''
-		  GROUP BY trim(camera), trim(focal),
-		           CASE WHEN json_valid(exif)
-		                THEN COALESCE(json_extract(exif, '$.MaxApertureValue[0]'), '')
-		                ELSE '' END,
-		           trim(xmp_lens)
-		  ORDER BY trim(camera) COLLATE NOCASE`)
+		        count(*),
+		        (SELECT count(*) FROM items AS all_items WHERE trim(all_items.camera) = trim(i.camera))
+		   FROM items AS i
+		  WHERE trim(i.camera) <> '' AND trim(i.embedded_lens) = '' AND trim(i.sidecar_lens) = ''
+		  GROUP BY trim(i.camera), trim(i.focal),
+		           CASE WHEN json_valid(i.exif)
+		                THEN COALESCE(json_extract(i.exif, '$.MaxApertureValue[0]'), '')
+		                ELSE '' END
+		  ORDER BY trim(i.camera) COLLATE NOCASE`)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (s *Store) CameraLensClues(ctx context.Context) ([]CameraLensClue, error) {
 	var clues []CameraLensClue
 	for rows.Next() {
 		var clue CameraLensClue
-		if err := rows.Scan(&clue.Camera, &clue.Focal, &clue.MaxApertureAPEX, &clue.XMPProfile, &clue.Count); err != nil {
+		if err := rows.Scan(&clue.Camera, &clue.Focal, &clue.MaxApertureAPEX, &clue.Count, &clue.TotalCount); err != nil {
 			return nil, err
 		}
 		clues = append(clues, clue)

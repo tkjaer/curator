@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 
@@ -61,7 +62,8 @@ func Extract(path string) (Data, error) {
 	x, err := exif.Decode(f)
 	if err != nil {
 		if sidecarProfile == "" {
-			sidecarProfile = xmpLens(path)
+			embeddedLens, embeddedProfile := xmpLens(path)
+			sidecarProfile = xmpLensValue("", embeddedLens, embeddedProfile)
 		}
 		return Data{
 			Title:       firstText(sidecarText.Title, embeddedText.Title, iptcText.ObjectName, iptcText.Headline),
@@ -85,9 +87,10 @@ func Extract(path string) (Data, error) {
 		Focal:       focal(x),
 	}
 	if d.Lens == "" {
-		d.XMPLens = sidecarProfile
+		d.XMPLens = xmpLensValue(d.Camera, "", sidecarProfile)
 		if d.XMPLens == "" {
-			d.XMPLens = xmpLens(path)
+			embeddedLens, embeddedProfile := xmpLens(path)
+			d.XMPLens = xmpLensValue(d.Camera, embeddedLens, embeddedProfile)
 		}
 	}
 	if t, err := x.DateTime(); err == nil {
@@ -101,35 +104,35 @@ func Extract(path string) (Data, error) {
 
 var xmpHeader = []byte("http://ns.adobe.com/xap/1.0/\x00")
 
-func xmpLens(path string) string {
+func xmpLens(path string) (lens, profile string) {
 	f, err := os.Open(path)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	defer f.Close()
 
 	var soi [2]byte
 	if _, err := io.ReadFull(f, soi[:]); err != nil || soi != [2]byte{0xff, 0xd8} {
-		return ""
+		return "", ""
 	}
 	for {
 		marker, err := nextJPEGMarker(f)
 		if err != nil || marker == 0xda || marker == 0xd9 {
-			return ""
+			return "", ""
 		}
 		if marker == 0x01 || marker >= 0xd0 && marker <= 0xd8 {
 			continue
 		}
 		var size uint16
 		if err := binary.Read(f, binary.BigEndian, &size); err != nil || size < 2 {
-			return ""
+			return "", ""
 		}
 		payload := make([]byte, int(size)-2)
 		if _, err := io.ReadFull(f, payload); err != nil {
-			return ""
+			return "", ""
 		}
 		if marker == 0xe1 && bytes.HasPrefix(payload, xmpHeader) {
-			return parseXMPLens(payload[len(xmpHeader):])
+			return parseXMP(payload[len(xmpHeader):])
 		}
 	}
 }
@@ -156,10 +159,26 @@ func nextJPEGMarker(r io.Reader) (byte, error) {
 
 func parseXMPLens(data []byte) string {
 	lens, profile := parseXMP(data)
+	return xmpLensValue("", lens, profile)
+}
+
+func xmpLensValue(camera, lens, profile string) string {
 	if lens != "" {
 		return lens
 	}
+	if metadataIdentity(profile) == metadataIdentity(camera) && metadataIdentity(camera) != "" {
+		return ""
+	}
 	return profile
+}
+
+func metadataIdentity(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, value)
 }
 
 type textMetadata struct {

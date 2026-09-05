@@ -286,7 +286,9 @@ func TestCameraLensClues(t *testing.T) {
 	items[2].Camera = "Canon EOS R5"
 	items[2].Lens = "RF 50mm F1.2"
 	items[2].EmbeddedLens = "RF 50mm F1.2"
-	items[3].Camera = "  "
+	items[3].Camera = "FUJIFILM XF10"
+	items[3].Lens = "Known lens"
+	items[3].EmbeddedLens = "Known lens"
 	for _, item := range items {
 		if err := st.UpdateItemEXIF(ctx, item); err != nil {
 			t.Fatal(err)
@@ -298,7 +300,7 @@ func TestCameraLensClues(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(clues) != 1 || clues[0].Camera != "FUJIFILM XF10" || clues[0].Focal != "18.5 mm" ||
-		clues[0].MaxApertureAPEX != "297/100" || clues[0].Count != 2 {
+		clues[0].MaxApertureAPEX != "297/100" || clues[0].Count != 2 || clues[0].TotalCount != 3 {
 		t.Fatalf("clues = %+v", clues)
 	}
 }
